@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
+import type { FC } from 'react';
 import chickenLogo from "../assets/chicken.svg";
 import fishLogo from "../assets/fish.svg";
 import plantsLogo from "../assets/plants.svg";
 import sheepLogo from "../assets/sheep.svg";
 
 
-const Header: React.FC = () => {
+const Header: FC = () => {
   const location = useLocation();
 
   const isVolaillesPage = location.pathname.startsWith("/volailles");

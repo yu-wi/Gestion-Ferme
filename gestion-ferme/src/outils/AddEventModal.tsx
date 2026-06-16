@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from 'react';
+
 interface AddEventModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -8,7 +10,7 @@ interface AddEventModalProps {
     end: string;
     category: string;
   };
-  setNewEvent: React.Dispatch<React.SetStateAction<{
+  setNewEvent: Dispatch<SetStateAction<{
     title: string;
     start: string;
     end: string;

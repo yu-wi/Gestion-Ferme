@@ -25,7 +25,7 @@ type WeekRow = {
   cost: number
 }
 
-export default function DashboardFeedForecast10Weeks(): JSX.Element {
+export default function DashboardFeedForecast10Weeks() {
   const [lots, setLots] = useState<Lot[]>([])
   const [references, setReferences] = useState<FeedReference[]>([])
   const [selectedLotId, setSelectedLotId] = useState<string | "">("")

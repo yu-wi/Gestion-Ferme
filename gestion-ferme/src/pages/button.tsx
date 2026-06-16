@@ -1,15 +1,13 @@
-// src/volailles/Button.tsx
-
-import React from "react";
+import type { FC, ReactNode } from "react";
 
 type ButtonProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick?: () => void;
   className?: string;
   type?: "button" | "submit" | "reset";
 };
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button: FC<ButtonProps> = ({
   children,
   onClick,
   className = "",

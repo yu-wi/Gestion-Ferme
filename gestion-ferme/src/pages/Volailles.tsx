@@ -10,6 +10,7 @@ interface LotVolaille {
 id: string; nom: string; quantite: number; dateArrivee: string;
 batiment: string; mortalites: Mortalite[]; evenements: Evenement[];
 couleur: string; age: number; autoconsommation?: number;
+is_active?: boolean;
 }
 
 
@@ -148,6 +149,7 @@ const ajouterLot = async () => {
    mortalites: [],
    evenements: nouveauxEvenements,
    couleur,
+   is_active: true,
  };
 
 
@@ -161,12 +163,14 @@ const ajouterLot = async () => {
    mortalites: [],
    evenements: nouveauxEvenements.map(e => ({ title: e.title, date: e.date.toISOString().split('T')[0] })),
    couleur,
-   sujets_restants: sujetsRestants
+   sujets_restants: sujetsRestants,
+   is_active: true
  });
 
 
  if (error) {
    console.error('Erreur lors de l’ajout du lot à Supabase :', error.message);
+   alert("Le lot n'a pas pu être enregistré dans Supabase : " + error.message);
  } else {
    setLots([...lots, nouveauLot]);
    setNom('');

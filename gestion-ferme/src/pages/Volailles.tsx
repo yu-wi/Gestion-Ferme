@@ -984,29 +984,12 @@ return (
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-5">
-          <button onClick={() => { setDetailLot(null); ouvrirMortaliteModal(lotDetail.id); }} className="!bg-green-600 !text-white rounded px-3 py-2">
-            Mortalité
-          </button>
-          <button onClick={() => { setDetailLot(null); ouvrirMortaliteDetailsModal(lotDetail.id); }} className="!bg-purple-600 !text-white rounded px-3 py-2">
-            Détails
-          </button>
+        <div className="mt-5 flex justify-end">
           <button
-            onClick={() => {
-              setSelectedLot(lotDetail);
-              setLivraisons([{ date: '', quantite: '', poids: '' }]);
-              setDetailLot(null);
-              setShowLivraisonModal(true);
-            }}
-            className="!bg-sky-600 !text-white rounded px-3 py-2"
+            onClick={() => setDetailLot(null)}
+            className="!bg-gray-700 !text-white rounded px-4 py-2"
           >
-            Livraison
-          </button>
-          <button onClick={() => { setSelectedLot(lotDetail); setDetailLot(null); setVenteModalOpen(true); }} className="!bg-yellow-400 !text-black rounded px-3 py-2">
-            Vente
-          </button>
-          <button onClick={() => { const id = lotDetail.id; setDetailLot(null); archiverLot(id); }} disabled={saving} className="!bg-gray-700 !text-white rounded px-3 py-2 disabled:opacity-60">
-            Archiver
+            Fermer
           </button>
         </div>
       </div>

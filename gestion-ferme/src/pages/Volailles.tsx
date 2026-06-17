@@ -545,8 +545,8 @@ return (
        <p className="text-sm text-gray-600">Lots actifs, planning sanitaire, livraisons et ventes.</p>
      </div>
      <div className="flex flex-wrap gap-2">
-       <button className="bg-green-500 text-black px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>Autoconsommation</button>
-       <button className="bg-slate-700 text-white px-4 py-2 rounded" onClick={() => exportToExcel(filteredLots)}>
+       <button className="!bg-emerald-600 !text-white px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>Autoconsommation</button>
+       <button className="!bg-slate-700 !text-white px-4 py-2 rounded" onClick={() => exportToExcel(filteredLots)}>
          Exporter en Excel
        </button>
      </div>
@@ -591,7 +591,7 @@ return (
          Bâtiment
          <input type="text" placeholder="Ex. B1" value={batiment} onChange={e => setBatiment(e.target.value)} className="mt-1 w-full border p-2 rounded" />
        </label>
-       <button onClick={ajouterLot} disabled={saving} className="self-end bg-blue-600 text-white p-2 rounded disabled:opacity-60">
+       <button onClick={ajouterLot} disabled={saving} className="self-end !bg-blue-600 !text-white p-2 rounded disabled:opacity-60">
        {saving ? 'Enregistrement...' : 'Ajouter Lot'}
        </button>
      </div>
@@ -694,10 +694,10 @@ return (
          <td className="border p-2">{lot.batiment}</td>
          <td className="border p-2">
           <div className="flex flex-wrap gap-2">
-         <button onClick={() => ouvrirMortaliteModal(lot.id)} className="bg-green-600 text-white px-3 py-2 rounded" title="Ajouter une mortalité">
+         <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded" title="Ajouter une mortalité">
             Mortalité
            </button>
-           <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="bg-purple-600 text-white px-3 py-2 rounded" title="Voir les mortalités">
+           <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded" title="Voir les mortalités">
            Détails
            </button>
           <button onClick={() => {
@@ -705,13 +705,13 @@ return (
                 setLivraisons([{ date: '', quantite: '', poids: '' }]);
                 setShowLivraisonModal(true);
               }}
-              className="bg-sky-600 text-white px-3 py-2 rounded"
+              className="!bg-sky-600 !text-white px-3 py-2 rounded"
               title="Ajouter une livraison"
             >
                 Livraison
           </button>
            <button onClick={() => {setSelectedLot(lot);setVenteModalOpen(true);}}
-            className="bg-yellow-500 text-black px-3 py-2 rounded"
+            className="!bg-yellow-400 !text-black px-3 py-2 rounded"
             title="Enregistrer une vente"
           >
             Vente
@@ -720,7 +720,7 @@ return (
             <button
               onClick={() => archiverLot(lot.id)}
               disabled={saving}
-              className="bg-gray-700 text-white px-3 py-2 rounded disabled:opacity-60"
+              className="!bg-gray-700 !text-white px-3 py-2 rounded disabled:opacity-60"
               title="Archiver le lot"
             >
               Archiver
@@ -775,7 +775,7 @@ return (
 
       <button
         onClick={addLivraison}
-        className="bg-green-500 text-black p-2 rounded w-full mb-2"
+        className="!bg-emerald-600 !text-white p-2 rounded w-full mb-2"
       >
         + Ajouter une livraison
       </button>
@@ -786,12 +786,12 @@ return (
           if (saved) setShowLivraisonModal(false);
         }}
         disabled={saving}
-        className="bg-blue-500 text-black p-2 rounded w-full disabled:opacity-60"
+        className="!bg-blue-600 !text-white p-2 rounded w-full disabled:opacity-60"
       >
         {saving ? 'Enregistrement...' : '💾 Enregistrer les livraisons'}
       </button>
 
-      <button onClick={() => setShowLivraisonModal(false)} className="bg-gray-500 text-black p-2 rounded w-full mt-2">
+      <button onClick={() => setShowLivraisonModal(false)} className="!bg-gray-200 !text-gray-900 p-2 rounded w-full mt-2">
         Annuler
       </button>
     </div>
@@ -808,10 +808,10 @@ return (
          <p className="mb-4 text-sm text-gray-600">{lots.find((lot) => lot.id === mortaliteLotId)?.nom}</p>
          <input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} className="border p-2 rounded mb-2 w-full" />
          <input type="number" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} className="border p-2 rounded mb-4 w-full" />
-         <button onClick={enregistrerMortalite} disabled={saving} className="bg-blue-500 text-black p-2 rounded w-full disabled:opacity-60">
+         <button onClick={enregistrerMortalite} disabled={saving} className="!bg-blue-600 !text-white p-2 rounded w-full disabled:opacity-60">
            {saving ? 'Enregistrement...' : 'Enregistrer'}
          </button>
-         <button onClick={() => setMortaliteModalOpen(false)} className="bg-gray-500 text-black p-2 rounded w-full mt-2">Annuler</button>
+         <button onClick={() => setMortaliteModalOpen(false)} className="!bg-gray-200 !text-gray-900 p-2 rounded w-full mt-2">Annuler</button>
        </div>
      </div>
    )}
@@ -855,7 +855,7 @@ return (
 
      <button
        onClick={fermerMortaliteDetailsModal}
-       className="bg-gray-700 text-white mt-6 px-4 py-2 rounded hover:bg-gray-800"
+       className="!bg-gray-700 !text-white mt-6 px-4 py-2 rounded hover:bg-gray-800"
      >
        Fermer
      </button>
@@ -885,13 +885,13 @@ return (
       <button
         onClick={handleEnregistrerVente}
         disabled={saving}
-        className="w-full bg-green-500 text-black py-2 rounded mb-2 disabled:opacity-60"
+        className="w-full !bg-emerald-600 !text-white py-2 rounded mb-2 disabled:opacity-60"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>
       <button
         onClick={() => setVenteModalOpen(false)}
-        className="w-full bg-gray-300 text-black py-2 rounded"
+        className="w-full !bg-gray-200 !text-gray-900 py-2 rounded"
       >
         Annuler
       </button>
@@ -936,7 +936,7 @@ return (
           <button
             onClick={handleSaveAutoconsommation}
             disabled={saving}
-            className="bg-green-600 text-black p-2 rounded w-full disabled:opacity-60"
+            className="!bg-emerald-600 !text-white p-2 rounded w-full disabled:opacity-60"
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
@@ -949,7 +949,7 @@ return (
           setSelectedLot(null);
           setQuantiteAutoconsommationInput('');
         }}
-        className="mt-2 p-2 w-full bg-gray-400 rounded text-black"
+        className="mt-2 p-2 w-full !bg-gray-200 !text-gray-900 rounded"
       >
         Annuler
       </button>

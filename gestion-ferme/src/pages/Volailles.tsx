@@ -12,6 +12,16 @@ id: string; nom: string; quantite: number; dateArrivee: string;
 batiment: string; mortalites: Mortalite[]; evenements: Evenement[];
 couleur: string; age: number; autoconsommation?: number;
 is_active?: boolean;
+livraison_1_date?: string;
+livraison_1_quantite?: number;
+livraison_1_poids?: number;
+livraison_2_date?: string;
+livraison_2_quantite?: number;
+livraison_2_poids?: number;
+facture_date?: string;
+resultat_brut?: number;
+nb_morts?: number;
+sujets_restants?: number;
 }
 
 
@@ -40,6 +50,7 @@ const [sortColumn, setSortColumn] = useState<string>('nom');
 const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
 const [selectedLot, setSelectedLot] = useState<any>(null);
+const [detailLot, setDetailLot] = useState<LotVolaille | null>(null);
 const [livraisons, setLivraisons] = useState([
   { date: '', quantite: '', poids: '' },
 ]);
@@ -707,6 +718,9 @@ return (
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
+          <button onClick={() => setDetailLot(lot)} className="!bg-slate-700 !text-white px-3 py-2 rounded text-sm col-span-2">
+            Fiche du lot
+          </button>
           <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm">
             Mortalité
           </button>
@@ -810,6 +824,9 @@ return (
          <td className="border p-2">{lot.batiment}</td>
          <td className="border p-2">
           <div className="grid grid-cols-2 gap-2 min-w-56">
+         <button onClick={() => setDetailLot(lot)} className="!bg-slate-700 !text-white px-3 py-2 rounded text-sm col-span-2" title="Voir la fiche du lot">
+            Fiche du lot
+           </button>
          <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm" title="Ajouter une mortalité">
             Mortalité
            </button>
@@ -851,6 +868,151 @@ return (
 
 </div>
 </div>
+
+{detailLot && (() => {
+  const lotDetail = detailLot;
+  const sujetsRestants = calculerSujetsRestants(lotDetail);
+  const totalMortalitesLot = Array.isArray(lotDetail.mortalites)
+    ? lotDetail.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
+    : 0;
+  const tauxMortaliteLot = lotDetail.quantite > 0 ? (totalMortalitesLot / lotDetail.quantite) * 100 : 0;
+  const ageJours = Math.floor(
+    (new Date().getTime() - new Date(lotDetail.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const livraisonsExistantes = [
+    {
+      date: lotDetail.livraison_1_date,
+      quantite: lotDetail.livraison_1_quantite,
+      poids: lotDetail.livraison_1_poids,
+    },
+    {
+      date: lotDetail.livraison_2_date,
+      quantite: lotDetail.livraison_2_quantite,
+      poids: lotDetail.livraison_2_poids,
+    },
+  ].filter((livraison) => livraison.date || livraison.quantite || livraison.poids);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">{lotDetail.nom}</h2>
+            <p className="text-sm text-gray-600">
+              {lotDetail.batiment} · arrivé le {lotDetail.dateArrivee} · {ageJours} jours
+            </p>
+          </div>
+          <button
+            onClick={() => setDetailLot(null)}
+            className="!bg-gray-200 !text-gray-900 rounded px-4 py-2"
+          >
+            Fermer
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded border p-3">
+            <div className="text-xs uppercase text-gray-500">Quantité initiale</div>
+            <div className="text-xl font-bold">{lotDetail.quantite}</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-xs uppercase text-gray-500">Restants</div>
+            <div className="text-xl font-bold">{sujetsRestants}</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-xs uppercase text-gray-500">Mortalités</div>
+            <div className="text-xl font-bold">{totalMortalitesLot}</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-xs uppercase text-gray-500">Taux mortalité</div>
+            <div className="text-xl font-bold">{tauxMortaliteLot.toFixed(1)} %</div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <section className="rounded border p-4">
+            <h3 className="font-semibold">Livraisons</h3>
+            {livraisonsExistantes.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-500">Aucune livraison enregistrée.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {livraisonsExistantes.map((livraison, index) => (
+                  <div key={index} className="rounded bg-gray-50 p-3 text-sm">
+                    <div className="font-medium">Livraison {index + 1}</div>
+                    <div>Date : {livraison.date || '-'}</div>
+                    <div>Quantité : {livraison.quantite || 0}</div>
+                    <div>Poids : {livraison.poids || 0} kg</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded border p-4">
+            <h3 className="font-semibold">Mortalités</h3>
+            {lotDetail.mortalites?.length ? (
+              <div className="mt-3 max-h-48 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-2 text-left">Date</th>
+                      <th className="py-2 text-left">Nombre</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lotDetail.mortalites.map((mortalite, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="py-2">{mortalite.date}</td>
+                        <td className="py-2">{mortalite.nombre}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">Aucune mortalité enregistrée.</p>
+            )}
+          </section>
+        </div>
+
+        <div className="mt-5 rounded border p-4">
+          <h3 className="font-semibold">Vente et autoconsommation</h3>
+          <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+            <div>Date facture : {lotDetail.facture_date || '-'}</div>
+            <div>Résultat brut : {lotDetail.resultat_brut ?? '-'} €</div>
+            <div>Autoconsommation : {lotDetail.autoconsommation ?? 0}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-5">
+          <button onClick={() => { setDetailLot(null); ouvrirMortaliteModal(lotDetail.id); }} className="!bg-green-600 !text-white rounded px-3 py-2">
+            Mortalité
+          </button>
+          <button onClick={() => { setDetailLot(null); ouvrirMortaliteDetailsModal(lotDetail.id); }} className="!bg-purple-600 !text-white rounded px-3 py-2">
+            Détails
+          </button>
+          <button
+            onClick={() => {
+              setSelectedLot(lotDetail);
+              setLivraisons([{ date: '', quantite: '', poids: '' }]);
+              setDetailLot(null);
+              setShowLivraisonModal(true);
+            }}
+            className="!bg-sky-600 !text-white rounded px-3 py-2"
+          >
+            Livraison
+          </button>
+          <button onClick={() => { setSelectedLot(lotDetail); setDetailLot(null); setVenteModalOpen(true); }} className="!bg-yellow-400 !text-black rounded px-3 py-2">
+            Vente
+          </button>
+          <button onClick={() => { const id = lotDetail.id; setDetailLot(null); archiverLot(id); }} disabled={saving} className="!bg-gray-700 !text-white rounded px-3 py-2 disabled:opacity-60">
+            Archiver
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+})()}
 
    {/* Modale pour enregistrer les livraisons */}
 {showLivraisonModal && (

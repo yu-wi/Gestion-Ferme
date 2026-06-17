@@ -4,9 +4,13 @@ import chickenLogo from "../assets/chicken.svg";
 import fishLogo from "../assets/fish.svg";
 import plantsLogo from "../assets/plants.svg";
 import sheepLogo from "../assets/sheep.svg";
+import { supabase } from "../supabaseClient";
 
+type HeaderProps = {
+  userEmail: string;
+};
 
-const Header: FC = () => {
+const Header: FC<HeaderProps> = ({ userEmail }) => {
   const location = useLocation();
 
   const isVolaillesPage = location.pathname.startsWith("/volailles");
@@ -26,6 +30,24 @@ const Header: FC = () => {
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
           Gestion SCEA La Ferme de Bernard
         </h1>
+        <div style={{ marginTop: '6px', fontSize: '0.85rem' }}>
+          <span>{userEmail}</span>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            style={{
+              marginLeft: '12px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid rgba(255,255,255,0.8)',
+              background: 'rgba(255,255,255,0.15)',
+              color: 'white',
+              cursor: 'pointer',
+            }}
+          >
+            Deconnexion
+          </button>
+        </div>
       </div>
 
       {/* Menu principal */}

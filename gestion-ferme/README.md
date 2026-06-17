@@ -44,3 +44,16 @@ npm run dev
 
 - Le fichier `vercel.json` redirige les routes React vers `index.html`.
 - La configuration Vite separe les principales bibliotheques en plusieurs fichiers pour limiter les alertes de taille au build.
+
+## Authentification
+
+L'application affiche maintenant un ecran de connexion avant les pages de gestion.
+
+Avant de deployer cette version, verifier dans Supabase :
+
+1. Aller dans `Authentication > Providers`.
+2. Activer `Email`.
+3. Creer le ou les comptes autorises dans `Authentication > Users`.
+4. Utiliser ces identifiants sur l'ecran de connexion de l'application.
+
+Cette version ne propose pas d'inscription publique depuis l'interface.

@@ -23,6 +23,7 @@ const [dateArrivee, setDateArrivee] = useState('');
 const [batiment, setBatiment] = useState('');
 const [searchNom, setSearchNom] = useState('');
 const [searchBatiment, setSearchBatiment] = useState('');
+const [showOnlyAlertLots, setShowOnlyAlertLots] = useState(false);
 
 
 const [mortaliteModalOpen, setMortaliteModalOpen] = useState(false);
@@ -86,6 +87,9 @@ useEffect(() => {
 
 // Filtre les lots par nom et bâtiment
 const filteredLots = lots.filter(lot => {
+ const sujetsRestants = calculerSujetsRestants(lot);
+ const ratio = lot.quantite > 0 ? sujetsRestants / lot.quantite : 0;
+ if (showOnlyAlertLots && ratio >= 0.5) return false;
  return (
    lot.nom.toLowerCase().includes(searchNom.toLowerCase()) &&
    lot.batiment.toLowerCase().includes(searchBatiment.toLowerCase())
@@ -633,6 +637,14 @@ return (
       onChange={e => setSearchBatiment(e.target.value)}
       className="border p-2 rounded w-full"
     />
+    <label className="flex items-center gap-2 rounded border px-3 py-2 text-sm text-gray-700">
+      <input
+        type="checkbox"
+        checked={showOnlyAlertLots}
+        onChange={(event) => setShowOnlyAlertLots(event.target.checked)}
+      />
+      Lots à surveiller
+    </label>
     </div>
   </div>
 
@@ -645,7 +657,7 @@ return (
      <th onClick={() => handleSort('dateArrivee')} className="border p-2 cursor-pointer">Date Arrivée</th>
      <th className="border p-2">Âge (jours)</th>
      <th onClick={() => handleSort('quantite')} className="border p-2 cursor-pointer">Quantité</th>
-     <th className="border p-2">Sujets restants</th>
+     <th className="border p-2">Situation</th>
      <th onClick={() => handleSort('batiment')} className="border p-2 cursor-pointer">Bâtiment</th>
      <th className="border p-2">Actions</th>
    </tr>
@@ -661,10 +673,17 @@ return (
    {sortedLots.map(lot => {
      const sujetsRestants = calculerSujetsRestants(lot);
      const ratio = sujetsRestants / lot.quantite;     
+     const totalMortalitesLot = Array.isArray(lot.mortalites)
+       ? lot.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
+       : 0;
+     const tauxMortaliteLot = lot.quantite > 0 ? (totalMortalitesLot / lot.quantite) * 100 : 0;
 
      let badgeColor = 'bg-green-500';
+     let statusLabel = 'OK';
      if (ratio < 0.25) badgeColor = 'bg-red-500';
      else if (ratio < 0.5) badgeColor = 'bg-orange-500';
+     if (ratio < 0.25) statusLabel = 'Critique';
+     else if (ratio < 0.5) statusLabel = 'À surveiller';
 
 
      // Calcul de l'âge en jours
@@ -687,17 +706,23 @@ return (
          <td className="border p-2">{ageJours}</td>
          <td className="border p-2">{lot.quantite}</td>
          <td className="border p-2">
-           <span className={`text-white px-2 py-1 rounded text-xs ${badgeColor}`}>
-             {sujetsRestants}
-           </span>
+           <div className="space-y-1">
+             <span className={`inline-flex min-w-16 justify-center text-white px-2 py-1 rounded text-xs ${badgeColor}`}>
+               {sujetsRestants} restants
+             </span>
+             <div className="text-xs text-gray-600">
+               {totalMortalitesLot} morts · {tauxMortaliteLot.toFixed(1)} %
+             </div>
+             <div className="text-xs font-semibold text-gray-700">{statusLabel}</div>
+           </div>
          </td>
          <td className="border p-2">{lot.batiment}</td>
          <td className="border p-2">
-          <div className="flex flex-wrap gap-2">
-         <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded" title="Ajouter une mortalité">
+          <div className="grid grid-cols-2 gap-2 min-w-56">
+         <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm" title="Ajouter une mortalité">
             Mortalité
            </button>
-           <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded" title="Voir les mortalités">
+           <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded text-sm" title="Voir les mortalités">
            Détails
            </button>
           <button onClick={() => {
@@ -705,13 +730,13 @@ return (
                 setLivraisons([{ date: '', quantite: '', poids: '' }]);
                 setShowLivraisonModal(true);
               }}
-              className="!bg-sky-600 !text-white px-3 py-2 rounded"
+              className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
               title="Ajouter une livraison"
             >
                 Livraison
           </button>
            <button onClick={() => {setSelectedLot(lot);setVenteModalOpen(true);}}
-            className="!bg-yellow-400 !text-black px-3 py-2 rounded"
+            className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm"
             title="Enregistrer une vente"
           >
             Vente
@@ -720,7 +745,7 @@ return (
             <button
               onClick={() => archiverLot(lot.id)}
               disabled={saving}
-              className="!bg-gray-700 !text-white px-3 py-2 rounded disabled:opacity-60"
+              className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
               title="Archiver le lot"
             >
               Archiver

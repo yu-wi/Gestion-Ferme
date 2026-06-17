@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import frLocale from '@fullcalendar/core/locales/fr';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import AddEventModal from "../outils/AddEventModal";
+import toast from 'react-hot-toast';
 
 
 export default function Accueil() {
@@ -154,6 +155,7 @@ export default function Accueil() {
 
     if (error) {
       console.error("Erreur lors de la mise à jour :", error);
+      toast.error("L'événement n'a pas pu être modifié.");
       return;
     }
 
@@ -162,6 +164,7 @@ export default function Accueil() {
         event.id === selectedEventId ? { ...event, ...newEvent } : event
       )
     );
+    toast.success('Événement modifié.');
   } else {
     const id = uuidv4();
     const { error } = await supabase.from("evenements").insert([
@@ -176,10 +179,12 @@ export default function Accueil() {
 
     if (error) {
       console.error("Erreur lors de l'ajout :", error);
+      toast.error("L'événement n'a pas pu être ajouté.");
       return;
     }
 
     setEvents([...events, { ...newEvent, id }]);
+    toast.success('Événement ajouté.');
   }
 
   resetModal();
@@ -194,10 +199,12 @@ const handleDeleteEvent = async () => {
 
     if (error) {
       console.error("Erreur suppression :", error);
+      toast.error("L'événement n'a pas pu être supprimé.");
       return;
     }
 
     setEvents(events.filter((e) => e.id !== selectedEventId));
+    toast.success('Événement supprimé.');
   }
 
   resetModal();

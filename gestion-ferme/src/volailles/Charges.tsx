@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import toast from "react-hot-toast";
 
 interface Charge {
   id: number;
@@ -66,8 +67,10 @@ const Charges = () => {
       setMontant(0);
       setDate("");
       fetchCharges();
+      toast.success("Charge enregistrée.");
     } else {
       console.error("Erreur enregistrement charge:", error.message);
+      toast.error("La charge n'a pas pu être enregistrée.");
     }
   };
 

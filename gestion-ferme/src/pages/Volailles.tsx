@@ -3,6 +3,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
+import toast from 'react-hot-toast';
 
 interface Mortalite { date: string; nombre: number; }
 interface Evenement { title: string; date: Date; }
@@ -170,14 +171,15 @@ const ajouterLot = async () => {
 
  if (error) {
    console.error('Erreur lors de l’ajout du lot à Supabase :', error.message);
-   alert("Le lot n'a pas pu être enregistré dans Supabase : " + error.message);
- } else {
+   toast.error("Le lot n'a pas pu être enregistré.");
+  } else {
    setLots([...lots, nouveauLot]);
    setNom('');
    setQuantite(0);
    setDateArrivee('');
    setBatiment('');
- }
+   toast.success('Lot enregistré.');
+  }
 };
 
 
@@ -217,6 +219,7 @@ const enregistrerMortalite = async () => {
 
   if (error) {
     console.error('Erreur ajout mortalité Supabase:', error);
+    toast.error("La mortalité n'a pas pu être enregistrée.");
   } else if (data && data.length > 0) {
     const updatedLot = data[0];
 
@@ -229,6 +232,7 @@ const enregistrerMortalite = async () => {
     setMortaliteNombre(0);
     setMortaliteDate('');
     setMortaliteLotId(null);
+    toast.success('Mortalité enregistrée.');
   }
 };
 
@@ -367,11 +371,14 @@ const handleSaveLivraison = async () => {
 
     if (error) {
       console.error('Erreur Supabase:', error);
+      toast.error("La livraison n'a pas pu être enregistrée.");
     } else {
       console.log('Livraisons enregistrées:', data);
+      toast.success('Livraison enregistrée.');
     }
   } catch (error) {
     console.error("Erreur lors de l'enregistrement de la livraison", error);
+    toast.error("La livraison n'a pas pu être enregistrée.");
   }
 };
 
@@ -384,16 +391,17 @@ const archiverLot = async (lotId: string) => {
       .eq('id', lotId);
 
     if (error) {
-      alert("Erreur lors de l'archivage du lot : " + error.message);
+      toast.error("Le lot n'a pas pu être archivé.");
       return;
     }
 
     setLots((prevLots) => prevLots.filter((lot) => lot.id !== lotId));
 
-    alert(`Le lot a été archivé avec succès.`);
+    toast.success('Lot archivé.');
 
   } catch (err) {
-    alert("Erreur inconnue lors de l'archivage : " + err);
+    console.error("Erreur inconnue lors de l'archivage :", err);
+    toast.error("Le lot n'a pas pu être archivé.");
   }
 };
 
@@ -417,6 +425,7 @@ const handleSaveAutoconsommation = async () => {
 
   if (error) {
     console.error("Erreur lors de l'enregistrement de l'autoconsommation", error);
+    toast.error("L'autoconsommation n'a pas pu être enregistrée.");
   } else if (data && data.length > 0) {
     const updatedLot = data[0];
 
@@ -429,6 +438,7 @@ const handleSaveAutoconsommation = async () => {
     setShowAutoconsommationModal(false);
     setSelectedLot(null);
     setQuantiteAutoconsommationInput('');
+    toast.success('Autoconsommation enregistrée.');
   }
 };
 
@@ -451,12 +461,15 @@ const handleEnregistrerVente = async () => {
 
     if (error) {
       console.error('Erreur enregistrement vente :', error.message);
+      toast.error("La vente n'a pas pu être enregistrée.");
     } else {
       console.log('Vente enregistrée :', data);
       setVenteModalOpen(false);
+      toast.success('Vente enregistrée.');
     }
   } catch (err) {
     console.error('Erreur inattendue :', err);
+    toast.error("La vente n'a pas pu être enregistrée.");
   }
 };
 

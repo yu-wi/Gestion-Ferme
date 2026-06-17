@@ -18,6 +18,7 @@ interface AddEventModalProps {
   }>>;
   onSubmit: () => void;
   onDelete: () => void;
+  saving?: boolean;
  }
  
  
@@ -28,7 +29,8 @@ interface AddEventModalProps {
   newEvent,
   setNewEvent,
   onSubmit,
-  onDelete
+  onDelete,
+  saving = false
  }: AddEventModalProps) {
   if (!isOpen) return null;
  
@@ -109,9 +111,10 @@ interface AddEventModalProps {
             {isEdit && (
               <button
                 onClick={onDelete}
+                disabled={saving}
                 className="text-red-600 hover:underline text-sm"
               >
-                Supprimer
+                {saving ? "..." : "Supprimer"}
               </button>
             )}
             <div className="flex space-x-2">
@@ -123,9 +126,10 @@ interface AddEventModalProps {
               </button>
               <button
                 onClick={onSubmit}
-                className="px-4 py-2 bg-green-600 text-black rounded hover:bg-green-700"
+                disabled={saving}
+                className="px-4 py-2 bg-green-600 text-black rounded hover:bg-green-700 disabled:opacity-60"
               >
-                {isEdit ? "Modifier" : "Ajouter"}
+                {saving ? "Enregistrement..." : isEdit ? "Modifier" : "Ajouter"}
               </button>
             </div>
           </div>

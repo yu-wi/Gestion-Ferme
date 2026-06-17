@@ -47,6 +47,7 @@ const [showLivraisonModal, setShowLivraisonModal] = useState(false);
 const [venteModalOpen, setVenteModalOpen] = useState(false);
 const [factureDate, setFactureDate] = useState('');
 const [resultatBrut, setResultatBrut] = useState('');
+const [saving, setSaving] = useState(false);
 
 const [showAutoconsommationModal, setShowAutoconsommationModal] = useState(false);
   const [quantiteAutoconsommationInput, setQuantiteAutoconsommationInput] = useState('');
@@ -109,8 +110,13 @@ const sortedLots = [...filteredLots].sort((a, b) => {
 
 // Calcul des dates des événements
 const ajouterLot = async () => {
- if (!nom || quantite <= 0 || !dateArrivee || !batiment) return;
+ if (saving) return;
+ if (!nom.trim() || quantite <= 0 || !dateArrivee || !batiment.trim()) {
+   toast.error('Complétez le nom, la quantité, la date et le bâtiment.');
+   return;
+ }
 
+ setSaving(true);
 
  const id = crypto.randomUUID();
  const dateArriveeDate = new Date(dateArrivee);
@@ -180,6 +186,7 @@ const ajouterLot = async () => {
    setBatiment('');
    toast.success('Lot enregistré.');
   }
+  setSaving(false);
 };
 
 
@@ -194,10 +201,15 @@ const ouvrirMortaliteModal = (lotId: string) => {
 
 
 const enregistrerMortalite = async () => {
-  if (!mortaliteLotId || !mortaliteDate || mortaliteNombre <= 0) return;
+  if (saving) return;
+  if (!mortaliteLotId || !mortaliteDate || mortaliteNombre <= 0) {
+    toast.error('Indiquez une date et un nombre positif.');
+    return;
+  }
 
   const lot = lots.find((l) => l.id === mortaliteLotId);
   if (!lot) return;
+  setSaving(true);
 
   const nouvelleMortalite = { date: mortaliteDate, nombre: mortaliteNombre };
   const nouvellesMortalites = [...lot.mortalites, nouvelleMortalite];
@@ -234,6 +246,7 @@ const enregistrerMortalite = async () => {
     setMortaliteLotId(null);
     toast.success('Mortalité enregistrée.');
   }
+  setSaving(false);
 };
 
 
@@ -342,12 +355,26 @@ const handleInputChange = (
 
 // Fonction pour enregistrer les livraisons
 const handleSaveLivraison = async () => {
+  if (saving) return false;
   if (!selectedLot || !selectedLot.id) {
     console.error("Aucun lot sélectionné pour la livraison.");
-    return;
+    toast.error('Sélectionnez un lot.');
+    return false;
+  }
+
+  const hasValidLivraison = livraisons.some((livraison) =>
+    livraison.date &&
+    Number(livraison.quantite) > 0 &&
+    Number(livraison.poids) > 0
+  );
+
+  if (!hasValidLivraison) {
+    toast.error('Renseignez au moins une livraison complète.');
+    return false;
   }
 
   try {
+    setSaving(true);
     const livraisonFields = Object.fromEntries(
       livraisons.flatMap((livraison, index) => [
         [`livraison_${index + 1}_date`, livraison.date || null],
@@ -372,19 +399,26 @@ const handleSaveLivraison = async () => {
     if (error) {
       console.error('Erreur Supabase:', error);
       toast.error("La livraison n'a pas pu être enregistrée.");
+      return false;
     } else {
       console.log('Livraisons enregistrées:', data);
       toast.success('Livraison enregistrée.');
+      return true;
     }
   } catch (error) {
     console.error("Erreur lors de l'enregistrement de la livraison", error);
     toast.error("La livraison n'a pas pu être enregistrée.");
+    return false;
+  } finally {
+    setSaving(false);
   }
 };
 
 // Fonction pour archiver un lot
 const archiverLot = async (lotId: string) => {
+  if (saving) return;
   try {
+    setSaving(true);
     const { error } = await supabase
       .from('lots_volailles')
       .update({ is_active: false })
@@ -402,14 +436,26 @@ const archiverLot = async (lotId: string) => {
   } catch (err) {
     console.error("Erreur inconnue lors de l'archivage :", err);
     toast.error("Le lot n'a pas pu être archivé.");
+  } finally {
+    setSaving(false);
   }
 };
 
 // Fonction pour enregister autoconsommation 
 const handleSaveAutoconsommation = async () => {
-  if (!selectedLot || !quantiteAutoconsommationInput) return;
+  if (saving) return;
+  if (!selectedLot || !quantiteAutoconsommationInput) {
+    toast.error('Sélectionnez un lot et une quantité.');
+    return;
+  }
 
   const autoconsommation = parseFloat(quantiteAutoconsommationInput);
+  if (!Number.isFinite(autoconsommation) || autoconsommation <= 0) {
+    toast.error('La quantité doit être positive.');
+    return;
+  }
+
+  setSaving(true);
   const quantite = selectedLot.quantite || 0;
   const nb_morts = selectedLot.nb_morts || 0;
   const sujets_restants = quantite - nb_morts - autoconsommation;
@@ -440,17 +486,26 @@ const handleSaveAutoconsommation = async () => {
     setQuantiteAutoconsommationInput('');
     toast.success('Autoconsommation enregistrée.');
   }
+  setSaving(false);
 };
 
 
 // Fonction pour enregistrer vente un lot
 const handleEnregistrerVente = async () => {
+  if (saving) return;
   if (!selectedLot || !selectedLot.id) {
     console.error("Aucun lot sélectionné.");
+    toast.error('Sélectionnez un lot.');
+    return;
+  }
+
+  if (!resultatBrut || Number(resultatBrut) <= 0) {
+    toast.error('Indiquez un montant brut positif.');
     return;
   }
 
   try {
+    setSaving(true);
     const { data, error } = await supabase
       .from('lots_volailles')
       .update({
@@ -470,6 +525,8 @@ const handleEnregistrerVente = async () => {
   } catch (err) {
     console.error('Erreur inattendue :', err);
     toast.error("La vente n'a pas pu être enregistrée.");
+  } finally {
+    setSaving(false);
   }
 };
 
@@ -484,7 +541,9 @@ return (
      <input type="number" placeholder="Quantité" value={quantite} onChange={e => setQuantite(+e.target.value)} className="border p-2 rounded" />
      <input type="date" value={dateArrivee} onChange={e => setDateArrivee(e.target.value)} className="border p-2 rounded" />
      <input type="text" placeholder="Bâtiment" value={batiment} onChange={e => setBatiment(e.target.value)} className="border p-2 rounded" />
-     <button onClick={ajouterLot} className="bg-blue-500 text-black p-2 rounded mt-4">Ajouter Lot</button>
+     <button onClick={ajouterLot} disabled={saving} className="bg-blue-500 text-black p-2 rounded mt-4 disabled:opacity-60">
+       {saving ? 'Enregistrement...' : 'Ajouter Lot'}
+     </button>
    </div>
 
 
@@ -591,8 +650,9 @@ return (
           </button>
 
             <button
-              onClick={() => archiverLot(lot.id)} 
-              className="bg-gray-500 text-black px-4 py-2 rounded mt-2"
+              onClick={() => archiverLot(lot.id)}
+              disabled={saving}
+              className="bg-gray-500 text-black px-4 py-2 rounded mt-2 disabled:opacity-60"
             >
               🗄️
             </button>
@@ -654,12 +714,13 @@ return (
 
       <button
         onClick={async () => {
-          await handleSaveLivraison();
-          setShowLivraisonModal(false);
+          const saved = await handleSaveLivraison();
+          if (saved) setShowLivraisonModal(false);
         }}
-        className="bg-blue-500 text-black p-2 rounded w-full"
+        disabled={saving}
+        className="bg-blue-500 text-black p-2 rounded w-full disabled:opacity-60"
       >
-        💾 Enregistrer les livraisons
+        {saving ? 'Enregistrement...' : '💾 Enregistrer les livraisons'}
       </button>
 
       <button onClick={() => setShowLivraisonModal(false)} className="bg-gray-500 text-black p-2 rounded w-full mt-2">
@@ -678,7 +739,9 @@ return (
          <h2 className="text-xl font-semibold mb-4">Ajouter une mortalité</h2>
          <input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} className="border p-2 rounded mb-2 w-full" />
          <input type="number" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} className="border p-2 rounded mb-4 w-full" />
-         <button onClick={enregistrerMortalite} className="bg-blue-500 text-black p-2 rounded w-full">Enregistrer</button>
+         <button onClick={enregistrerMortalite} disabled={saving} className="bg-blue-500 text-black p-2 rounded w-full disabled:opacity-60">
+           {saving ? 'Enregistrement...' : 'Enregistrer'}
+         </button>
          <button onClick={() => setMortaliteModalOpen(false)} className="bg-gray-500 text-black p-2 rounded w-full mt-2">Annuler</button>
        </div>
      </div>
@@ -750,9 +813,10 @@ return (
       />
       <button
         onClick={handleEnregistrerVente}
-        className="w-full bg-green-500 text-black py-2 rounded mb-2"
+        disabled={saving}
+        className="w-full bg-green-500 text-black py-2 rounded mb-2 disabled:opacity-60"
       >
-        Enregistrer
+        {saving ? 'Enregistrement...' : 'Enregistrer'}
       </button>
       <button
         onClick={() => setVenteModalOpen(false)}
@@ -800,9 +864,10 @@ return (
           />
           <button
             onClick={handleSaveAutoconsommation}
-            className="bg-green-600 text-black p-2 rounded w-full"
+            disabled={saving}
+            className="bg-green-600 text-black p-2 rounded w-full disabled:opacity-60"
           >
-            Enregistrer
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </>
       )}

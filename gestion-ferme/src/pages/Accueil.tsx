@@ -22,6 +22,7 @@ export default function Accueil() {
   end: '',
   category: '',
  });
+ const [saving, setSaving] = useState(false);
 
  useEffect(() => {
   const fetchAllEvents = async () => {
@@ -141,6 +142,13 @@ export default function Accueil() {
 
 
  const handleAddOrUpdateEvent = async () => {
+  if (saving) return;
+  if (!newEvent.title.trim() || !newEvent.start || !newEvent.category) {
+    toast.error("Renseignez le titre, la date et la catégorie.");
+    return;
+  }
+
+  setSaving(true);
   if (isEdit && selectedEventId) {
     // 🔄 Mettre à jour dans Supabase
     const { error } = await supabase
@@ -156,6 +164,7 @@ export default function Accueil() {
     if (error) {
       console.error("Erreur lors de la mise à jour :", error);
       toast.error("L'événement n'a pas pu être modifié.");
+      setSaving(false);
       return;
     }
 
@@ -180,6 +189,7 @@ export default function Accueil() {
     if (error) {
       console.error("Erreur lors de l'ajout :", error);
       toast.error("L'événement n'a pas pu être ajouté.");
+      setSaving(false);
       return;
     }
 
@@ -187,11 +197,14 @@ export default function Accueil() {
     toast.success('Événement ajouté.');
   }
 
+  setSaving(false);
   resetModal();
 };
 
 const handleDeleteEvent = async () => {
+  if (saving) return;
   if (selectedEventId) {
+    setSaving(true);
     const { error } = await supabase
       .from("evenements")
       .delete()
@@ -200,6 +213,7 @@ const handleDeleteEvent = async () => {
     if (error) {
       console.error("Erreur suppression :", error);
       toast.error("L'événement n'a pas pu être supprimé.");
+      setSaving(false);
       return;
     }
 
@@ -207,6 +221,7 @@ const handleDeleteEvent = async () => {
     toast.success('Événement supprimé.');
   }
 
+  setSaving(false);
   resetModal();
 };
 
@@ -286,6 +301,7 @@ const handleDeleteEvent = async () => {
   setNewEvent={setNewEvent}
   onSubmit={handleAddOrUpdateEvent}
   onDelete={handleDeleteEvent}
+  saving={saving}
 />
    </div>
  );

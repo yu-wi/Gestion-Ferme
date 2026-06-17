@@ -20,6 +20,7 @@ const Charges = () => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Form fields
   const [selectedLotId, setSelectedLotId] = useState("");
@@ -49,9 +50,19 @@ const Charges = () => {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     const lot = lots.find((l) => l.id === selectedLotId);
-    if (!lot) return;
+    if (!lot) {
+      toast.error("Sélectionnez un lot.");
+      return;
+    }
 
+    if (!date || montant <= 0) {
+      toast.error("Indiquez une date et un montant positif.");
+      return;
+    }
+
+    setSaving(true);
     const { error } = await supabase.from("charges").insert({
       lot_id: lot.id,
       lot_nom: lot.nom,
@@ -72,6 +83,7 @@ const Charges = () => {
       console.error("Erreur enregistrement charge:", error.message);
       toast.error("La charge n'a pas pu être enregistrée.");
     }
+    setSaving(false);
   };
 
   const getTotalByType = (lotId: string, type: string) =>
@@ -177,9 +189,10 @@ const Charges = () => {
 
             <button
               onClick={handleSave}
-              className="bg-green-600 text-black px-4 py-2 rounded w-full mb-2"
+              disabled={saving}
+              className="bg-green-600 text-black px-4 py-2 rounded w-full mb-2 disabled:opacity-60"
             >
-              Enregistrer
+              {saving ? "Enregistrement..." : "Enregistrer"}
             </button>
             <button
               onClick={() => setModalOpen(false)}

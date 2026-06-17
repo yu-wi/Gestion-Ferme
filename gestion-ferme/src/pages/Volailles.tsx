@@ -644,7 +644,102 @@ return (
     </div>
   </div>
 
-<div className="overflow-x-auto border rounded">   
+<div className="space-y-3 md:hidden">
+  {sortedLots.length === 0 && (
+    <div className="rounded-lg border p-6 text-center text-gray-500">
+      Aucun lot actif à afficher.
+    </div>
+  )}
+  {sortedLots.map((lot) => {
+    const sujetsRestants = calculerSujetsRestants(lot);
+    const ratio = lot.quantite > 0 ? sujetsRestants / lot.quantite : 0;
+    const totalMortalitesLot = Array.isArray(lot.mortalites)
+      ? lot.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
+      : 0;
+    const tauxMortaliteLot = lot.quantite > 0 ? (totalMortalitesLot / lot.quantite) * 100 : 0;
+    const ageJours = Math.floor(
+      (new Date().getTime() - new Date(lot.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    let badgeColor = 'bg-green-500';
+    let statusLabel = 'OK';
+    if (ratio < 0.25) badgeColor = 'bg-red-500';
+    else if (ratio < 0.5) badgeColor = 'bg-orange-500';
+    if (ratio < 0.25) statusLabel = 'Critique';
+    else if (ratio < 0.5) statusLabel = 'À surveiller';
+
+    return (
+      <article key={lot.id} className="rounded-lg border bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">{lot.nom}</h3>
+            <p className="text-sm text-gray-600">{lot.batiment} · arrivé le {lot.dateArrivee}</p>
+          </div>
+          <div
+            className="h-8 w-8 rounded-full border"
+            style={{ backgroundColor: lot.couleur?.trim() || '#999999' }}
+            title={lot.couleur || 'Couleur non définie'}
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded border p-3">
+            <div className="text-gray-500">Âge</div>
+            <div className="font-semibold">{ageJours} jours</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-gray-500">Quantité</div>
+            <div className="font-semibold">{lot.quantite}</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-gray-500">Restants</div>
+            <div className="font-semibold">{sujetsRestants}</div>
+          </div>
+          <div className="rounded border p-3">
+            <div className="text-gray-500">Mortalité</div>
+            <div className="font-semibold">{totalMortalitesLot} · {tauxMortaliteLot.toFixed(1)} %</div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <span className={`inline-flex text-white px-2 py-1 rounded text-xs ${badgeColor}`}>
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm">
+            Mortalité
+          </button>
+          <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded text-sm">
+            Détails
+          </button>
+          <button
+            onClick={() => {
+              setSelectedLot(lot);
+              setLivraisons([{ date: '', quantite: '', poids: '' }]);
+              setShowLivraisonModal(true);
+            }}
+            className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
+          >
+            Livraison
+          </button>
+          <button onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }} className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm">
+            Vente
+          </button>
+          <button
+            onClick={() => archiverLot(lot.id)}
+            disabled={saving}
+            className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
+          >
+            Archiver
+          </button>
+        </div>
+      </article>
+    );
+  })}
+</div>
+
+<div className="hidden overflow-x-auto border rounded md:block">   
 <table className="min-w-full table-auto border-collapse text-sm">
  <thead className="bg-gray-100">
    <tr>

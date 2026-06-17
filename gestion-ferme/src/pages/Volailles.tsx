@@ -274,7 +274,7 @@ const fermerMortaliteDetailsModal = () => {
 };
 
 // Affiche les sujets restants
-const calculerSujetsRestants = (lot: LotVolaille) => {
+function calculerSujetsRestants(lot: LotVolaille) {
   const quantiteInitiale = lot.quantite ?? 0;
   const totalMortalites = Array.isArray(lot.mortalites)
     ? lot.mortalites.reduce((sum, m) => sum + (m.nombre ?? 0), 0)
@@ -282,7 +282,7 @@ const calculerSujetsRestants = (lot: LotVolaille) => {
   const totalAutoconsommation = lot.autoconsommation ?? 0;
 
   return quantiteInitiale - totalMortalites - totalAutoconsommation;
-};
+}
 
 
 
@@ -297,10 +297,6 @@ const obtenirEvenements = () => {
    }))
  );
 };
-useEffect(() => {
- console.log("Le calendrier a été mis à jour !");
-}, [lots]);  
-
 // Fonction pour marquer les événements dans le calendrier
 const formatUTCDate = (d: Date) =>
   `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;

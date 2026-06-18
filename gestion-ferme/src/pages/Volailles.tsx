@@ -4,20 +4,19 @@ import 'react-calendar/dist/Calendar.css';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import toast from 'react-hot-toast';
+import {
+  chargerLotsAvecMouvements,
+  type LivraisonVolaille,
+} from '../volailles/volaillesData';
 
-interface Mortalite { date: string; nombre: number; }
+interface Mortalite { id?: string; lot_id?: string; date: string; nombre: number; }
 interface Evenement { title: string; date: Date; }
 interface LotVolaille {
 id: string; nom: string; quantite: number; dateArrivee: string;
 batiment: string; mortalites: Mortalite[]; evenements: Evenement[];
 couleur: string; age: number; autoconsommation?: number;
 is_active?: boolean;
-livraison_1_date?: string;
-livraison_1_quantite?: number;
-livraison_1_poids?: number;
-livraison_2_date?: string;
-livraison_2_quantite?: number;
-livraison_2_poids?: number;
+livraisons: LivraisonVolaille[];
 facture_date?: string;
 resultat_brut?: number;
 nb_morts?: number;
@@ -67,12 +66,9 @@ const [showAutoconsommationModal, setShowAutoconsommationModal] = useState(false
 // Charger les lots existants
 useEffect(() => {
  const fetchLots = async () => {
-   const { data, error } = await supabase.from('lots_volailles').select('*')
-   .eq('is_active', true);
-   if (error) {
-     console.error('Erreur chargement des lots', error);
-   } else {
-     const lotsTransformés = (data || []).map((lot: any) => ({
+   try {
+     const data = await chargerLotsAvecMouvements(true);
+     const lotsTransformés = data.map((lot: any) => ({
        ...lot,
        evenements: (lot.evenements || []).map((e: any) => ({
          ...e,
@@ -80,7 +76,10 @@ useEffect(() => {
        })),
        dateArrivee: lot.date_arrivee,
      }));
-     setLots(lotsTransformés);
+     setLots(lotsTransformés as LotVolaille[]);
+   } catch (error) {
+     console.error('Erreur chargement des lots', error);
+     toast.error("Les lots n'ont pas pu être chargés.");
    }
  };
  fetchLots();
@@ -168,6 +167,7 @@ const ajouterLot = async () => {
    dateArrivee,
    batiment,
    mortalites: [],
+   livraisons: [],
    evenements: nouveauxEvenements,
    couleur,
    is_active: true,
@@ -225,34 +225,54 @@ const enregistrerMortalite = async () => {
   if (!lot) return;
   setSaving(true);
 
-  const nouvelleMortalite = { date: mortaliteDate, nombre: mortaliteNombre };
-  const nouvellesMortalites = [...lot.mortalites, nouvelleMortalite];
-
-  // Calculs
-  const totalMortalites = nouvellesMortalites.reduce((sum, m) => sum + m.nombre, 0);
+  const totalMortalites = lot.mortalites.reduce((sum, m) => sum + m.nombre, 0) + mortaliteNombre;
   const sujetsRestants = lot.quantite - totalMortalites - (lot.autoconsommation || 0); // si autoconsommation existe
 
-  // Mise à jour sur Supabase
   const { data, error } = await supabase
-    .from('lots_volailles')
-    .update({
-      mortalites: nouvellesMortalites,
-      nb_morts: totalMortalites,
-      sujets_restants: sujetsRestants,
+    .from('mortalites_volailles')
+    .insert({
+      lot_id: mortaliteLotId,
+      date: mortaliteDate,
+      nombre: mortaliteNombre,
     })
-    .eq('id', mortaliteLotId)
-    .select('*'); // pour récupérer les données à jour
+    .select('id, lot_id, date, nombre')
+    .single();
 
   if (error) {
     console.error('Erreur ajout mortalité Supabase:', error);
     toast.error("La mortalité n'a pas pu être enregistrée.");
-  } else if (data && data.length > 0) {
-    const updatedLot = data[0];
-
-    // Mise à jour locale avec toutes les nouvelles données
+  } else if (data) {
+    const nouvelleMortalite = { ...data, nombre: Number(data.nombre) || 0 };
     setLots((prevLots) =>
-      prevLots.map((l) => (l.id === mortaliteLotId ? { ...l, ...updatedLot } : l))
+      prevLots.map((l) => (
+        l.id === mortaliteLotId
+          ? {
+              ...l,
+              mortalites: [...l.mortalites, nouvelleMortalite],
+              nb_morts: totalMortalites,
+              sujets_restants: sujetsRestants,
+            }
+          : l
+      ))
     );
+    setDetailLot((current) => (
+      current?.id === mortaliteLotId
+        ? {
+            ...current,
+            mortalites: [...current.mortalites, nouvelleMortalite],
+            nb_morts: totalMortalites,
+            sujets_restants: sujetsRestants,
+          }
+        : current
+    ));
+
+    const { error: aggregateError } = await supabase
+      .from('lots_volailles')
+      .update({ nb_morts: totalMortalites, sujets_restants: sujetsRestants })
+      .eq('id', mortaliteLotId);
+    if (aggregateError) {
+      console.warn('Les totaux du lot seront recalculés au prochain chargement.', aggregateError);
+    }
 
     setMortaliteModalOpen(false);
     setMortaliteNombre(0);
@@ -385,34 +405,49 @@ const handleSaveLivraison = async () => {
 
   try {
     setSaving(true);
-    const livraisonFields = Object.fromEntries(
-      livraisons.flatMap((livraison, index) => [
-        [`livraison_${index + 1}_date`, livraison.date || null],
-        [`livraison_${index + 1}_quantite`, livraison.quantite ? parseFloat(livraison.quantite) : 0],
-        [`livraison_${index + 1}_poids`, livraison.poids ? parseFloat(livraison.poids) : 0],
-      ])
-    );
-
-    const livraisonData = {
-      id: selectedLot.id,
-      nom: selectedLot.nom, 
-      quantite: selectedLot.quantite,
-      date_arrivee: selectedLot.dateArrivee,
-      batiment: selectedLot.batiment,
-      ...livraisonFields,
-    };
+    const livraisonsValides = livraisons
+      .filter((livraison) => (
+        livraison.date &&
+        Number(livraison.quantite) > 0 &&
+        Number(livraison.poids) > 0
+      ))
+      .map((livraison) => ({
+        lot_id: selectedLot.id,
+        date: livraison.date,
+        quantite: Number(livraison.quantite),
+        poids: Number(livraison.poids),
+      }));
 
     const { data, error } = await supabase
-      .from('lots_volailles')
-      .upsert([livraisonData]);
+      .from('livraisons_volailles')
+      .insert(livraisonsValides)
+      .select('id, lot_id, date, quantite, poids');
 
     if (error) {
       console.error('Erreur Supabase:', error);
       toast.error("La livraison n'a pas pu être enregistrée.");
       return false;
     } else {
-      console.log('Livraisons enregistrées:', data);
-      toast.success('Livraison enregistrée.');
+      const nouvellesLivraisons = (data || []).map((livraison) => ({
+        ...livraison,
+        quantite: Number(livraison.quantite) || 0,
+        poids: Number(livraison.poids) || 0,
+      }));
+      setLots((prevLots) => prevLots.map((lot) => (
+        lot.id === selectedLot.id
+          ? { ...lot, livraisons: [...lot.livraisons, ...nouvellesLivraisons] }
+          : lot
+      )));
+      setDetailLot((current) => (
+        current?.id === selectedLot.id
+          ? { ...current, livraisons: [...current.livraisons, ...nouvellesLivraisons] }
+          : current
+      ));
+      toast.success(
+        nouvellesLivraisons.length > 1
+          ? `${nouvellesLivraisons.length} livraisons enregistrées.`
+          : 'Livraison enregistrée.'
+      );
       return true;
     }
   } catch (error) {
@@ -879,18 +914,7 @@ return (
   const ageJours = Math.floor(
     (new Date().getTime() - new Date(lotDetail.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
   );
-  const livraisonsExistantes = [
-    {
-      date: lotDetail.livraison_1_date,
-      quantite: lotDetail.livraison_1_quantite,
-      poids: lotDetail.livraison_1_poids,
-    },
-    {
-      date: lotDetail.livraison_2_date,
-      quantite: lotDetail.livraison_2_quantite,
-      poids: lotDetail.livraison_2_poids,
-    },
-  ].filter((livraison) => livraison.date || livraison.quantite || livraison.poids);
+  const livraisonsExistantes = lotDetail.livraisons || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">

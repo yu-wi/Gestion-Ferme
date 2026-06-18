@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import Charges from "./Charges";
+import { chargerLotsAvecMouvements, type LivraisonVolaille } from './volaillesData';
 
 type LotVolailles = {
   id: string;
@@ -15,12 +16,6 @@ type LotVolailles = {
   is_active: boolean;
   nb_morts: number;
   sujets_restants: number;
-  livraison_1_date: string;
-  livraison_1_quantite: number;
-  livraison_1_poids: number;
-  livraison_2_date: string;
-  livraison_2_quantite: number;
-  livraison_2_poids: number;
   facture_date: string;
   resultat_brut: number;
   resultat_net: number;
@@ -29,6 +24,7 @@ type LotVolailles = {
   prix_poussins: number;
   quantite_retenue: number;
   total_poids_livre: number;
+  livraisons: LivraisonVolaille[];
 };
 
 export default function Historique() {
@@ -46,26 +42,12 @@ export default function Historique() {
 
   // ✅ Fonction réutilisable pour charger les lots
   const fetchLots = async () => {
-    const { data, error } = await supabase
-      .from('lots_volailles')
-      .select('*')
-      .eq('is_active', false);
-
-    if (error) {
-      console.error('Erreur chargement des lots:', error.message);
-    } else {
-      const lots = data as LotVolailles[];
-
-      for (const lot of lots) {
-        const totalPoids = (lot.livraison_1_poids || 0) + (lot.livraison_2_poids || 0);
-        await supabase
-          .from('lots_volailles')
-          .update({ total_poids_livre: totalPoids })
-          .eq('id', lot.id);
-      }
-
+    try {
+      const lots = await chargerLotsAvecMouvements(false) as LotVolailles[];
       setHistorique(lots);
       setSortedHistorique(lots);
+    } catch (error) {
+      console.error('Erreur chargement des lots:', error);
     }
 
     setLoading(false);
@@ -116,12 +98,17 @@ export default function Historique() {
   
 
   const totalLivres = historique.reduce(
-    (acc, lot) => acc + (lot.livraison_1_quantite || 0) + (lot.livraison_2_quantite || 0),
+    (acc, lot) => acc + lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0),
+    0
+  );
+
+  const totalRestants = historique.reduce(
+    (acc, lot) => acc + (lot.sujets_restants || 0),
     0
   );
 
   const totalPoids = historique.reduce(
-    (acc, lot) => acc + (lot.livraison_1_poids || 0) + (lot.livraison_2_poids || 0),
+    (acc, lot) => acc + lot.livraisons.reduce((total, livraison) => total + livraison.poids, 0),
     0
   );
 
@@ -174,12 +161,8 @@ export default function Historique() {
               <th className="px-3 py-2 border">Arrivée</th>
               <th className="px-3 py-2 border">Bâtiment</th>
               <th className="px-3 py-2 border">Restants</th>
-              <th className="px-3 py-2 border">L1 date</th>
-              <th className="px-3 py-2 border">L1 quantité</th>
-              <th className="px-3 py-2 border">L1 poids</th>
-              <th className="px-3 py-2 border">L2 date</th>
-              <th className="px-3 py-2 border">L2 quantité</th>
-              <th className="px-3 py-2 border">L2 poids</th>
+              <th className="px-3 py-2 border">Livraisons</th>
+              <th className="px-3 py-2 border">Quantité livrée</th>
               <th className="px-3 py-2 border">Quantité retenue</th>
               <th className="px-3 py-2 border">Poids total</th>
               <th className="px-3 py-2 border">Autoconsommation</th>
@@ -194,12 +177,14 @@ export default function Historique() {
                 <td className="border px-3 py-2">{new Date(lot.date_arrivee).toLocaleDateString('fr-FR')}</td>
                 <td className="border px-3 py-2">{lot.batiment}</td>
                 <td className="border px-3 py-2">{lot.sujets_restants}</td>
-                <td className="border px-3 py-2">{lot.livraison_1_date}</td>
-                <td className="border px-3 py-2">{lot.livraison_1_quantite}</td>
-                <td className="border px-3 py-2">{lot.livraison_1_poids?.toFixed(2)}</td>
-                <td className="border px-3 py-2">{lot.livraison_2_date}</td>
-                <td className="border px-3 py-2">{lot.livraison_2_quantite}</td>
-                <td className="border px-3 py-2">{lot.livraison_2_poids?.toFixed(2)}</td>
+                <td className="border px-3 py-2">
+                  {lot.livraisons.length
+                    ? lot.livraisons.map((livraison) => livraison.date).join(', ')
+                    : '-'}
+                </td>
+                <td className="border px-3 py-2">
+                  {lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0)}
+                </td>
                 <td className="border px-3 py-2">{lot.quantite_retenue}</td>
                 <td className="border px-3 py-2">{lot.total_poids_livre != null ? lot.total_poids_livre.toFixed(2) + ' kg' : '-'}</td>
                 <td className="border px-3 py-2">{lot.autoconsommation}</td>
@@ -213,13 +198,9 @@ export default function Historique() {
               <td className="px-3 py-2 border">Totaux</td>
               <td className="px-3 py-2 border">—</td>
               <td className="px-3 py-2 border">—</td>
+              <td className="px-3 py-2 border">{totalRestants}</td>
+              <td className="px-3 py-2 border">—</td>
               <td className="px-3 py-2 border">{totalLivres}</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
               <td className="px-3 py-2 border">{totalQuantiteRetenue}</td>
               <td className="px-3 py-2 border">{totalPoids.toFixed(2)} kg</td>
               <td className="px-3 py-2 border">—</td>

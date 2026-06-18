@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { chargerLotsAvecMouvements, type LivraisonVolaille } from './volaillesData';
 
 
   type LotVolailles = {
@@ -17,12 +17,6 @@ import {
     is_active: boolean;
     nb_morts: number;
     sujets_restants: number;
-    livraison_1_date: string;
-    livraison_1_quantite: number;
-    livraison_1_poids: number;
-    livraison_2_date: string;
-    livraison_2_quantite: number;
-    livraison_2_poids: number;
     facture_date: string;
     resultat_brut: number;
     resultat_net: number;
@@ -31,6 +25,7 @@ import {
     prix_poussins: number;
     quantite_retenue: number;
     total_poids_livre: number;
+    livraisons: LivraisonVolaille[];
   };
 
 export default function Statistiques() {
@@ -39,27 +34,11 @@ export default function Statistiques() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data, error } = await supabase
-        .from('lots_volailles')
-        .select(`
-        id, nom, quantite, date_arrivee, batiment, mortalites, evenements,
-        couleur, age, is_active, nb_morts, sujets_restants,
-        livraison_1_date, livraison_1_quantite, livraison_1_poids,
-        livraison_2_date, livraison_2_quantite, livraison_2_poids,
-        facture_date, resultat_brut, resultat_net,
-        autoconsommation, prix_vente_kg, prix_poussins, quantite_retenue
-      `)      
-        .eq('is_active', false); 
-
-        if (error) {
-          console.error('Erreur chargement statistiques:', error.message);
-        } else {
-          const updatedLots = data?.map(lot => ({
-            ...lot,
-            total_poids_livre: (lot.livraison_1_poids || 0) + (lot.livraison_2_poids || 0),
-          })) ?? [];          
-  
-          setLots(updatedLots);
+      try {
+        const data = await chargerLotsAvecMouvements(false);
+        setLots(data as LotVolailles[]);
+      } catch (error) {
+        console.error('Erreur chargement statistiques:', error);
       }
       setLoading(false);
     };
@@ -68,7 +47,10 @@ export default function Statistiques() {
   }, []);
 
   const totalLots = lots.length;
-  const totalLivres = lots.reduce((acc, lot) => acc + (lot.livraison_1_quantite || 0) + (lot.livraison_2_quantite || 0), 0);
+  const totalLivres = lots.reduce(
+    (acc, lot) => acc + lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0),
+    0
+  );
   const totalRetenu = lots.reduce((acc, lot) => acc + (lot.quantite_retenue || 0), 0);
   const totalBrut = lots.reduce((acc, lot) => acc + (lot.resultat_brut || 0), 0);
   const totalNet = lots.reduce((acc, lot) => acc + (lot.resultat_net || 0), 0);
@@ -113,7 +95,7 @@ export default function Statistiques() {
               <tr key={lot.id} className="odd:bg-white even:bg-gray-50">
                 <td className="border px-3 py-2">{lot.nom}</td>
                 <td className="border px-3 py-2 text-right">
-                  {(lot.livraison_1_quantite || 0) + (lot.livraison_2_quantite || 0)}
+                  {lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0)}
                 </td>
                 <td className="border px-3 py-2 text-right">{lot.quantite_retenue || 0}</td>
                 <td className="border px-3 py-2 text-right">{(lot.total_poids_livre || 0).toFixed(2)}</td> 

@@ -438,11 +438,16 @@ const handleSaveLivraison = async () => {
           ? { ...lot, livraisons: [...lot.livraisons, ...nouvellesLivraisons] }
           : lot
       )));
-      setDetailLot((current) => (
-        current?.id === selectedLot.id
-          ? { ...current, livraisons: [...current.livraisons, ...nouvellesLivraisons] }
-          : current
-      ));
+      setDetailLot((current) => {
+        if (!current || current.id !== selectedLot.id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          livraisons: [...current.livraisons, ...nouvellesLivraisons],
+        };
+      });
       toast.success(
         nouvellesLivraisons.length > 1
           ? `${nouvellesLivraisons.length} livraisons enregistrées.`

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
+import { chargerLotsAvecMouvements } from "./volaillesData";
 
 interface Charge {
   id: number | string;
@@ -15,68 +16,117 @@ interface Charge {
 interface Lot {
   id: string;
   nom: string;
+  date_arrivee: string;
+  batiment: string;
+  age: number;
+  quantiteLivree: number;
 }
 
 interface ChargesProps {
   lotIdsFiltres?: string[];
 }
 
+const chargeMeta: Record<string, { label: string; icon: string; tone: string }> = {
+  aliment: { label: "Aliment", icon: "⌁", tone: "green" },
+  achat_poussins: { label: "Achat poussins", icon: "♧", tone: "orange" },
+  ramassage: { label: "Ramassage", icon: "🚚", tone: "blue" },
+  livraison: { label: "Livraison", icon: "▣", tone: "violet" },
+  divers: { label: "Divers", icon: "•••", tone: "gray" },
+};
+
 const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
+  const [selectedLotId, setSelectedLotId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [lotDetail, setLotDetail] = useState<Lot | null>(null);
   const [chargeEnModification, setChargeEnModification] = useState<Charge | null>(null);
-
-  // Form fields
-  const [selectedLotId, setSelectedLotId] = useState("");
   const [selectedType, setSelectedType] = useState("achat_poussins");
   const [montant, setMontant] = useState<number>(0);
   const [date, setDate] = useState("");
 
-  useEffect(() => {
-    fetchLots();
-    fetchCharges();
-  }, []);
-
   const fetchLots = async () => {
-    const { data, error } = await supabase
-      .from("lots_volailles")
-      .select("id, nom")
-      .eq("is_active", false);
-
-    if (!error) setLots((data || []) as Lot[]);
-    else {
-      console.error("Erreur chargement lots:", error.message);
+    try {
+      const lotsData = await chargerLotsAvecMouvements(false);
+      setLots(
+        lotsData.map((lot) => ({
+          id: lot.id,
+          nom: lot.nom,
+          date_arrivee: lot.date_arrivee,
+          batiment: lot.batiment,
+          age: Number(lot.age) || 0,
+          quantiteLivree: lot.livraisons.reduce(
+            (total, livraison) => total + Number(livraison.quantite || 0),
+            0
+          ),
+        }))
+      );
+    } catch (error) {
+      console.error("Erreur chargement lots :", error);
       toast.error("Les lots des charges n'ont pas pu être chargés.");
     }
   };
 
   const fetchCharges = async () => {
     const { data, error } = await supabase.from("charges").select("*");
-    if (!error) {
-      setCharges(
-        (data || []).map((charge) => ({
-          ...charge,
-          montant: Number(charge.montant) || 0,
-        })) as Charge[]
-      );
-    }
-    else {
-      console.error("Erreur chargement charges:", error.message);
+    if (error) {
+      console.error("Erreur chargement charges :", error.message);
       toast.error("Les charges n'ont pas pu être chargées.");
-    }
-  };
-
-  const handleSave = async () => {
-    if (saving) return;
-    const lot = lots.find((l) => l.id === selectedLotId);
-    if (!lot) {
-      toast.error("Sélectionnez un lot.");
       return;
     }
+    setCharges(
+      (data || []).map((charge) => ({
+        ...charge,
+        montant: Number(charge.montant) || 0,
+      })) as Charge[]
+    );
+  };
 
+  useEffect(() => {
+    fetchLots();
+    fetchCharges();
+  }, []);
+
+  const lotsAffiches = useMemo(
+    () =>
+      lotIdsFiltres
+        ? lots.filter((lot) => lotIdsFiltres.includes(lot.id))
+        : lots,
+    [lots, lotIdsFiltres]
+  );
+
+  useEffect(() => {
+    if (!lotsAffiches.length) {
+      setSelectedLotId("");
+      return;
+    }
+    if (!lotsAffiches.some((lot) => lot.id === selectedLotId)) {
+      setSelectedLotId(lotsAffiches[0].id);
+    }
+  }, [lotsAffiches, selectedLotId]);
+
+  const lotSelectionne =
+    lotsAffiches.find((lot) => lot.id === selectedLotId) || lotsAffiches[0];
+
+  const chargesDuLot = useMemo(
+    () =>
+      charges
+        .filter((charge) => charge.lot_id === lotSelectionne?.id)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [charges, lotSelectionne]
+  );
+
+  const totalCharges = chargesDuLot.reduce(
+    (total, charge) => total + charge.montant,
+    0
+  );
+  const coutParSujet =
+    Number(lotSelectionne?.quantiteLivree) > 0
+      ? totalCharges / Number(lotSelectionne?.quantiteLivree)
+      : 0;
+
+  const handleSave = async () => {
+    if (saving || !lotSelectionne) return;
     if (!date || montant <= 0) {
       toast.error("Indiquez une date et un montant positif.");
       return;
@@ -84,52 +134,26 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
     setSaving(true);
     const { error } = await supabase.from("charges").insert({
-      lot_id: lot.id,
-      lot_nom: lot.nom,
+      lot_id: lotSelectionne.id,
+      lot_nom: lotSelectionne.nom,
       type_charge: selectedType,
       montant,
       date,
     });
 
-    if (!error) {
+    if (error) {
+      console.error("Erreur enregistrement charge :", error.message);
+      toast.error("La charge n'a pas pu être enregistrée.");
+    } else {
       setModalOpen(false);
-      setSelectedLotId("");
       setSelectedType("achat_poussins");
       setMontant(0);
       setDate("");
-      fetchCharges();
+      await fetchCharges();
       toast.success("Charge enregistrée.");
-    } else {
-      console.error("Erreur enregistrement charge:", error.message);
-      toast.error("La charge n'a pas pu être enregistrée.");
     }
     setSaving(false);
   };
-
-  const getTotalByType = (lotId: string, type: string) =>
-    charges
-      .filter((c) => c.lot_id === lotId && c.type_charge === type)
-      .reduce((sum, c) => sum + c.montant, 0);
-
-  const getTotalCharges = (lotId: string) =>
-    charges
-      .filter((c) => c.lot_id === lotId)
-      .reduce((sum, c) => sum + c.montant, 0);
-
-  const libelleType = (type: string) => {
-    const libelles: Record<string, string> = {
-      achat_poussins: "Achat poussins",
-      aliment: "Aliment",
-      ramassage: "Ramassage",
-      livraison: "Livraison",
-    };
-    return libelles[type] || type;
-  };
-
-  const chargesDuLot = (lotId: string) =>
-    charges
-      .filter((charge) => charge.lot_id === lotId)
-      .sort((a, b) => b.date.localeCompare(a.date));
 
   const enregistrerModification = async () => {
     if (saving || !chargeEnModification) return;
@@ -151,16 +175,14 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       .single();
 
     if (error) {
-      console.error("Erreur modification charge:", error.message);
+      console.error("Erreur modification charge :", error.message);
       toast.error("La charge n'a pas pu être modifiée.");
     } else if (data) {
-      const chargeModifiee = {
-        ...data,
-        montant: Number(data.montant) || 0,
-      } as Charge;
       setCharges((chargesActuelles) =>
         chargesActuelles.map((charge) =>
-          charge.id === chargeModifiee.id ? chargeModifiee : charge
+          charge.id === data.id
+            ? { ...(data as Charge), montant: Number(data.montant) || 0 }
+            : charge
         )
       );
       setChargeEnModification(null);
@@ -171,15 +193,10 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
   const supprimerCharge = async (charge: Charge) => {
     if (saving || !window.confirm("Supprimer cette charge ?")) return;
-
     setSaving(true);
-    const { error } = await supabase
-      .from("charges")
-      .delete()
-      .eq("id", charge.id);
-
+    const { error } = await supabase.from("charges").delete().eq("id", charge.id);
     if (error) {
-      console.error("Erreur suppression charge:", error.message);
+      console.error("Erreur suppression charge :", error.message);
       toast.error("La charge n'a pas pu être supprimée.");
     } else {
       setCharges((chargesActuelles) =>
@@ -190,315 +207,188 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
     setSaving(false);
   };
 
-  const lotsAffiches = lotIdsFiltres
-    ? lots.filter((lot) => lotIdsFiltres.includes(lot.id))
-    : lots;
-
   return (
-    <div className="mt-12">
-      <h2 className="text-2xl font-semibold mb-4">Charges par Lot</h2>
-
-      <button
-        onClick={() => setModalOpen(true)}
-        className="mb-4 !bg-blue-600 !text-white px-4 py-2 rounded"
-      >
-        Ajouter une charge
-      </button>
-
-      <div className="space-y-3 md:hidden">
-        {lotsAffiches.length === 0 && (
-          <div className="rounded-lg border bg-white p-6 text-center text-gray-500">
-            Aucune charge à afficher pour cette recherche.
-          </div>
-        )}
-        {lotsAffiches.map((lot) => (
-          <article key={lot.id} className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold">{lot.nom}</h3>
-              <div className="text-lg font-bold">{getTotalCharges(lot.id).toFixed(2)} €</div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded border p-2">
-                <div className="text-gray-500">Poussins</div>
-                <div className="font-semibold">
-                  {getTotalByType(lot.id, "achat_poussins").toFixed(2)} €
-                </div>
-              </div>
-              <div className="rounded border p-2">
-                <div className="text-gray-500">Aliment</div>
-                <div className="font-semibold">
-                  {getTotalByType(lot.id, "aliment").toFixed(2)} €
-                </div>
-              </div>
-              <div className="rounded border p-2">
-                <div className="text-gray-500">Ramassage</div>
-                <div className="font-semibold">
-                  {getTotalByType(lot.id, "ramassage").toFixed(2)} €
-                </div>
-              </div>
-              <div className="rounded border p-2">
-                <div className="text-gray-500">Livraison</div>
-                <div className="font-semibold">
-                  {getTotalByType(lot.id, "livraison").toFixed(2)} €
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setLotDetail(lot)}
-              className="mt-3 w-full !bg-slate-700 !text-white rounded px-3 py-2"
-            >
-              Voir le détail
-            </button>
-          </article>
-        ))}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded border md:block">
-      <table className="w-full min-w-[700px] table-auto border-collapse">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="border px-3 py-2">Lot</th>
-            <th className="border px-3 py-2">Achat Poussins</th>
-            <th className="border px-3 py-2">Aliment</th>
-            <th className="border px-3 py-2">Ramassage</th>
-            <th className="border px-3 py-2">Livraison</th>
-            <th className="border px-3 py-2 font-bold">Total Charges</th>
-            <th className="border px-3 py-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lotsAffiches.length === 0 && (
-            <tr>
-              <td colSpan={7} className="border p-6 text-center text-gray-500">
-                Aucune charge à afficher pour cette recherche.
-              </td>
-            </tr>
-          )}
-          {lotsAffiches.map((lot) => (
-            <tr key={lot.id}>
-              <td className="border px-3 py-2">{lot.nom}</td>
-              <td className="border px-3 py-2">
-                {getTotalByType(lot.id, "achat_poussins").toFixed(2)} €
-              </td>
-              <td className="border px-3 py-2">
-                {getTotalByType(lot.id, "aliment").toFixed(2)} €
-              </td>
-              <td className="border px-3 py-2">
-                {getTotalByType(lot.id, "ramassage").toFixed(2)} €
-              </td>
-              <td className="border px-3 py-2">
-                {getTotalByType(lot.id, "livraison").toFixed(2)} €
-              </td>
-              <td className="border px-3 py-2 font-semibold">
-                {getTotalCharges(lot.id).toFixed(2)} €
-              </td>
-              <td className="border px-3 py-2">
-                <button
-                  onClick={() => setLotDetail(lot)}
-                  className="!bg-slate-700 !text-white rounded px-3 py-2 text-xs"
-                >
-                  Détail
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-
-      {lotDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
-            <ModalCloseButton onClick={() => setLotDetail(null)} disabled={saving} />
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="pr-12">
-                <h3 className="text-xl font-semibold">Charges du lot {lotDetail.nom}</h3>
-                <p className="text-sm text-gray-600">
-                  Total : {getTotalCharges(lotDetail.id).toFixed(2)} €
-                </p>
-              </div>
-            </div>
-
-            {chargesDuLot(lotDetail.id).length === 0 ? (
-              <p className="mt-5 rounded border p-5 text-center text-gray-500">
-                Aucune charge enregistrée pour ce lot.
-              </p>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {chargesDuLot(lotDetail.id).map((charge) => (
-                  <div
-                    key={charge.id}
-                    className="flex flex-col gap-3 rounded border p-4 md:flex-row md:items-center md:justify-between"
+    <div className="charge-manager">
+      {!lotsAffiches.length ? (
+        <p className="charge-manager-empty">Aucun lot archivé à afficher.</p>
+      ) : (
+        <>
+          <section className="charge-lot-summary">
+            <div className="charge-lot-copy">
+              <span>▣</span>
+              <div>
+                {lotsAffiches.length > 1 ? (
+                  <select
+                    aria-label="Lot à afficher"
+                    value={lotSelectionne?.id || ""}
+                    onChange={(event) => setSelectedLotId(event.target.value)}
                   >
-                    <div>
-                      <div className="font-semibold">{libelleType(charge.type_charge)}</div>
-                      <div className="text-sm text-gray-600">
-                        {new Date(`${charge.date}T00:00:00`).toLocaleDateString("fr-FR")}
-                      </div>
-                    </div>
-                    <div className="text-lg font-bold">{charge.montant.toFixed(2)} €</div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setChargeEnModification({ ...charge })}
-                        className="!bg-blue-600 !text-white rounded px-3 py-2 text-sm"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => supprimerCharge(charge)}
-                        disabled={saving}
-                        className="!bg-red-600 !text-white rounded px-3 py-2 text-sm disabled:opacity-60"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    {lotsAffiches.map((lot) => (
+                      <option key={lot.id} value={lot.id}>Lot {lot.nom}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <strong>Lot {lotSelectionne?.nom}</strong>
+                )}
+                <small>
+                  Arrivé le {formatDate(lotSelectionne?.date_arrivee || "")} · Bâtiment {lotSelectionne?.batiment || "—"} · {lotSelectionne?.age || 0} jours
+                </small>
               </div>
-            )}
+            </div>
+            <div className="charge-summary-metric">
+              <small>Total des charges</small>
+              <strong>{totalCharges.toFixed(2)} €</strong>
+            </div>
+            <div className="charge-summary-metric">
+              <small>Coût par sujet livré</small>
+              <strong>{coutParSujet.toFixed(2)} €</strong>
+            </div>
+          </section>
+
+          <div className="charge-manager-heading">
+            <h3>Charges du lot</h3>
+            <button type="button" onClick={() => setModalOpen(true)}>＋ Ajouter une charge</button>
           </div>
-        </div>
+
+          <div className="charge-manager-mobile">
+            {chargesDuLot.map((charge) => {
+              const meta = chargeMeta[charge.type_charge] || chargeMeta.divers;
+              const pourcentage =
+                totalCharges > 0 ? (charge.montant / totalCharges) * 100 : 0;
+              return (
+                <article key={charge.id}>
+                  <div className="charge-category">
+                    <span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span>
+                    <div><strong>{meta.label}</strong><small>{formatDate(charge.date)}</small></div>
+                  </div>
+                  <div className="charge-mobile-values"><b>{charge.montant.toFixed(2)} €</b><span>{pourcentage.toFixed(1)} %</span></div>
+                  <div className="charge-actions">
+                    <button type="button" title="Modifier" onClick={() => setChargeEnModification({ ...charge })}>✎</button>
+                    <button type="button" title="Supprimer" onClick={() => supprimerCharge(charge)} disabled={saving}>🗑</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="charge-manager-table-wrap">
+            <table className="charge-manager-table">
+              <thead><tr><th>Catégorie</th><th>Montant (€)</th><th>% du total</th><th>Date</th><th>Actions</th></tr></thead>
+              <tbody>
+                {chargesDuLot.map((charge) => {
+                  const meta = chargeMeta[charge.type_charge] || chargeMeta.divers;
+                  const pourcentage =
+                    totalCharges > 0 ? (charge.montant / totalCharges) * 100 : 0;
+                  return (
+                    <tr key={charge.id}>
+                      <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{meta.label}</strong></div></td>
+                      <td>{charge.montant.toFixed(2)} €</td>
+                      <td>{pourcentage.toFixed(1)} %</td>
+                      <td>{formatDate(charge.date)}</td>
+                      <td><div className="charge-actions"><button type="button" title="Modifier la charge" onClick={() => setChargeEnModification({ ...charge })}>✎</button><button type="button" title="Supprimer la charge" onClick={() => supprimerCharge(charge)} disabled={saving}>🗑</button></div></td>
+                    </tr>
+                  );
+                })}
+                {!chargesDuLot.length && <tr><td colSpan={5} className="charge-manager-empty">Aucune charge enregistrée pour ce lot.</td></tr>}
+              </tbody>
+              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{totalCharges.toFixed(2)} €</td><td>100 %</td><td>—</td><td>—</td></tr></tfoot>}
+            </table>
+          </div>
+        </>
       )}
+
+      <ChargeFormModal
+        open={modalOpen}
+        title="Ajouter une charge"
+        lotName={lotSelectionne?.nom || ""}
+        type={selectedType}
+        montant={montant}
+        date={date}
+        onTypeChange={setSelectedType}
+        onMontantChange={setMontant}
+        onDateChange={setDate}
+        onSave={handleSave}
+        onClose={() => setModalOpen(false)}
+        saving={saving}
+        front
+      />
 
       {chargeEnModification && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold">Modifier la charge</h3>
-            <p className="mb-4 text-sm text-gray-600">{chargeEnModification.lot_nom}</p>
-
-            <label className="block text-sm font-medium text-gray-700">
-              Type
-              <select
-                value={chargeEnModification.type_charge}
-                onChange={(event) =>
-                  setChargeEnModification({
-                    ...chargeEnModification,
-                    type_charge: event.target.value,
-                  })
-                }
-                className="mt-1 mb-3 w-full rounded border p-2"
-              >
-                <option value="achat_poussins">Achat poussins</option>
-                <option value="aliment">Aliment</option>
-                <option value="ramassage">Ramassage</option>
-                <option value="livraison">Livraison</option>
-              </select>
-            </label>
-
-            <label className="block text-sm font-medium text-gray-700">
-              Montant (€)
-              <input
-                type="number"
-                min={0.01}
-                step="0.01"
-                value={chargeEnModification.montant}
-                onChange={(event) =>
-                  setChargeEnModification({
-                    ...chargeEnModification,
-                    montant: Number(event.target.value),
-                  })
-                }
-                className="mt-1 mb-3 w-full rounded border p-2"
-              />
-            </label>
-
-            <label className="block text-sm font-medium text-gray-700">
-              Date
-              <input
-                type="date"
-                value={chargeEnModification.date}
-                onChange={(event) =>
-                  setChargeEnModification({
-                    ...chargeEnModification,
-                    date: event.target.value,
-                  })
-                }
-                className="mt-1 mb-4 w-full rounded border p-2"
-              />
-            </label>
-
-            <button
-              onClick={enregistrerModification}
-              disabled={saving}
-              className="w-full !bg-blue-600 !text-white rounded px-4 py-2 disabled:opacity-60"
-            >
-              {saving ? "Enregistrement..." : "Enregistrer la modification"}
-            </button>
-            <button
-              onClick={() => setChargeEnModification(null)}
-              disabled={saving}
-              className="mt-2 w-full !bg-gray-200 !text-gray-900 rounded px-4 py-2 disabled:opacity-60"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modale d'ajout */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
-            <h3 className="text-lg font-semibold mb-4">Ajouter une charge</h3>
-
-            <select
-              value={selectedLotId}
-              onChange={(e) => setSelectedLotId(e.target.value)}
-              className="w-full p-2 border rounded mb-3"
-            >
-              <option value="">Sélectionner un lot</option>
-              {lots.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  {lot.nom}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full p-2 border rounded mb-3"
-            >
-              <option value="achat_poussins">Achat poussins</option>
-              <option value="aliment">Aliment</option>
-              <option value="ramassage">Ramassage</option>
-              <option value="livraison">Livraison</option>
-            </select>
-
-            <input
-              type="number"
-              placeholder="Montant (€)"
-              value={montant}
-              onChange={(e) => setMontant(Number(e.target.value))}
-              className="w-full p-2 border rounded mb-3"
-            />
-
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full p-2 border rounded mb-4"
-            />
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="!bg-green-600 !text-white px-4 py-2 rounded w-full mb-2 disabled:opacity-60"
-            >
-              {saving ? "Enregistrement..." : "Enregistrer"}
-            </button>
-            <button
-              onClick={() => setModalOpen(false)}
-              disabled={saving}
-              className="!bg-gray-200 !text-gray-900 px-4 py-2 rounded w-full"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
+        <ChargeFormModal
+          open
+          title="Modifier la charge"
+          lotName={chargeEnModification.lot_nom}
+          type={chargeEnModification.type_charge}
+          montant={chargeEnModification.montant}
+          date={chargeEnModification.date}
+          onTypeChange={(type) => setChargeEnModification({ ...chargeEnModification, type_charge: type })}
+          onMontantChange={(nouveauMontant) => setChargeEnModification({ ...chargeEnModification, montant: nouveauMontant })}
+          onDateChange={(nouvelleDate) => setChargeEnModification({ ...chargeEnModification, date: nouvelleDate })}
+          onSave={enregistrerModification}
+          onClose={() => setChargeEnModification(null)}
+          saving={saving}
+          front
+        />
       )}
     </div>
   );
 };
+
+function ChargeFormModal({
+  open,
+  title,
+  lotName,
+  type,
+  montant,
+  date,
+  onTypeChange,
+  onMontantChange,
+  onDateChange,
+  onSave,
+  onClose,
+  saving,
+  front = false,
+}: {
+  open: boolean;
+  title: string;
+  lotName: string;
+  type: string;
+  montant: number;
+  date: string;
+  onTypeChange: (value: string) => void;
+  onMontantChange: (value: number) => void;
+  onDateChange: (value: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+  saving: boolean;
+  front?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div className={`poultry-modal-backdrop${front ? " poultry-modal-backdrop-front" : ""}`}>
+      <div className="poultry-modal poultry-modal-small">
+        <ModalCloseButton onClick={onClose} disabled={saving} />
+        <div className="poultry-modal-header">
+          <span className="poultry-modal-icon">€</span>
+          <div><h2>{title}</h2><p>Lot {lotName}</p></div>
+        </div>
+        <div className="poultry-form-stack">
+          <label>Catégorie<select value={type} onChange={(event) => onTypeChange(event.target.value)}><option value="achat_poussins">Achat poussins</option><option value="aliment">Aliment</option><option value="ramassage">Ramassage</option><option value="livraison">Livraison</option><option value="divers">Divers</option></select></label>
+          <label>Montant (€)<input type="number" min={0.01} step="0.01" value={montant} onChange={(event) => onMontantChange(Number(event.target.value))} /></label>
+          <label>Date<input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} /></label>
+        </div>
+        <div className="poultry-modal-actions">
+          <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>
+          <button type="button" className="poultry-modal-secondary" onClick={onClose}>Annuler</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatDate(date: string) {
+  if (!date) return "—";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR");
+}
 
 export default Charges;

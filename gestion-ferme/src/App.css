@@ -1932,6 +1932,238 @@
   font-size: 18px;
 }
 
+.history-charge-manager {
+  max-width: 1080px;
+}
+
+.charge-manager {
+  margin-top: 24px;
+  color: #172a3c;
+}
+
+.charge-lot-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px 200px;
+  align-items: center;
+  border: 1px solid #cfe3d4;
+  border-radius: 7px;
+  padding: 18px;
+  background: #f6fbf7;
+}
+
+.charge-lot-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.charge-lot-copy > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #16853d;
+  background: #e1f3e5;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.charge-lot-copy > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.charge-lot-copy strong,
+.charge-lot-copy select {
+  color: #14763a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.charge-lot-copy select {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #bcd8c3;
+  border-radius: 6px;
+  padding: 6px 30px 6px 9px;
+  background: white;
+}
+
+.charge-lot-copy small {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: #617386;
+  font-size: 11px;
+}
+
+.charge-summary-metric {
+  display: flex;
+  min-height: 58px;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid #dce8df;
+  padding-left: 28px;
+}
+
+.charge-summary-metric small {
+  color: #68798b;
+  font-size: 11px;
+}
+
+.charge-summary-metric strong {
+  margin-top: 5px;
+  color: #14763a;
+  font-size: 20px;
+}
+
+.charge-summary-metric:last-child strong {
+  color: #173047;
+}
+
+.charge-manager-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 24px;
+}
+
+.charge-manager-heading h3 {
+  margin: 0;
+  color: #173047;
+  font-size: 19px;
+}
+
+.charge-manager-heading button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 15px;
+  color: white;
+  background: #2563eb;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.charge-manager-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 1px solid #e0e7e3;
+  border-radius: 7px;
+}
+
+.charge-manager-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.charge-manager-table th {
+  padding: 13px 16px;
+  color: #2d4154;
+  background: #f7f9f8;
+  text-align: left;
+}
+
+.charge-manager-table th:nth-child(2),
+.charge-manager-table th:nth-child(3),
+.charge-manager-table th:nth-child(4) {
+  text-align: center;
+}
+
+.charge-manager-table td {
+  padding: 11px 16px;
+  border-top: 1px solid #e6ece9;
+  color: #243c50;
+}
+
+.charge-manager-table td:nth-child(2),
+.charge-manager-table td:nth-child(3),
+.charge-manager-table td:nth-child(4) {
+  text-align: center;
+  font-weight: 650;
+}
+
+.charge-manager-table tfoot td {
+  color: #16853d;
+  background: #f1f8f3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.charge-category {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.charge-category-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.charge-category > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.charge-category small {
+  color: #718093;
+  font-size: 9px;
+}
+
+.charge-tone-green { color: #16853d; background: #e5f4e8; }
+.charge-tone-orange { color: #e89b00; background: #fff0d5; }
+.charge-tone-blue { color: #246bc0; background: #e8f1fb; }
+.charge-tone-violet { color: #7049d8; background: #eee9fc; }
+.charge-tone-gray { color: #5d6d7d; background: #edf1f3; }
+
+.charge-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.charge-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #d9e2dd;
+  border-radius: 6px;
+  padding: 0;
+  color: #30475a;
+  background: #f8faf9;
+  font-size: 14px;
+}
+
+.charge-actions button:last-child {
+  border-color: #f4d7d9;
+  color: #d62935;
+  background: #fdecef;
+}
+
+.charge-manager-empty {
+  padding: 32px !important;
+  color: #718093 !important;
+  text-align: center !important;
+}
+
+.charge-manager-mobile {
+  display: none;
+}
+
 .history-charge-ring {
   display: grid;
   width: 168px;
@@ -2350,4 +2582,76 @@
   .lot-analysis-economic-columns { grid-template-columns: 1fr; }
   .lot-analysis-margin { grid-template-columns: 1fr; gap: 10px; }
   .lot-analysis-keypoints { grid-column: auto; }
+
+  .history-charge-manager {
+    padding: 22px 16px;
+  }
+
+  .charge-lot-summary {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .charge-summary-metric {
+    min-height: 0;
+    border-top: 1px solid #dce8df;
+    border-left: 0;
+    padding: 12px 0 0;
+  }
+
+  .charge-manager-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .charge-manager-heading button {
+    width: 100%;
+  }
+
+  .charge-manager-table-wrap {
+    display: none;
+  }
+
+  .charge-manager-mobile {
+    display: grid;
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .charge-manager-mobile article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e1e8e4;
+    border-radius: 7px;
+    padding: 11px;
+    background: white;
+  }
+
+  .charge-mobile-values {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+  }
+
+  .charge-mobile-values b {
+    color: #173047;
+    font-size: 11px;
+  }
+
+  .charge-mobile-values span {
+    color: #718093;
+    font-size: 9px;
+  }
+
+  .charge-manager-mobile .charge-actions {
+    gap: 5px;
+  }
+
+  .charge-manager-mobile .charge-actions button {
+    width: 30px;
+    height: 30px;
+  }
 }

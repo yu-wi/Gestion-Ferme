@@ -7,9 +7,10 @@ import toast from 'react-hot-toast';
 import {
   chargerLotsAvecMouvements,
   type LivraisonVolaille,
+  type MortaliteVolaille,
 } from '../volailles/volaillesData';
 
-interface Mortalite { id?: string; lot_id?: string; date: string; nombre: number; }
+type Mortalite = MortaliteVolaille;
 interface Evenement { title: string; date: Date; }
 interface LotVolaille {
 id: string; nom: string; quantite: number; dateArrivee: string;
@@ -39,6 +40,8 @@ const [mortaliteModalOpen, setMortaliteModalOpen] = useState(false);
 const [mortaliteLotId, setMortaliteLotId] = useState<string | null>(null);
 const [mortaliteDate, setMortaliteDate] = useState('');
 const [mortaliteNombre, setMortaliteNombre] = useState(0);
+const [mortaliteEnModification, setMortaliteEnModification] = useState<Mortalite | null>(null);
+const [livraisonEnModification, setLivraisonEnModification] = useState<LivraisonVolaille | null>(null);
 
 
 const [mortaliteDetailsModalOpen, setMortaliteDetailsModalOpen] = useState(false);
@@ -255,16 +258,18 @@ const enregistrerMortalite = async () => {
           : l
       ))
     );
-    setDetailLot((current) => (
-      current?.id === mortaliteLotId
-        ? {
-            ...current,
-            mortalites: [...current.mortalites, nouvelleMortalite],
-            nb_morts: totalMortalites,
-            sujets_restants: sujetsRestants,
-          }
-        : current
-    ));
+    setDetailLot((current) => {
+      if (!current || current.id !== mortaliteLotId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        mortalites: [...current.mortalites, nouvelleMortalite],
+        nb_morts: totalMortalites,
+        sujets_restants: sujetsRestants,
+      };
+    });
 
     const { error: aggregateError } = await supabase
       .from('lots_volailles')
@@ -302,6 +307,201 @@ const ouvrirMortaliteDetailsModal = (lotId: string) => {
 
 const fermerMortaliteDetailsModal = () => {
  setMortaliteDetailsModalOpen(false);
+};
+
+const appliquerMortalitesLocales = (
+  lotId: string,
+  nouvellesMortalites: Mortalite[]
+) => {
+  const mettreAJour = (lot: LotVolaille): LotVolaille => {
+    const totalMortalites = nouvellesMortalites.reduce(
+      (total, mortalite) => total + mortalite.nombre,
+      0
+    );
+
+    return {
+      ...lot,
+      mortalites: nouvellesMortalites,
+      nb_morts: totalMortalites,
+      sujets_restants: lot.quantite - totalMortalites - (lot.autoconsommation || 0),
+    };
+  };
+
+  setLots((lotsActuels) =>
+    lotsActuels.map((lot) => (lot.id === lotId ? mettreAJour(lot) : lot))
+  );
+  setDetailLot((lotActuel) => {
+    if (!lotActuel || lotActuel.id !== lotId) return lotActuel;
+    return mettreAJour(lotActuel);
+  });
+};
+
+const synchroniserTotauxMortalites = async (
+  lot: LotVolaille,
+  mortalites: Mortalite[]
+) => {
+  const nbMorts = mortalites.reduce((total, mortalite) => total + mortalite.nombre, 0);
+  const sujetsRestants = lot.quantite - nbMorts - (lot.autoconsommation || 0);
+  const { error } = await supabase
+    .from('lots_volailles')
+    .update({ nb_morts: nbMorts, sujets_restants: sujetsRestants })
+    .eq('id', lot.id);
+
+  if (error) {
+    console.warn('Les totaux du lot seront recalculés au prochain chargement.', error);
+  }
+};
+
+const enregistrerModificationMortalite = async () => {
+  if (saving || !mortaliteEnModification) return;
+  if (!mortaliteEnModification.date || mortaliteEnModification.nombre <= 0) {
+    toast.error('Indiquez une date et un nombre positif.');
+    return;
+  }
+
+  const lot = lots.find((item) => item.id === mortaliteEnModification.lot_id);
+  if (!lot) return;
+
+  setSaving(true);
+  const { data, error } = await supabase
+    .from('mortalites_volailles')
+    .update({
+      date: mortaliteEnModification.date,
+      nombre: mortaliteEnModification.nombre,
+    })
+    .eq('id', mortaliteEnModification.id)
+    .select('id, lot_id, date, nombre')
+    .single();
+
+  if (error) {
+    console.error('Erreur modification mortalité:', error);
+    toast.error("La mortalité n'a pas pu être modifiée.");
+  } else if (data) {
+    const mortaliteModifiee: Mortalite = {
+      ...data,
+      nombre: Number(data.nombre) || 0,
+    };
+    const nouvellesMortalites = lot.mortalites.map((mortalite) =>
+      mortalite.id === mortaliteModifiee.id ? mortaliteModifiee : mortalite
+    );
+    appliquerMortalitesLocales(lot.id, nouvellesMortalites);
+    await synchroniserTotauxMortalites(lot, nouvellesMortalites);
+    setMortaliteEnModification(null);
+    toast.success('Mortalité modifiée.');
+  }
+  setSaving(false);
+};
+
+const supprimerMortalite = async (mortalite: Mortalite) => {
+  if (saving || !window.confirm('Supprimer cette mortalité ?')) return;
+  const lot = lots.find((item) => item.id === mortalite.lot_id);
+  if (!lot) return;
+
+  setSaving(true);
+  const { error } = await supabase
+    .from('mortalites_volailles')
+    .delete()
+    .eq('id', mortalite.id);
+
+  if (error) {
+    console.error('Erreur suppression mortalité:', error);
+    toast.error("La mortalité n'a pas pu être supprimée.");
+  } else {
+    const nouvellesMortalites = lot.mortalites.filter((item) => item.id !== mortalite.id);
+    appliquerMortalitesLocales(lot.id, nouvellesMortalites);
+    await synchroniserTotauxMortalites(lot, nouvellesMortalites);
+    toast.success('Mortalité supprimée.');
+  }
+  setSaving(false);
+};
+
+const appliquerLivraisonsLocales = (
+  lotId: string,
+  nouvellesLivraisons: LivraisonVolaille[]
+) => {
+  const mettreAJour = (lot: LotVolaille): LotVolaille => ({
+    ...lot,
+    livraisons: nouvellesLivraisons,
+  });
+
+  setLots((lotsActuels) =>
+    lotsActuels.map((lot) => (lot.id === lotId ? mettreAJour(lot) : lot))
+  );
+  setDetailLot((lotActuel) => {
+    if (!lotActuel || lotActuel.id !== lotId) return lotActuel;
+    return mettreAJour(lotActuel);
+  });
+};
+
+const enregistrerModificationLivraison = async () => {
+  if (saving || !livraisonEnModification) return;
+  if (
+    !livraisonEnModification.date ||
+    livraisonEnModification.quantite <= 0 ||
+    livraisonEnModification.poids <= 0
+  ) {
+    toast.error('Complétez la date, la quantité et le poids.');
+    return;
+  }
+
+  const lot = lots.find((item) => item.id === livraisonEnModification.lot_id);
+  if (!lot) return;
+
+  setSaving(true);
+  const { data, error } = await supabase
+    .from('livraisons_volailles')
+    .update({
+      date: livraisonEnModification.date,
+      quantite: livraisonEnModification.quantite,
+      poids: livraisonEnModification.poids,
+    })
+    .eq('id', livraisonEnModification.id)
+    .select('id, lot_id, date, quantite, poids')
+    .single();
+
+  if (error) {
+    console.error('Erreur modification livraison:', error);
+    toast.error("La livraison n'a pas pu être modifiée.");
+  } else if (data) {
+    const livraisonModifiee: LivraisonVolaille = {
+      ...data,
+      quantite: Number(data.quantite) || 0,
+      poids: Number(data.poids) || 0,
+    };
+    appliquerLivraisonsLocales(
+      lot.id,
+      lot.livraisons.map((livraison) =>
+        livraison.id === livraisonModifiee.id ? livraisonModifiee : livraison
+      )
+    );
+    setLivraisonEnModification(null);
+    toast.success('Livraison modifiée.');
+  }
+  setSaving(false);
+};
+
+const supprimerLivraison = async (livraison: LivraisonVolaille) => {
+  if (saving || !window.confirm('Supprimer cette livraison ?')) return;
+  const lot = lots.find((item) => item.id === livraison.lot_id);
+  if (!lot) return;
+
+  setSaving(true);
+  const { error } = await supabase
+    .from('livraisons_volailles')
+    .delete()
+    .eq('id', livraison.id);
+
+  if (error) {
+    console.error('Erreur suppression livraison:', error);
+    toast.error("La livraison n'a pas pu être supprimée.");
+  } else {
+    appliquerLivraisonsLocales(
+      lot.id,
+      lot.livraisons.filter((item) => item.id !== livraison.id)
+    );
+    toast.success('Livraison supprimée.');
+  }
+  setSaving(false);
 };
 
 // Affiche les sujets restants
@@ -966,11 +1166,26 @@ return (
             ) : (
               <div className="mt-3 space-y-2">
                 {livraisonsExistantes.map((livraison, index) => (
-                  <div key={index} className="rounded bg-gray-50 p-3 text-sm">
+                  <div key={livraison.id} className="rounded bg-gray-50 p-3 text-sm">
                     <div className="font-medium">Livraison {index + 1}</div>
                     <div>Date : {livraison.date || '-'}</div>
                     <div>Quantité : {livraison.quantite || 0}</div>
                     <div>Poids : {livraison.poids || 0} kg</div>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => setLivraisonEnModification({ ...livraison })}
+                        className="!bg-blue-600 !text-white rounded px-3 py-1 text-xs"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => supprimerLivraison(livraison)}
+                        disabled={saving}
+                        className="!bg-red-600 !text-white rounded px-3 py-1 text-xs disabled:opacity-60"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -986,13 +1201,29 @@ return (
                     <tr className="border-b">
                       <th className="py-2 text-left">Date</th>
                       <th className="py-2 text-left">Nombre</th>
+                      <th className="py-2 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lotDetail.mortalites.map((mortalite, index) => (
-                      <tr key={index} className="border-b">
+                    {lotDetail.mortalites.map((mortalite) => (
+                      <tr key={mortalite.id} className="border-b">
                         <td className="py-2">{mortalite.date}</td>
                         <td className="py-2">{mortalite.nombre}</td>
+                        <td className="py-2 text-right">
+                          <button
+                            onClick={() => setMortaliteEnModification({ ...mortalite })}
+                            className="!bg-blue-600 !text-white rounded px-2 py-1 text-xs"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => supprimerMortalite(mortalite)}
+                            disabled={saving}
+                            className="ml-2 !bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
+                          >
+                            Supprimer
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1118,15 +1349,31 @@ return (
          <tr className="bg-gray-100">
            <th className="border px-4 py-2 text-left">Date</th>
            <th className="border px-4 py-2 text-left">Nombre</th>
+           <th className="border px-4 py-2 text-right">Actions</th>
          </tr>
        </thead>
        <tbody>
          {lots
            .find(lot => lot.id === mortaliteDetailsLotId)?.mortalites
-           .map((mortalite, index) => (
-             <tr key={index} className="hover:bg-gray-50">
+           .map((mortalite) => (
+             <tr key={mortalite.id} className="hover:bg-gray-50">
                <td className="border px-4 py-2">{mortalite.date}</td>
                <td className="border px-4 py-2">{mortalite.nombre}</td>
+               <td className="border px-4 py-2 text-right">
+                 <button
+                   onClick={() => setMortaliteEnModification({ ...mortalite })}
+                   className="!bg-blue-600 !text-white rounded px-2 py-1 text-xs"
+                 >
+                   Modifier
+                 </button>
+                 <button
+                   onClick={() => supprimerMortalite(mortalite)}
+                   disabled={saving}
+                   className="ml-2 !bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
+                 >
+                   Supprimer
+                 </button>
+               </td>
              </tr>
            ))}
          {/* Ligne de total */}
@@ -1138,6 +1385,7 @@ return (
                  .reduce((total, mort) => total + mort.nombre, 0)
              }
            </td>
+           <td className="border px-4 py-2"></td>
          </tr>
        </tbody>
      </table>
@@ -1152,6 +1400,129 @@ return (
    </div>
  </div>
 )}
+
+{mortaliteEnModification && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <h2 className="text-xl font-semibold">Modifier la mortalité</h2>
+      <div className="mt-4 space-y-3">
+        <label className="block text-sm font-medium text-gray-700">
+          Date
+          <input
+            type="date"
+            value={mortaliteEnModification.date}
+            onChange={(event) =>
+              setMortaliteEnModification({
+                ...mortaliteEnModification,
+                date: event.target.value,
+              })
+            }
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+        <label className="block text-sm font-medium text-gray-700">
+          Nombre
+          <input
+            type="number"
+            min={1}
+            value={mortaliteEnModification.nombre}
+            onChange={(event) =>
+              setMortaliteEnModification({
+                ...mortaliteEnModification,
+                nombre: Number(event.target.value),
+              })
+            }
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+      </div>
+      <button
+        onClick={enregistrerModificationMortalite}
+        disabled={saving}
+        className="mt-5 w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
+      >
+        {saving ? 'Enregistrement...' : 'Enregistrer la modification'}
+      </button>
+      <button
+        onClick={() => setMortaliteEnModification(null)}
+        disabled={saving}
+        className="mt-2 w-full !bg-gray-200 !text-gray-900 rounded p-2 disabled:opacity-60"
+      >
+        Annuler
+      </button>
+    </div>
+  </div>
+)}
+
+{livraisonEnModification && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <h2 className="text-xl font-semibold">Modifier la livraison</h2>
+      <div className="mt-4 space-y-3">
+        <label className="block text-sm font-medium text-gray-700">
+          Date
+          <input
+            type="date"
+            value={livraisonEnModification.date}
+            onChange={(event) =>
+              setLivraisonEnModification({
+                ...livraisonEnModification,
+                date: event.target.value,
+              })
+            }
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+        <label className="block text-sm font-medium text-gray-700">
+          Quantité
+          <input
+            type="number"
+            min={1}
+            value={livraisonEnModification.quantite}
+            onChange={(event) =>
+              setLivraisonEnModification({
+                ...livraisonEnModification,
+                quantite: Number(event.target.value),
+              })
+            }
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+        <label className="block text-sm font-medium text-gray-700">
+          Poids (kg)
+          <input
+            type="number"
+            min={0.01}
+            step="0.01"
+            value={livraisonEnModification.poids}
+            onChange={(event) =>
+              setLivraisonEnModification({
+                ...livraisonEnModification,
+                poids: Number(event.target.value),
+              })
+            }
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+      </div>
+      <button
+        onClick={enregistrerModificationLivraison}
+        disabled={saving}
+        className="mt-5 w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
+      >
+        {saving ? 'Enregistrement...' : 'Enregistrer la modification'}
+      </button>
+      <button
+        onClick={() => setLivraisonEnModification(null)}
+        disabled={saving}
+        className="mt-2 w-full !bg-gray-200 !text-gray-900 rounded p-2 disabled:opacity-60"
+      >
+        Annuler
+      </button>
+    </div>
+  </div>
+)}
+
    {/* Modale pour enregistrer la vente*/}
 {venteModalOpen && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

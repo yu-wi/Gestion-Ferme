@@ -941,7 +941,7 @@ return (
              setLivraisons([{ date: '', quantite: '', poids: '' }]);
              setShowLivraisonModal(true);
            }}>
-             <span>□</span><div><strong>Livraison prévue</strong><small>{prochaineLivraison.lot.nom} · {prochaineLivraison.date.toLocaleDateString("fr-FR")}</small></div>
+             <span aria-hidden="true">🚚</span><div><strong>Livraison prévue</strong><small>{prochaineLivraison.lot.nom} · {prochaineLivraison.date.toLocaleDateString("fr-FR")}</small></div>
            </button>
          )}
          {!lotsAlerteMortalite.length && !lotsFaibles.length && !prochaineLivraison && (
@@ -997,13 +997,13 @@ return (
                  <span>Poids <b>{lot.livraisons.reduce((sum, livraison) => sum + livraison.poids, 0).toFixed(1)} kg</b></span>
                </div>
                <div className="poultry-card-actions">
-                 <button type="button" onClick={() => setDetailLot(lot)}>Fiche</button>
-                 <button type="button" onClick={() => ouvrirMortaliteModal(lot.id)}>＋ Mortalité</button>
+                 <button type="button" onClick={() => setDetailLot(lot)}><span aria-hidden="true">👁</span> Fiche</button>
+                 <button type="button" className="poultry-action-mortality" onClick={() => ouvrirMortaliteModal(lot.id)}><span aria-hidden="true">✝</span> Mortalité</button>
                  <button type="button" onClick={() => {
                    setSelectedLot(lot);
                    setLivraisons([{ date: '', quantite: '', poids: '' }]);
                    setShowLivraisonModal(true);
-                 }}>＋ Livraison</button>
+                 }}><span aria-hidden="true">🚚</span> Livraison</button>
                </div>
              </article>
            );
@@ -1047,16 +1047,16 @@ return (
                    <td><span className="poultry-status">En cours</span></td>
                    <td>
                      <div className="poultry-row-actions">
-                       <button type="button" title="Voir la fiche" onClick={() => setDetailLot(lot)}>◉</button>
-                       <button type="button" title="Mortalité" onClick={() => ouvrirMortaliteModal(lot.id)}>♥</button>
-                       <button type="button" title="Livraison" onClick={() => {
+                       <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.nom}`} onClick={() => setDetailLot(lot)}>👁</button>
+                       <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.nom}`} onClick={() => ouvrirMortaliteModal(lot.id)}>✝</button>
+                       <button type="button" className="poultry-action-delivery" title="Enregistrer une livraison" aria-label={`Enregistrer une livraison pour le lot ${lot.nom}`} onClick={() => {
                          setSelectedLot(lot);
                          setLivraisons([{ date: '', quantite: '', poids: '' }]);
                          setShowLivraisonModal(true);
-                       }}>▣</button>
-                       <button type="button" title="Vente" onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }}>€</button>
-                       <button type="button" title="Archiver" disabled={saving} onClick={() => archiverLot(lot.id)}>↓</button>
-                       <button type="button" title="Supprimer" disabled={saving} onClick={() => supprimerLot(lot)}>×</button>
+                       }}>🚚</button>
+                       <button type="button" className="poultry-action-sale" title="Enregistrer la vente" aria-label={`Enregistrer la vente du lot ${lot.nom}`} onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }}>€</button>
+                       <button type="button" className="poultry-action-archive" title="Archiver le lot" aria-label={`Archiver le lot ${lot.nom}`} disabled={saving} onClick={() => archiverLot(lot.id)}>🗃</button>
+                       <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.nom}`} disabled={saving} onClick={() => supprimerLot(lot)}>🗑</button>
                      </div>
                    </td>
                  </tr>
@@ -1073,9 +1073,9 @@ return (
      <aside className="poultry-quick-actions">
        <h2>Actions rapides</h2>
        <button type="button" onClick={() => setNouveauLotModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
-       <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span>♧</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
-       <Link to="/volailles/alimentation"><span>◫</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
-       <Link to="/volailles/historique"><span>☷</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique</small></div></Link>
+       <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
+       <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
+       <Link to="/volailles/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique</small></div></Link>
      </aside>
    </section>
  </div>

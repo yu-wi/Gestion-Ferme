@@ -1165,7 +1165,12 @@
 }
 
 .poultry-row-actions button:hover { border-color: #16853d; color: #16853d; }
-.poultry-row-actions button:last-child:hover { border-color: #dc2626; color: #dc2626; }
+.poultry-row-actions .poultry-action-mortality { color: #c62828; }
+.poultry-row-actions .poultry-action-delivery { color: #2369a8; }
+.poultry-row-actions .poultry-action-sale { color: #16853d; font-weight: 800; }
+.poultry-row-actions .poultry-action-archive { color: #7b5b34; }
+.poultry-row-actions .poultry-action-delete { color: #b91c1c; }
+.poultry-row-actions .poultry-action-delete:hover { border-color: #dc2626; color: #dc2626; }
 
 .poultry-quick-actions {
   display: grid;
@@ -1314,6 +1319,8 @@
   .poultry-mobile-values span { display: flex; flex-direction: column; border-radius: 6px; padding: 9px; color: #718093; background: #f7f9f8; font-size: 9px; }
   .poultry-mobile-values b { margin-top: 3px; color: #263e51; font-size: 12px; }
   .poultry-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 12px; }
-  .poultry-card-actions button { border: 1px solid #dce5e0; border-radius: 6px; padding: 8px 5px; color: #365064; background: white; font-size: 10px; }
+  .poultry-card-actions button { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 4px; border: 1px solid #dce5e0; border-radius: 6px; padding: 8px 5px; color: #365064; background: white; font-size: 10px; }
+  .poultry-card-actions button span { font-size: 13px; }
+  .poultry-card-actions .poultry-action-mortality { color: #b91c1c; }
   .poultry-quick-actions { grid-template-columns: 1fr 1fr; }
 }

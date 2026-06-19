@@ -362,8 +362,8 @@ export default function Accueil({ userName }: AccueilProps) {
           <div className="dashboard-information">
             Consultez l’analyse économique pour le détail par lot.
           </div>
-          <Link className="dashboard-text-link" to="/volailles/analyseeconomie">
-            Ouvrir l’analyse économique →
+          <Link className="dashboard-text-link" to="/volailles/analyse">
+            Ouvrir l’analyse →
           </Link>
         </article>
 
@@ -441,7 +441,7 @@ export default function Accueil({ userName }: AccueilProps) {
             <PanelTitle icon="!" title="Repères rapides" />
             <Link to="/volailles">{lotsActifs.length} lots actuellement actifs</Link>
             <Link to="/volailles/historique">{lotsArchives.length} lots archivés</Link>
-            <Link to="/volailles/statistiques">{mortalites} mortalités sur les lots actifs</Link>
+            <Link to="/volailles/analyse">{mortalites} mortalités sur les lots actifs</Link>
           </article>
         </aside>
       </section>

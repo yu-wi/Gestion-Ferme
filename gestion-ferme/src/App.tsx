@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import AuthGate from './components/AuthGate';
@@ -14,8 +14,7 @@ import Accueil from './pages/Accueil';
 
 import AlimentationPage from './volailles/alimentationPage'
 import Historique from './volailles/Historique'; 
-import Statistiques from './volailles/Statistiques'; 
-import AnalyseEconomie from './volailles/AnalyseEconomie'; 
+import Analyse from './volailles/Analyse';
 
 
 
@@ -38,8 +37,9 @@ function App() {
                 <Route path="ovins" element={<Ovins />} />
                 <Route path="/volailles/alimentation" element={<AlimentationPage />} />
                 <Route path="/volailles/historique" element={<Historique />} />
-                <Route path="/volailles/statistiques" element={<Statistiques />} />
-                <Route path="/volailles/analyseeconomie" element={<AnalyseEconomie />} />
+                <Route path="/volailles/analyse" element={<Analyse />} />
+                <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
+                <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />
               </Routes>
             </main>
             <Footer />

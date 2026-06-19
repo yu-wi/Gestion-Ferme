@@ -102,6 +102,80 @@
   box-shadow: 0 7px 18px rgba(0, 0, 0, 0.12);
 }
 
+.app-nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-nav-group-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  transition: background-color 160ms ease;
+}
+
+.app-nav-group-row:hover,
+.app-nav-group-active {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-nav-parent-link {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0 9px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-nav-toggle {
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  font-size: 17px;
+}
+
+.app-nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 3px 0 5px 31px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(121, 211, 151, 0.42);
+}
+
+.app-nav-sublink {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-nav-sublink:hover,
+.app-nav-sublink-active {
+  color: white;
+  background: rgba(19, 138, 62, 0.55);
+}
+
+.app-nav-sublink span {
+  color: #79d397;
+}
+
 .app-nav-icon {
   display: grid;
   width: 24px;

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import type { FC, ReactNode } from "react";
 import chickenLogo from "../assets/chicken.svg";
 import fishLogo from "../assets/fish.svg";
@@ -19,23 +19,34 @@ type NavigationItem = {
 };
 
 const production: NavigationItem[] = [
-  { to: "/volailles", label: "Volailles", icon: <img src={chickenLogo} alt="" /> },
   { to: "/aquaponie", label: "Aquaponie", icon: <img src={fishLogo} alt="" /> },
   { to: "/cultures", label: "Cultures", icon: <img src={plantsLogo} alt="" /> },
   { to: "/ovins", label: "Ovins", icon: <img src={sheepLogo} alt="" /> },
 ];
 
 const gestion: NavigationItem[] = [
-  { to: "/volailles/alimentation", label: "Alimentation", icon: "◫" },
-  { to: "/volailles/historique", label: "Historique", icon: "◷" },
-  { to: "/volailles/statistiques", label: "Statistiques", icon: "▥" },
-  { to: "/volailles/analyseeconomie", label: "Analyse économique", icon: "◔" },
+  { to: "/volailles/analyse", label: "Analyse", icon: "◔" },
 ];
 
+const estDansProductionVolailles = (pathname: string) =>
+  pathname === "/volailles" ||
+  pathname.startsWith("/volailles/alimentation") ||
+  pathname.startsWith("/volailles/historique");
+
 const Header: FC<HeaderProps> = ({ userEmail }) => {
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [volaillesOpen, setVolaillesOpen] = useState(
+    estDansProductionVolailles(location.pathname)
+  );
 
   const fermerMenu = () => setMenuOpen(false);
+
+  useEffect(() => {
+    if (estDansProductionVolailles(location.pathname)) {
+      setVolaillesOpen(true);
+    }
+  }, [location.pathname]);
 
   const liens = (items: NavigationItem[]) =>
     items.map((item) => (
@@ -104,6 +115,76 @@ const Header: FC<HeaderProps> = ({ userEmail }) => {
           </NavLink>
 
           <div className="app-nav-section">Production</div>
+          <div className="app-nav-group">
+            <div
+              className={`app-nav-group-row${
+                estDansProductionVolailles(location.pathname)
+                  ? " app-nav-group-active"
+                  : ""
+              }`}
+            >
+              <NavLink
+                to="/volailles"
+                end
+                onClick={fermerMenu}
+                className="app-nav-parent-link"
+              >
+                <span className="app-nav-icon">
+                  <img src={chickenLogo} alt="" />
+                </span>
+                <span>Volailles</span>
+              </NavLink>
+              <button
+                type="button"
+                className="app-nav-toggle"
+                onClick={() => setVolaillesOpen((open) => !open)}
+                aria-label={
+                  volaillesOpen
+                    ? "Replier le menu Volailles"
+                    : "Déplier le menu Volailles"
+                }
+                aria-expanded={volaillesOpen}
+              >
+                {volaillesOpen ? "⌃" : "⌄"}
+              </button>
+            </div>
+
+            {volaillesOpen && (
+              <div className="app-nav-submenu">
+                <NavLink
+                  to="/volailles"
+                  end
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Lots en cours
+                </NavLink>
+                <NavLink
+                  to="/volailles/alimentation"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Alimentation
+                </NavLink>
+                <NavLink
+                  to="/volailles/historique"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Historique
+                </NavLink>
+              </div>
+            )}
+          </div>
           {liens(production)}
 
           <div className="app-nav-section">Gestion</div>

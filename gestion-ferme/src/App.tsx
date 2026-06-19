@@ -24,7 +24,7 @@ function App() {
     <AuthGate>
       {(session) => (
         <>
-          <Header userEmail={session.user.email ?? ''} />
+          <Header userEmail={(session.user.email ?? '').split('@')[0]} />
           <Toaster position="top-right" reverseOrder={false} />
           <div className="p-4">
             <Routes>

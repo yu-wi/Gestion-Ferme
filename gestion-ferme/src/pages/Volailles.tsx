@@ -4,8 +4,10 @@ import 'react-calendar/dist/Calendar.css';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import toast from 'react-hot-toast';
+import ModalCloseButton from '../components/ModalCloseButton';
 import {
   chargerLotsAvecMouvements,
+  supprimerLotEtDonnees,
   type LivraisonVolaille,
   type MortaliteVolaille,
 } from '../volailles/volaillesData';
@@ -34,6 +36,7 @@ const [batiment, setBatiment] = useState('');
 const [searchNom, setSearchNom] = useState('');
 const [searchBatiment, setSearchBatiment] = useState('');
 const [showOnlyAlertLots, setShowOnlyAlertLots] = useState(false);
+const [nouveauLotModalOpen, setNouveauLotModalOpen] = useState(false);
 
 
 const [mortaliteModalOpen, setMortaliteModalOpen] = useState(false);
@@ -42,10 +45,6 @@ const [mortaliteDate, setMortaliteDate] = useState('');
 const [mortaliteNombre, setMortaliteNombre] = useState(0);
 const [mortaliteEnModification, setMortaliteEnModification] = useState<Mortalite | null>(null);
 const [livraisonEnModification, setLivraisonEnModification] = useState<LivraisonVolaille | null>(null);
-
-
-const [mortaliteDetailsModalOpen, setMortaliteDetailsModalOpen] = useState(false);
-const [mortaliteDetailsLotId, setMortaliteDetailsLotId] = useState<string | null>(null);
 
 
 const [sortColumn, setSortColumn] = useState<string>('nom');
@@ -201,6 +200,7 @@ const ajouterLot = async () => {
    setQuantite(0);
    setDateArrivee('');
    setBatiment('');
+   setNouveauLotModalOpen(false);
    toast.success('Lot enregistré.');
   }
   setSaving(false);
@@ -294,17 +294,6 @@ const handleSort = (column: string) => {
  setSortOrder(newSortOrder);
 };
 
-
-// Affiche les détails des mortalités
-const ouvrirMortaliteDetailsModal = (lotId: string) => {
- setMortaliteDetailsLotId(lotId);
- setMortaliteDetailsModalOpen(true);
-};
-
-
-const fermerMortaliteDetailsModal = () => {
- setMortaliteDetailsModalOpen(false);
-};
 
 const appliquerMortalitesLocales = (
   lotId: string,
@@ -657,9 +646,26 @@ const archiverLot = async (lotId: string) => {
   if (saving) return;
   try {
     setSaving(true);
+    const lot = lots.find((item) => item.id === lotId);
+    if (!lot) return;
+    const datesLivraison = lot.livraisons
+      .map((livraison) => livraison.date)
+      .filter(Boolean)
+      .sort();
+    const dateCloture =
+      datesLivraison[datesLivraison.length - 1] ||
+      new Date().toISOString().split('T')[0];
+    const ageCloture = Math.max(
+      0,
+      Math.floor(
+        (new Date(`${dateCloture}T00:00:00`).getTime() -
+          new Date(`${lot.dateArrivee}T00:00:00`).getTime()) /
+          86400000
+      )
+    );
     const { error } = await supabase
       .from('lots_volailles')
-      .update({ is_active: false })
+      .update({ is_active: false, age: ageCloture })
       .eq('id', lotId);
 
     if (error) {
@@ -674,6 +680,32 @@ const archiverLot = async (lotId: string) => {
   } catch (err) {
     console.error("Erreur inconnue lors de l'archivage :", err);
     toast.error("Le lot n'a pas pu être archivé.");
+  } finally {
+    setSaving(false);
+  }
+};
+
+const supprimerLot = async (lot: LotVolaille) => {
+  if (
+    saving ||
+    !window.confirm(
+      `Supprimer définitivement le lot ${lot.nom} et toutes ses données ?`
+    )
+  ) {
+    return;
+  }
+
+  setSaving(true);
+  try {
+    await supprimerLotEtDonnees(lot.id);
+    setLots((lotsActuels) =>
+      lotsActuels.filter((item) => item.id !== lot.id)
+    );
+    if (detailLot?.id === lot.id) setDetailLot(null);
+    toast.success('Lot supprimé définitivement.');
+  } catch (error) {
+    console.error('Erreur suppression du lot :', error);
+    toast.error("Le lot n'a pas pu être supprimé.");
   } finally {
     setSaving(false);
   }
@@ -787,9 +819,15 @@ return (
        <p className="text-sm text-gray-600">Lots actifs, planning sanitaire, livraisons et ventes.</p>
      </div>
      <div className="flex flex-wrap gap-2">
-       <button className="!bg-emerald-600 !text-white px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>Autoconsommation</button>
+       <button
+         className="!bg-blue-600 !text-white px-4 py-2 rounded"
+         onClick={() => setNouveauLotModalOpen(true)}
+       >
+         ＋ Nouveau lot
+       </button>
+       <button className="!bg-emerald-600 !text-white px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>＋ Autoconsommation</button>
        <button className="!bg-slate-700 !text-white px-4 py-2 rounded" onClick={() => exportToExcel(filteredLots)}>
-         Export Excel détaillé
+         ⇩ Export Excel
        </button>
      </div>
    </div>
@@ -812,33 +850,6 @@ return (
        <div className="mt-1 text-2xl font-bold">{totalMorts}</div>
      </div>
    </div>
-
-   {/* Formulaire ajout */}
-   <div className="rounded-lg border bg-white p-4 shadow-sm">
-     <h2 className="mb-3 text-lg font-semibold">Nouveau lot</h2>
-     <div className="grid gap-3 md:grid-cols-5">
-       <label className="text-left text-sm font-medium text-gray-700">
-         Nom
-         <input type="text" placeholder="Ex. Lot 12" value={nom} onChange={e => setNom(e.target.value)} className="mt-1 w-full border p-2 rounded" />
-       </label>
-       <label className="text-left text-sm font-medium text-gray-700">
-         Quantité
-         <input type="number" min={1} placeholder="0" value={quantite} onChange={e => setQuantite(+e.target.value)} className="mt-1 w-full border p-2 rounded" />
-       </label>
-       <label className="text-left text-sm font-medium text-gray-700">
-         Date arrivée
-         <input type="date" value={dateArrivee} onChange={e => setDateArrivee(e.target.value)} className="mt-1 w-full border p-2 rounded" />
-       </label>
-       <label className="text-left text-sm font-medium text-gray-700">
-         Bâtiment
-         <input type="text" placeholder="Ex. B1" value={batiment} onChange={e => setBatiment(e.target.value)} className="mt-1 w-full border p-2 rounded" />
-       </label>
-       <button onClick={ajouterLot} disabled={saving} className="self-end !bg-blue-600 !text-white p-2 rounded disabled:opacity-60">
-       {saving ? 'Enregistrement...' : 'Ajouter Lot'}
-       </button>
-     </div>
-   </div>
-
 
   <div className="rounded-lg border bg-white p-4 shadow-sm">
     <h2 className="mb-3 text-lg font-semibold">Calendrier des lots</h2>
@@ -953,10 +964,7 @@ return (
             Fiche du lot
           </button>
           <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm">
-            Mortalité
-          </button>
-          <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded text-sm">
-            Détails
+            ＋ Mortalité
           </button>
           <button
             onClick={() => {
@@ -966,17 +974,24 @@ return (
             }}
             className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
           >
-            Livraison
+            ＋ Livraison
           </button>
           <button onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }} className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm">
-            Vente
+            € Vente
           </button>
           <button
             onClick={() => archiverLot(lot.id)}
             disabled={saving}
             className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
           >
-            Archiver
+            ↓ Archiver
+          </button>
+          <button
+            onClick={() => supprimerLot(lot)}
+            disabled={saving}
+            className="col-span-2 rounded !bg-red-700 px-3 py-2 text-sm !text-white disabled:opacity-60"
+          >
+            × Supprimer le lot
           </button>
         </div>
       </article>
@@ -1059,10 +1074,7 @@ return (
             Fiche du lot
            </button>
          <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm" title="Ajouter une mortalité">
-            Mortalité
-           </button>
-           <button onClick={() => ouvrirMortaliteDetailsModal(lot.id)} className="!bg-purple-600 !text-white px-3 py-2 rounded text-sm" title="Voir les mortalités">
-           Détails
+            ＋ Mortalité
            </button>
           <button onClick={() => {
                 setSelectedLot(lot);
@@ -1072,13 +1084,13 @@ return (
               className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
               title="Ajouter une livraison"
             >
-                Livraison
+                ＋ Livraison
           </button>
            <button onClick={() => {setSelectedLot(lot);setVenteModalOpen(true);}}
             className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm"
             title="Enregistrer une vente"
           >
-            Vente
+            € Vente
           </button>
 
             <button
@@ -1087,7 +1099,15 @@ return (
               className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
               title="Archiver le lot"
             >
-              Archiver
+              ↓ Archiver
+            </button>
+            <button
+              onClick={() => supprimerLot(lot)}
+              disabled={saving}
+              className="col-span-2 rounded !bg-red-700 px-3 py-2 text-sm !text-white disabled:opacity-60"
+              title="Supprimer définitivement le lot"
+            >
+              × Supprimer
             </button>
             </div>
          </td>
@@ -1099,6 +1119,43 @@ return (
 
 </div>
 </div>
+
+{nouveauLotModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="relative w-full max-w-xl rounded-lg bg-white p-6 shadow-lg">
+      <ModalCloseButton
+        onClick={() => setNouveauLotModalOpen(false)}
+        disabled={saving}
+      />
+      <h2 className="pr-12 text-xl font-semibold">Nouveau lot</h2>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <label className="text-left text-sm font-medium text-gray-700">
+          Nom
+          <input type="text" placeholder="Ex. Lot 12" value={nom} onChange={e => setNom(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+        </label>
+        <label className="text-left text-sm font-medium text-gray-700">
+          Quantité
+          <input type="number" min={1} placeholder="0" value={quantite} onChange={e => setQuantite(+e.target.value)} className="mt-1 w-full border p-2 rounded" />
+        </label>
+        <label className="text-left text-sm font-medium text-gray-700">
+          Date arrivée
+          <input type="date" value={dateArrivee} onChange={e => setDateArrivee(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+        </label>
+        <label className="text-left text-sm font-medium text-gray-700">
+          Bâtiment
+          <input type="text" placeholder="Ex. B1" value={batiment} onChange={e => setBatiment(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+        </label>
+      </div>
+      <button
+        onClick={ajouterLot}
+        disabled={saving}
+        className="mt-5 w-full rounded !bg-blue-600 p-2 !text-white disabled:opacity-60"
+      >
+        {saving ? 'Enregistrement...' : 'Ajouter le lot'}
+      </button>
+    </div>
+  </div>
+)}
 
 {detailLot && (() => {
   const lotDetail = detailLot;
@@ -1114,20 +1171,15 @@ return (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+      <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+        <ModalCloseButton onClick={() => setDetailLot(null)} disabled={saving} />
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+          <div className="pr-12">
             <h2 className="text-2xl font-bold">{lotDetail.nom}</h2>
             <p className="text-sm text-gray-600">
               {lotDetail.batiment} · arrivé le {lotDetail.dateArrivee} · {ageJours} jours
             </p>
           </div>
-          <button
-            onClick={() => setDetailLot(null)}
-            className="!bg-gray-200 !text-gray-900 rounded px-4 py-2"
-          >
-            Fermer
-          </button>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1235,14 +1287,6 @@ return (
           </div>
         </div>
 
-        <div className="mt-5 flex justify-end">
-          <button
-            onClick={() => setDetailLot(null)}
-            className="!bg-gray-700 !text-white rounded px-4 py-2"
-          >
-            Fermer
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -1251,8 +1295,9 @@ return (
    {/* Modale pour enregistrer les livraisons */}
 {showLivraisonModal && (
   <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-1">Ajouter une ou plusieurs livraisons</h2>
+    <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <ModalCloseButton onClick={() => setShowLivraisonModal(false)} disabled={saving} />
+      <h2 className="pr-12 text-xl font-semibold mb-1">Ajouter une ou plusieurs livraisons</h2>
       {selectedLot && <p className="mb-4 text-sm text-gray-600">{selectedLot.nom}</p>}
 
       {livraisons.map((livraison, index) => (
@@ -1315,8 +1360,9 @@ return (
    {/* Modale pour saisir une mortalité */}
    {mortaliteModalOpen && (
      <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center p-4">
-       <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-         <h2 className="text-xl font-semibold mb-1">Ajouter une mortalité</h2>
+       <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+         <ModalCloseButton onClick={() => setMortaliteModalOpen(false)} disabled={saving} />
+         <h2 className="pr-12 text-xl font-semibold mb-1">Ajouter une mortalité</h2>
          <p className="mb-4 text-sm text-gray-600">{lots.find((lot) => lot.id === mortaliteLotId)?.nom}</p>
          <input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} className="border p-2 rounded mb-2 w-full" />
          <input type="number" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} className="border p-2 rounded mb-4 w-full" />
@@ -1328,74 +1374,11 @@ return (
      </div>
    )}
 
-
-   {/* Modale pour afficher les détails de la mortalité */}
-{mortaliteDetailsModalOpen && mortaliteDetailsLotId && (
- <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-   <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] overflow-auto">
-     <h2 className="text-xl font-semibold mb-1">Détails des Mortalités</h2>
-     <p className="mb-4 text-sm text-gray-600">{lots.find((lot) => lot.id === mortaliteDetailsLotId)?.nom}</p>
-     <table className="w-full border-collapse">
-       <thead>
-         <tr className="bg-gray-100">
-           <th className="border px-4 py-2 text-left">Date</th>
-           <th className="border px-4 py-2 text-left">Nombre</th>
-           <th className="border px-4 py-2 text-right">Actions</th>
-         </tr>
-       </thead>
-       <tbody>
-         {lots
-           .find(lot => lot.id === mortaliteDetailsLotId)?.mortalites
-           .map((mortalite) => (
-             <tr key={mortalite.id} className="hover:bg-gray-50">
-               <td className="border px-4 py-2">{mortalite.date}</td>
-               <td className="border px-4 py-2">{mortalite.nombre}</td>
-               <td className="border px-4 py-2 text-right">
-                 <button
-                   onClick={() => setMortaliteEnModification({ ...mortalite })}
-                   className="!bg-blue-600 !text-white rounded px-2 py-1 text-xs"
-                 >
-                   Modifier
-                 </button>
-                 <button
-                   onClick={() => supprimerMortalite(mortalite)}
-                   disabled={saving}
-                   className="ml-2 !bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
-                 >
-                   Supprimer
-                 </button>
-               </td>
-             </tr>
-           ))}
-         {/* Ligne de total */}
-         <tr className="bg-gray-200 font-semibold">
-           <td className="border px-4 py-2">Total</td>
-           <td className="border px-4 py-2">
-             {
-               lots.find(lot => lot.id === mortaliteDetailsLotId)?.mortalites
-                 .reduce((total, mort) => total + mort.nombre, 0)
-             }
-           </td>
-           <td className="border px-4 py-2"></td>
-         </tr>
-       </tbody>
-     </table>
-
-
-     <button
-       onClick={fermerMortaliteDetailsModal}
-       className="!bg-gray-700 !text-white mt-6 px-4 py-2 rounded hover:bg-gray-800"
-     >
-       Fermer
-     </button>
-   </div>
- </div>
-)}
-
 {mortaliteEnModification && (
   <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-      <h2 className="text-xl font-semibold">Modifier la mortalité</h2>
+    <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <ModalCloseButton onClick={() => setMortaliteEnModification(null)} disabled={saving} />
+      <h2 className="pr-12 text-xl font-semibold">Modifier la mortalité</h2>
       <div className="mt-4 space-y-3">
         <label className="block text-sm font-medium text-gray-700">
           Date
@@ -1447,8 +1430,9 @@ return (
 
 {livraisonEnModification && (
   <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-      <h2 className="text-xl font-semibold">Modifier la livraison</h2>
+    <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <ModalCloseButton onClick={() => setLivraisonEnModification(null)} disabled={saving} />
+      <h2 className="pr-12 text-xl font-semibold">Modifier la livraison</h2>
       <div className="mt-4 space-y-3">
         <label className="block text-sm font-medium text-gray-700">
           Date
@@ -1517,8 +1501,9 @@ return (
    {/* Modale pour enregistrer la vente*/}
 {venteModalOpen && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-      <h2 className="text-xl font-semibold mb-1">Enregistrer la vente du lot</h2>
+    <div className="relative bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+      <ModalCloseButton onClick={() => setVenteModalOpen(false)} disabled={saving} />
+      <h2 className="pr-12 text-xl font-semibold mb-1">Enregistrer la vente du lot</h2>
       {selectedLot && <p className="mb-4 text-sm text-gray-600">{selectedLot.nom}</p>}
       <input
         type="date"
@@ -1554,8 +1539,16 @@ return (
 {/* Modale Autoconsommation */}
 {showAutoconsommationModal && (
   <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-      <h2 className="text-lg font-bold mb-4">Saisir la Quantité en Autoconsommation</h2>
+    <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+      <ModalCloseButton
+        onClick={() => {
+          setShowAutoconsommationModal(false);
+          setSelectedLot(null);
+          setQuantiteAutoconsommationInput('');
+        }}
+        disabled={saving}
+      />
+      <h2 className="pr-12 text-lg font-bold mb-4">Saisir la Quantité en Autoconsommation</h2>
       
       <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
       <select

@@ -5,12 +5,16 @@ Interface React/Vite pour suivre les ateliers de l'exploitation agricole, avec u
 ## Configuration locale
 
 1. Copier le fichier `.env.example` vers `.env`.
-2. Renseigner les deux variables Supabase :
+2. Renseigner les variables Supabase et le domaine de connexion :
 
 ```env
 VITE_SUPABASE_URL=https://votre-projet.supabase.co
 VITE_SUPABASE_ANON_KEY=votre-cle-anon-supabase
+VITE_AUTH_EMAIL_DOMAIN=exemple.com
 ```
+
+L'écran demande seulement l'identifiant. Par exemple, avec le compte Supabase
+`ferme@exemple.com`, l'identifiant à saisir sera `ferme`.
 
 3. Installer les dependances :
 

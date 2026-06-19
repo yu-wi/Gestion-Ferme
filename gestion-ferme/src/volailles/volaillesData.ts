@@ -79,9 +79,26 @@ export async function chargerLotsAvecMouvements(isActive?: boolean): Promise<Lot
       }));
     const nbMorts = mortalites.reduce((total, mortalite) => total + mortalite.nombre, 0);
     const totalPoidsLivre = livraisons.reduce((total, livraison) => total + livraison.poids, 0);
+    const derniereLivraison = livraisons
+      .map((livraison) => livraison.date)
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+    const ageCloture =
+      lot.is_active === false && derniereLivraison
+        ? Math.max(
+            0,
+            Math.floor(
+              (new Date(`${derniereLivraison}T00:00:00`).getTime() -
+                new Date(`${lot.date_arrivee}T00:00:00`).getTime()) /
+                86400000
+            )
+          )
+        : Number(lot.age) || 0;
 
     return {
       ...lot,
+      age: ageCloture,
       mortalites,
       livraisons,
       nb_morts: nbMorts,
@@ -89,4 +106,11 @@ export async function chargerLotsAvecMouvements(isActive?: boolean): Promise<Lot
       total_poids_livre: totalPoidsLivre,
     };
   });
+}
+
+export async function supprimerLotEtDonnees(lotId: string) {
+  const { error } = await supabase.rpc('supprimer_lot_volaille', {
+    p_lot_id: lotId,
+  });
+  if (error) throw error;
 }

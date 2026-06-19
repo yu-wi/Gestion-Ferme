@@ -9,7 +9,7 @@ type AuthGateProps = {
 
 export default function AuthGate({ children }: AuthGateProps) {
   const [session, setSession] = useState<Session | null>(null);
-  const [email, setEmail] = useState('');
+  const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,13 +40,26 @@ export default function AuthGate({ children }: AuthGateProps) {
     setSubmitting(true);
     setMessage('');
 
+    const valeurIdentifiant = identifiant.trim();
+    const domaine = import.meta.env.VITE_AUTH_EMAIL_DOMAIN?.trim();
+    if (!valeurIdentifiant.includes('@') && !domaine) {
+      setMessage("Le domaine de connexion n'est pas configuré.");
+      setSubmitting(false);
+      return;
+    }
+    const email = valeurIdentifiant.includes('@')
+      ? valeurIdentifiant
+      : domaine
+        ? `${valeurIdentifiant}@${domaine}`
+        : valeurIdentifiant;
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email,
       password,
     });
 
     if (error) {
-      setMessage('Connexion impossible. Verifiez votre email et votre mot de passe.');
+      setMessage('Connexion impossible. Vérifiez votre identifiant et votre mot de passe.');
     }
 
     setSubmitting(false);
@@ -68,19 +81,15 @@ export default function AuthGate({ children }: AuthGateProps) {
           <p className="mt-2 text-sm text-stone-600">
             Connectez-vous pour acceder a l'interface de gestion.
           </p>
-          <p className="mt-1 text-xs text-stone-500">
-            Les comptes se creent dans Supabase, rubrique Authentication.
-          </p>
-
           <form className="mt-6 space-y-4" onSubmit={handleSignIn}>
             <label className="block text-left text-sm font-medium text-stone-700">
-              Email
+              Identifiant
               <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                type="text"
+                value={identifiant}
+                onChange={(event) => setIdentifiant(event.target.value)}
                 className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2 text-stone-900"
-                autoComplete="email"
+                autoComplete="username"
                 required
               />
             </label>

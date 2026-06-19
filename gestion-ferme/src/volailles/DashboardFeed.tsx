@@ -2,6 +2,7 @@ import { Children, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
+import ModalCloseButton from "../components/ModalCloseButton";
 
 type Lot = {
   id: string;
@@ -1121,9 +1122,13 @@ export default function DashboardFeed() {
           aria-modal="true"
           aria-labelledby="reference-alimentaire-titre"
         >
-          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+          <div className="relative w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+            <ModalCloseButton
+              onClick={() => setReferenceModalOpen(false)}
+              disabled={saving}
+            />
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="pr-12">
                 <h2
                   id="reference-alimentaire-titre"
                   className="text-xl font-semibold"
@@ -1136,14 +1141,6 @@ export default function DashboardFeed() {
                   Les tranches d’âge ne doivent pas se chevaucher.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setReferenceModalOpen(false)}
-                className="rounded !bg-gray-200 px-3 py-2 !text-gray-900"
-                aria-label="Fermer"
-              >
-                Fermer
-              </button>
             </div>
 
             <div className="mt-5 space-y-4">

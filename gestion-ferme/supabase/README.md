@@ -55,3 +55,12 @@ Pour gerer les references depuis l'interface :
 1. Executer `feed-reference-management.sql`.
 2. Executer `check-feed-reference-management.sql`.
 3. Verifier que le statut affiche `OK`.
+
+## Suppression definitive d'un lot
+
+1. Executer `suppression-lot-volaille.sql`.
+2. Executer `check-suppression-lot-volaille.sql`.
+3. Verifier que le statut affiche `OK`.
+
+La fonction supprime le lot et ses donnees rattachees dans une seule
+transaction. En cas d'erreur, aucune suppression partielle n'est conservee.

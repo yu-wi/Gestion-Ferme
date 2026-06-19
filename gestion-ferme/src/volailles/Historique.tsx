@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import Charges from "./Charges";
+import ModalCloseButton from '../components/ModalCloseButton';
 import {
   chargerLotsAvecMouvements,
+  supprimerLotEtDonnees,
   type LivraisonVolaille,
   type MortaliteVolaille,
 } from './volaillesData';
@@ -140,6 +142,33 @@ export default function Historique() {
     }
     setSaving(false);
   };
+
+  const supprimerLot = async (lot: LotVolailles) => {
+    if (
+      saving ||
+      !window.confirm(
+        `Supprimer définitivement le lot ${lot.nom} et toutes ses données ?`
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await supprimerLotEtDonnees(lot.id);
+      setHistorique((lots) => lots.filter((item) => item.id !== lot.id));
+      setSortedHistorique((lots) =>
+        lots.filter((item) => item.id !== lot.id)
+      );
+      if (detailLot?.id === lot.id) setDetailLot(null);
+      toast.success('Lot supprimé définitivement.');
+    } catch (error) {
+      console.error('Erreur suppression du lot :', error);
+      toast.error("Le lot n'a pas pu être supprimé.");
+    } finally {
+      setSaving(false);
+    }
+  };
   
   
 
@@ -266,6 +295,10 @@ export default function Historique() {
                   <div className="font-semibold">{quantiteLivree}</div>
                 </div>
                 <div className="rounded border p-3">
+                  <div className="text-gray-500">Âge à la clôture</div>
+                  <div className="font-semibold">{lot.age || 0} jours</div>
+                </div>
+                <div className="rounded border p-3">
                   <div className="text-gray-500">Poids</div>
                   <div className="font-semibold">{Number(lot.total_poids_livre || 0).toFixed(2)} kg</div>
                 </div>
@@ -291,6 +324,13 @@ export default function Historique() {
                   className="!bg-emerald-600 !text-white rounded px-3 py-2 disabled:opacity-60"
                 >
                   Réactiver
+                </button>
+                <button
+                  onClick={() => supprimerLot(lot)}
+                  disabled={saving}
+                  className="col-span-2 rounded !bg-red-700 px-3 py-2 !text-white disabled:opacity-60"
+                >
+                  × Supprimer le lot
                 </button>
               </div>
             </article>
@@ -361,6 +401,14 @@ export default function Historique() {
                     >
                       Réactiver
                     </button>
+                    <button
+                      onClick={() => supprimerLot(lot)}
+                      disabled={saving}
+                      className="rounded !bg-red-700 px-3 py-2 text-xs !text-white disabled:opacity-60"
+                      title="Supprimer définitivement le lot"
+                    >
+                      ×
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -397,21 +445,17 @@ export default function Historique() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+            <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+              <ModalCloseButton onClick={() => setDetailLot(null)} disabled={saving} />
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
+                <div className="pr-12">
                   <h2 className="text-2xl font-bold">{detailLot.nom}</h2>
                   <p className="text-sm text-gray-600">
                     {detailLot.batiment} · arrivé le{' '}
-                    {new Date(detailLot.date_arrivee).toLocaleDateString('fr-FR')}
+                    {new Date(detailLot.date_arrivee).toLocaleDateString('fr-FR')} ·
+                    {' '}{detailLot.age || 0} jours à la clôture
                   </p>
                 </div>
-                <button
-                  onClick={() => setDetailLot(null)}
-                  className="!bg-gray-200 !text-gray-900 rounded px-4 py-2"
-                >
-                  Fermer
-                </button>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -493,17 +537,18 @@ export default function Historique() {
 
               <div className="mt-5 flex flex-col-reverse gap-2 md:flex-row md:justify-end">
                 <button
-                  onClick={() => setDetailLot(null)}
-                  className="!bg-gray-200 !text-gray-900 rounded px-4 py-2"
-                >
-                  Fermer
-                </button>
-                <button
                   onClick={() => reactiverLot(detailLot)}
                   disabled={saving}
                   className="!bg-emerald-600 !text-white rounded px-4 py-2 disabled:opacity-60"
                 >
                   Réactiver ce lot
+                </button>
+                <button
+                  onClick={() => supprimerLot(detailLot)}
+                  disabled={saving}
+                  className="rounded !bg-red-700 px-4 py-2 !text-white disabled:opacity-60"
+                >
+                  × Supprimer le lot
                 </button>
               </div>
             </div>
@@ -520,8 +565,16 @@ export default function Historique() {
      {/* Modale Résultat Net */}
      {showResultatNetModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
-            <h2 className="text-lg font-bold mb-4">Saisir le Résultat Net</h2>
+          <div className="relative bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <ModalCloseButton
+              onClick={() => {
+                setShowResultatNetModal(false);
+                setSelectedLot(null);
+                setResultatNetInput('');
+              }}
+              disabled={saving}
+            />
+            <h2 className="pr-12 text-lg font-bold mb-4">Saisir le Résultat Net</h2>
             <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
             <select
               className="w-full p-2 border rounded mb-4"
@@ -582,8 +635,16 @@ export default function Historique() {
       {/* Modale Quantité Retenue */}
       {showQuantiteRetenueModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
-            <h2 className="text-lg font-bold mb-4">Saisir la Quantité Retenue</h2>
+          <div className="relative bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <ModalCloseButton
+              onClick={() => {
+                setShowQuantiteRetenueModal(false);
+                setSelectedLot(null);
+                setQuantiteRetenueInput('');
+              }}
+              disabled={saving}
+            />
+            <h2 className="pr-12 text-lg font-bold mb-4">Saisir la Quantité Retenue</h2>
             <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
             <select
               className="w-full p-2 border rounded mb-4"

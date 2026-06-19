@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import toast from "react-hot-toast";
+import ModalCloseButton from "../components/ModalCloseButton";
 
 interface Charge {
   id: number | string;
@@ -307,20 +308,15 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
       {lotDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+            <ModalCloseButton onClick={() => setLotDetail(null)} disabled={saving} />
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
+              <div className="pr-12">
                 <h3 className="text-xl font-semibold">Charges du lot {lotDetail.nom}</h3>
                 <p className="text-sm text-gray-600">
                   Total : {getTotalCharges(lotDetail.id).toFixed(2)} €
                 </p>
               </div>
-              <button
-                onClick={() => setLotDetail(null)}
-                className="!bg-gray-200 !text-gray-900 rounded px-4 py-2"
-              >
-                Fermer
-              </button>
             </div>
 
             {chargesDuLot(lotDetail.id).length === 0 ? (

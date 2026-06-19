@@ -1,6 +1,5 @@
 import { useState, useEffect  } from 'react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import { Link } from 'react-router-dom';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import toast from 'react-hot-toast';
@@ -492,48 +491,20 @@ function calculerSujetsRestants(lot: LotVolaille) {
   return quantiteInitiale - totalMortalites - totalAutoconsommation;
 }
 
+function calculerAgeLot(lot: LotVolaille) {
+  const dateArriveeLot = new Date(`${lot.dateArrivee}T00:00:00`);
+
+  if (Number.isNaN(dateArriveeLot.getTime())) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.floor((Date.now() - dateArriveeLot.getTime()) / 86400000)
+  );
+}
 
 
-// Calcule les événements à afficher dans le calendrier
-const obtenirEvenements = () => {
- return lots.flatMap(lot =>
-   lot.evenements.map(evenement => ({
-    date: new Date(evenement.date).toISOString(),
-     title: evenement.title,
-     lotId: lot.id,
-     couleur: lot.couleur,
-   }))
- );
-};
-// Fonction pour marquer les événements dans le calendrier
-const formatUTCDate = (d: Date) =>
-  `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-
-const marquerEvenements = (date: Date) => {
- const eventsOnThisDate = obtenirEvenements().filter(evenement => {
-   const eventDate = new Date(evenement.date);
-   return formatUTCDate(eventDate) === formatUTCDate(date);
- });
-  return (
-   <div className="space-y-1">
-     {eventsOnThisDate.map(evenement => (
-       <div
-         key={evenement.lotId + evenement.title}
-         style={{
-           backgroundColor: evenement.couleur,
-           color: 'white',
-           padding: '2px 4px',
-           borderRadius: '4px',
-           fontSize: '0.75rem',
-           marginBottom: '2px',
-         }}
-       >
-         {evenement.title}
-       </div>
-     ))}
-   </div>
- );
-};
 
  // Fonction pour ajouter une nouvelle livraison
  const addLivraison = () => {
@@ -809,316 +780,305 @@ const totalMorts = lots.reduce((sum, lot) => {
   const mortalites = Array.isArray(lot.mortalites) ? lot.mortalites : [];
   return sum + mortalites.reduce((mortSum, mort) => mortSum + (mort.nombre || 0), 0);
 }, 0);
+const totalPoidsLivre = lots.reduce(
+  (sum, lot) =>
+    sum +
+    lot.livraisons.reduce(
+      (total, livraison) => total + (Number(livraison.poids) || 0),
+      0
+    ),
+  0
+);
+const totalResultatBrut = lots.reduce(
+  (sum, lot) => sum + (Number(lot.resultat_brut) || 0),
+  0
+);
+const tauxMortaliteGlobal =
+  totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
+const batiments = Array.from(
+  lots.reduce((map, lot) => {
+    const nomBatiment = lot.batiment?.trim() || "Non renseigné";
+    map.set(
+      nomBatiment,
+      (map.get(nomBatiment) || 0) + calculerSujetsRestants(lot)
+    );
+    return map;
+  }, new Map<string, number>())
+).sort((a, b) => b[1] - a[1]);
+const totalBatiments = Math.max(
+  1,
+  batiments.reduce((total, [, effectif]) => total + effectif, 0)
+);
+const couleursBatiments = ["#16853d", "#f3ad00", "#3479bd", "#8b98a5", "#7c3aed"];
+const anglesBatiments = batiments.reduce(
+  (acc, [, effectif], index) => {
+    const debut = acc.fin;
+    const fin =
+      index === batiments.length - 1
+        ? 360
+        : debut + (effectif / totalBatiments) * 360;
+    acc.segments.push(
+      `${couleursBatiments[index % couleursBatiments.length]} ${debut}deg ${fin}deg`
+    );
+    acc.fin = fin;
+    return acc;
+  },
+  { segments: [] as string[], fin: 0 }
+).segments;
+const lotsAlerteMortalite = lots
+  .map((lot) => {
+    const morts = lot.mortalites.reduce(
+      (total, mortalite) => total + mortalite.nombre,
+      0
+    );
+    return {
+      lot,
+      taux: lot.quantite > 0 ? (morts / lot.quantite) * 100 : 0,
+    };
+  })
+  .filter((item) => item.taux >= 3)
+  .sort((a, b) => b.taux - a.taux);
+const lotsFaibles = lots.filter(
+  (lot) =>
+    lot.quantite > 0 && calculerSujetsRestants(lot) / lot.quantite < 0.5
+);
+const prochaineLivraison = lots
+  .map((lot) => {
+    const date = new Date(`${lot.dateArrivee}T00:00:00`);
+    date.setDate(date.getDate() + 70);
+    return { lot, date };
+  })
+  .filter((item) => item.date.getTime() >= new Date().setHours(0, 0, 0, 0))
+  .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
 
 
 return (
- <div className="p-4 space-y-6">
-   <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+ <>
+ <div className="poultry-page">
+   <header className="poultry-heading">
      <div>
-       <h1 className="text-2xl font-bold">Gestion des Volailles</h1>
-       <p className="text-sm text-gray-600">Lots actifs, planning sanitaire, livraisons et ventes.</p>
+       <h1>Volailles <span>♧</span></h1>
+       <p>Suivi des lots, performances et production.</p>
      </div>
-     <div className="flex flex-wrap gap-2">
+     <div className="poultry-heading-actions">
+       <button type="button" onClick={() => exportToExcel(filteredLots)}>
+         ⇩ Exporter
+       </button>
        <button
-         className="!bg-blue-600 !text-white px-4 py-2 rounded"
+         type="button"
+         className="poultry-primary-button"
          onClick={() => setNouveauLotModalOpen(true)}
        >
          ＋ Nouveau lot
        </button>
-       <button className="!bg-emerald-600 !text-white px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>＋ Autoconsommation</button>
-       <button className="!bg-slate-700 !text-white px-4 py-2 rounded" onClick={() => exportToExcel(filteredLots)}>
-         ⇩ Export Excel
-       </button>
      </div>
-   </div>
+   </header>
 
-   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-     <div className="rounded-lg border bg-white p-4 shadow-sm">
-       <div className="text-xs uppercase text-gray-500">Lots actifs</div>
-       <div className="mt-1 text-2xl font-bold">{lots.length}</div>
-     </div>
-     <div className="rounded-lg border bg-white p-4 shadow-sm">
-       <div className="text-xs uppercase text-gray-500">Sujets initiaux</div>
-       <div className="mt-1 text-2xl font-bold">{totalInitial}</div>
-     </div>
-     <div className="rounded-lg border bg-white p-4 shadow-sm">
-       <div className="text-xs uppercase text-gray-500">Sujets restants</div>
-       <div className="mt-1 text-2xl font-bold">{totalRestants}</div>
-     </div>
-     <div className="rounded-lg border bg-white p-4 shadow-sm">
-       <div className="text-xs uppercase text-gray-500">Mortalités</div>
-       <div className="mt-1 text-2xl font-bold">{totalMorts}</div>
-     </div>
-   </div>
+   <nav className="poultry-tabs" aria-label="Sections volailles">
+     <a href="#vue-ensemble" className="poultry-tab-active">Vue d’ensemble</a>
+     <a href="#lots-en-cours">Lots en cours</a>
+     <Link to="/volailles/historique">Lots terminés</Link>
+     <a href="#batiments">Bâtiments</a>
+     <a href="#alertes">Mortalité</a>
+     <Link to="/volailles/analyse">Performances</Link>
+   </nav>
 
-  <div className="rounded-lg border bg-white p-4 shadow-sm">
-    <h2 className="mb-3 text-lg font-semibold">Calendrier des lots</h2>
-  <div className="flex flex-col md:flex-row md:items-center gap-8 mx-auto">
-    {/* Calendrier */}
-    <div className="w-full md:w-3/4">
-      <Calendar
-        tileContent={({ date }) => (
-          <div>{marquerEvenements(date)}</div>
-        )}
-      />
-    </div>
-  </div>
-  </div>
+   <section id="vue-ensemble" className="poultry-kpis">
+     <PoultryKpi icon="▣" tone="green" label="Lots en cours" value={String(lots.length)} note={`${totalRestants} sujets`} />
+     <PoultryKpi icon="▥" tone="blue" label="Poids total livré" value={`${totalPoidsLivre.toFixed(2)} kg`} note={`${lots.reduce((total, lot) => total + lot.livraisons.length, 0)} livraisons`} />
+     <PoultryKpi icon="€" tone="orange" label="Résultat brut" value={`${totalResultatBrut.toFixed(2)} €`} note="Lots actifs" />
+     <PoultryKpi icon="♥" tone="red" label="Taux de mortalité" value={`${tauxMortaliteGlobal.toFixed(2)} %`} note={`${totalMorts} mortalités`} />
+   </section>
 
-
-
-{/* Tableaux et autres fonctionnalités */}
-<div className="rounded-lg border bg-white p-4 shadow-sm">
-  <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-    <h2 className="text-lg font-semibold">Lots en cours</h2>
-    <div className="flex flex-col md:flex-row gap-3 md:w-2/3">
-    <input
-      type="text"
-      placeholder="Rechercher par nom"
-      value={searchNom}
-      onChange={e => setSearchNom(e.target.value)}
-      className="border p-2 rounded w-full"
-    />
-    <input
-      type="text"
-      placeholder="Rechercher par bâtiment"
-      value={searchBatiment}
-      onChange={e => setSearchBatiment(e.target.value)}
-      className="border p-2 rounded w-full"
-    />
-    <label className="flex items-center gap-2 rounded border px-3 py-2 text-sm text-gray-700">
-      <input
-        type="checkbox"
-        checked={showOnlyAlertLots}
-        onChange={(event) => setShowOnlyAlertLots(event.target.checked)}
-      />
-      Lots à surveiller
-    </label>
-    </div>
-  </div>
-
-<div className="space-y-3 md:hidden">
-  {sortedLots.length === 0 && (
-    <div className="rounded-lg border p-6 text-center text-gray-500">
-      Aucun lot actif à afficher.
-    </div>
-  )}
-  {sortedLots.map((lot) => {
-    const sujetsRestants = calculerSujetsRestants(lot);
-    const ratio = lot.quantite > 0 ? sujetsRestants / lot.quantite : 0;
-    const totalMortalitesLot = Array.isArray(lot.mortalites)
-      ? lot.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
-      : 0;
-    const tauxMortaliteLot = lot.quantite > 0 ? (totalMortalitesLot / lot.quantite) * 100 : 0;
-    const ageJours = Math.floor(
-      (new Date().getTime() - new Date(lot.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
-    );
-    let badgeColor = 'bg-green-500';
-    let statusLabel = 'OK';
-    if (ratio < 0.25) badgeColor = 'bg-red-500';
-    else if (ratio < 0.5) badgeColor = 'bg-orange-500';
-    if (ratio < 0.25) statusLabel = 'Critique';
-    else if (ratio < 0.5) statusLabel = 'À surveiller';
-
-    return (
-      <article key={lot.id} className="rounded-lg border bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold">{lot.nom}</h3>
-            <p className="text-sm text-gray-600">{lot.batiment} · arrivé le {lot.dateArrivee}</p>
-          </div>
-          <div
-            className="h-8 w-8 rounded-full border"
-            style={{ backgroundColor: lot.couleur?.trim() || '#999999' }}
-            title={lot.couleur || 'Couleur non définie'}
-          />
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded border p-3">
-            <div className="text-gray-500">Âge</div>
-            <div className="font-semibold">{ageJours} jours</div>
-          </div>
-          <div className="rounded border p-3">
-            <div className="text-gray-500">Quantité</div>
-            <div className="font-semibold">{lot.quantite}</div>
-          </div>
-          <div className="rounded border p-3">
-            <div className="text-gray-500">Restants</div>
-            <div className="font-semibold">{sujetsRestants}</div>
-          </div>
-          <div className="rounded border p-3">
-            <div className="text-gray-500">Mortalité</div>
-            <div className="font-semibold">{totalMortalitesLot} · {tauxMortaliteLot.toFixed(1)} %</div>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <span className={`inline-flex text-white px-2 py-1 rounded text-xs ${badgeColor}`}>
-            {statusLabel}
-          </span>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button onClick={() => setDetailLot(lot)} className="!bg-slate-700 !text-white px-3 py-2 rounded text-sm col-span-2">
-            Fiche du lot
-          </button>
-          <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm">
-            ＋ Mortalité
-          </button>
-          <button
-            onClick={() => {
-              setSelectedLot(lot);
-              setLivraisons([{ date: '', quantite: '', poids: '' }]);
-              setShowLivraisonModal(true);
-            }}
-            className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
-          >
-            ＋ Livraison
-          </button>
-          <button onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }} className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm">
-            € Vente
-          </button>
-          <button
-            onClick={() => archiverLot(lot.id)}
-            disabled={saving}
-            className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
-          >
-            ↓ Archiver
-          </button>
-          <button
-            onClick={() => supprimerLot(lot)}
-            disabled={saving}
-            className="col-span-2 rounded !bg-red-700 px-3 py-2 text-sm !text-white disabled:opacity-60"
-          >
-            × Supprimer le lot
-          </button>
-        </div>
-      </article>
-    );
-  })}
-</div>
-
-<div className="hidden overflow-x-auto border rounded md:block">   
-<table className="min-w-full table-auto border-collapse text-sm">
- <thead className="bg-gray-100">
-   <tr>
-     <th className="border p-2">Couleur</th>
-     <th onClick={() => handleSort('nom')} className="border p-2 cursor-pointer">Nom</th>
-     <th onClick={() => handleSort('dateArrivee')} className="border p-2 cursor-pointer">Date Arrivée</th>
-     <th className="border p-2">Âge (jours)</th>
-     <th onClick={() => handleSort('quantite')} className="border p-2 cursor-pointer">Quantité</th>
-     <th className="border p-2">Situation</th>
-     <th onClick={() => handleSort('batiment')} className="border p-2 cursor-pointer">Bâtiment</th>
-     <th className="border p-2">Actions</th>
-   </tr>
- </thead>
- <tbody>
-   {sortedLots.length === 0 && (
-     <tr>
-       <td className="border p-6 text-center text-gray-500" colSpan={8}>
-         Aucun lot actif à afficher.
-       </td>
-     </tr>
-   )}
-   {sortedLots.map(lot => {
-     const sujetsRestants = calculerSujetsRestants(lot);
-     const ratio = sujetsRestants / lot.quantite;     
-     const totalMortalitesLot = Array.isArray(lot.mortalites)
-       ? lot.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
-       : 0;
-     const tauxMortaliteLot = lot.quantite > 0 ? (totalMortalitesLot / lot.quantite) * 100 : 0;
-
-     let badgeColor = 'bg-green-500';
-     let statusLabel = 'OK';
-     if (ratio < 0.25) badgeColor = 'bg-red-500';
-     else if (ratio < 0.5) badgeColor = 'bg-orange-500';
-     if (ratio < 0.25) statusLabel = 'Critique';
-     else if (ratio < 0.5) statusLabel = 'À surveiller';
-
-
-     // Calcul de l'âge en jours
-     const ageJours = Math.floor(
-      (new Date().getTime() - new Date(lot.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
-    );    
-
-
-     return (
-       <tr key={lot.id} className="odd:bg-white even:bg-gray-50">
-         <td
-           className="border p-2"
-           style={{
-             backgroundColor: lot.couleur?.trim() || '#999999',
-           }}
-           title={lot.couleur || 'Couleur non définie'}
-         ></td>
-         <td className="border p-2">{lot.nom}</td>
-         <td className="border p-2">{lot.dateArrivee}</td>
-         <td className="border p-2">{ageJours}</td>
-         <td className="border p-2">{lot.quantite}</td>
-         <td className="border p-2">
-           <div className="space-y-1">
-             <span className={`inline-flex min-w-16 justify-center text-white px-2 py-1 rounded text-xs ${badgeColor}`}>
-               {sujetsRestants} restants
-             </span>
-             <div className="text-xs text-gray-600">
-               {totalMortalitesLot} morts · {tauxMortaliteLot.toFixed(1)} %
-             </div>
-             <div className="text-xs font-semibold text-gray-700">{statusLabel}</div>
+   <section className="poultry-overview-grid">
+     <article id="batiments" className="poultry-panel poultry-buildings">
+       <div className="poultry-panel-heading">
+         <h2>Répartition par bâtiment</h2>
+         <span>{batiments.length} bâtiment(s)</span>
+       </div>
+       {batiments.length === 0 ? (
+         <div className="poultry-empty">Aucun bâtiment renseigné.</div>
+       ) : (
+         <div className="poultry-building-content">
+           <div
+             className="poultry-building-ring"
+             style={{ background: `conic-gradient(${anglesBatiments.join(", ")})` }}
+           >
+             <div><strong>{totalRestants}</strong><span>sujets</span></div>
            </div>
-         </td>
-         <td className="border p-2">{lot.batiment}</td>
-         <td className="border p-2">
-          <div className="grid grid-cols-2 gap-2 min-w-56">
-         <button onClick={() => setDetailLot(lot)} className="!bg-slate-700 !text-white px-3 py-2 rounded text-sm col-span-2" title="Voir la fiche du lot">
-            Fiche du lot
-           </button>
-         <button onClick={() => ouvrirMortaliteModal(lot.id)} className="!bg-green-600 !text-white px-3 py-2 rounded text-sm" title="Ajouter une mortalité">
-            ＋ Mortalité
-           </button>
-          <button onClick={() => {
-                setSelectedLot(lot);
-                setLivraisons([{ date: '', quantite: '', poids: '' }]);
-                setShowLivraisonModal(true);
-              }}
-              className="!bg-sky-600 !text-white px-3 py-2 rounded text-sm"
-              title="Ajouter une livraison"
-            >
-                ＋ Livraison
-          </button>
-           <button onClick={() => {setSelectedLot(lot);setVenteModalOpen(true);}}
-            className="!bg-yellow-400 !text-black px-3 py-2 rounded text-sm"
-            title="Enregistrer une vente"
-          >
-            € Vente
-          </button>
+           <div className="poultry-building-list">
+             {batiments.map(([nomBatiment, effectif], index) => (
+               <div key={nomBatiment}>
+                 <i style={{ backgroundColor: couleursBatiments[index % couleursBatiments.length] }} />
+                 <span><strong>{nomBatiment}</strong><small>{effectif} sujets</small></span>
+                 <b>{((effectif / totalBatiments) * 100).toFixed(0)}%</b>
+               </div>
+             ))}
+           </div>
+         </div>
+       )}
+     </article>
 
-            <button
-              onClick={() => archiverLot(lot.id)}
-              disabled={saving}
-              className="!bg-gray-700 !text-white px-3 py-2 rounded text-sm disabled:opacity-60 col-span-2"
-              title="Archiver le lot"
-            >
-              ↓ Archiver
-            </button>
-            <button
-              onClick={() => supprimerLot(lot)}
-              disabled={saving}
-              className="col-span-2 rounded !bg-red-700 px-3 py-2 text-sm !text-white disabled:opacity-60"
-              title="Supprimer définitivement le lot"
-            >
-              × Supprimer
-            </button>
-            </div>
-         </td>
-       </tr>
-     );
-   })}
- </tbody>
-</table>
+     <article id="alertes" className="poultry-panel poultry-alerts">
+       <div className="poultry-panel-heading">
+         <h2>Alertes</h2>
+         <span>{lotsAlerteMortalite.length + lotsFaibles.length + (prochaineLivraison ? 1 : 0)}</span>
+       </div>
+       <div className="poultry-alert-list">
+         {lotsAlerteMortalite.slice(0, 1).map(({ lot, taux }) => (
+           <button key={lot.id} type="button" className="poultry-alert poultry-alert-danger" onClick={() => ouvrirMortaliteModal(lot.id)}>
+             <span>!</span><div><strong>Mortalité élevée</strong><small>{lot.nom} · {taux.toFixed(1)} %</small></div>
+           </button>
+         ))}
+         {lotsFaibles.slice(0, 1).map((lot) => (
+           <button key={lot.id} type="button" className="poultry-alert poultry-alert-warning" onClick={() => setDetailLot(lot)}>
+             <span>◫</span><div><strong>Effectif faible</strong><small>{lot.nom} · {calculerSujetsRestants(lot)} restants</small></div>
+           </button>
+         ))}
+         {prochaineLivraison && (
+           <button type="button" className="poultry-alert poultry-alert-success" onClick={() => {
+             setSelectedLot(prochaineLivraison.lot);
+             setLivraisons([{ date: '', quantite: '', poids: '' }]);
+             setShowLivraisonModal(true);
+           }}>
+             <span>□</span><div><strong>Livraison prévue</strong><small>{prochaineLivraison.lot.nom} · {prochaineLivraison.date.toLocaleDateString("fr-FR")}</small></div>
+           </button>
+         )}
+         {!lotsAlerteMortalite.length && !lotsFaibles.length && !prochaineLivraison && (
+           <div className="poultry-empty">Aucune alerte actuellement.</div>
+         )}
+       </div>
+     </article>
+   </section>
 
-</div>
-</div>
+   <section className="poultry-main-grid">
+     <article id="lots-en-cours" className="poultry-panel poultry-lots-panel">
+       <div className="poultry-lots-toolbar">
+         <h2>Lots en cours</h2>
+         <div>
+           <input
+             type="search"
+             placeholder="Rechercher un lot..."
+             value={searchNom}
+             onChange={(event) => setSearchNom(event.target.value)}
+           />
+           <input
+             type="search"
+             placeholder="Bâtiment"
+             value={searchBatiment}
+             onChange={(event) => setSearchBatiment(event.target.value)}
+           />
+           <label>
+             <input
+               type="checkbox"
+               checked={showOnlyAlertLots}
+               onChange={(event) => setShowOnlyAlertLots(event.target.checked)}
+             />
+             À surveiller
+           </label>
+         </div>
+       </div>
+
+       <div className="poultry-mobile-lots">
+         {sortedLots.map((lot) => {
+           const sujetsRestants = calculerSujetsRestants(lot);
+           const mortalitesLot = lot.mortalites.reduce((sum, mort) => sum + mort.nombre, 0);
+           const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
+           const age = calculerAgeLot(lot);
+           return (
+             <article key={lot.id} className="poultry-mobile-card">
+               <div className="poultry-mobile-card-heading">
+                 <div><strong>{lot.nom}</strong><span>{lot.batiment} · {age} jours</span></div>
+                 <span className="poultry-status">En cours</span>
+               </div>
+               <div className="poultry-mobile-values">
+                 <span>Effectif <b>{sujetsRestants}</b></span>
+                 <span>Mortalité <b className={taux >= 3 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
+                 <span>Poids <b>{lot.livraisons.reduce((sum, livraison) => sum + livraison.poids, 0).toFixed(1)} kg</b></span>
+               </div>
+               <div className="poultry-card-actions">
+                 <button type="button" onClick={() => setDetailLot(lot)}>Fiche</button>
+                 <button type="button" onClick={() => ouvrirMortaliteModal(lot.id)}>＋ Mortalité</button>
+                 <button type="button" onClick={() => {
+                   setSelectedLot(lot);
+                   setLivraisons([{ date: '', quantite: '', poids: '' }]);
+                   setShowLivraisonModal(true);
+                 }}>＋ Livraison</button>
+               </div>
+             </article>
+           );
+         })}
+         {!sortedLots.length && <div className="poultry-empty">Aucun lot actif à afficher.</div>}
+       </div>
+
+       <div className="poultry-table-wrap">
+         <table className="poultry-table">
+           <thead>
+             <tr>
+               <th onClick={() => handleSort('nom')}>N° lot</th>
+               <th onClick={() => handleSort('batiment')}>Bâtiment</th>
+               <th onClick={() => handleSort('dateArrivee')}>Date début</th>
+               <th>Âge</th>
+               <th>Effectif</th>
+               <th>Poids total</th>
+               <th>Mortalité</th>
+               <th>Résultat brut</th>
+               <th>Statut</th>
+               <th>Actions</th>
+             </tr>
+           </thead>
+           <tbody>
+             {sortedLots.map((lot) => {
+               const sujetsRestants = calculerSujetsRestants(lot);
+               const mortalitesLot = lot.mortalites.reduce((sum, mort) => sum + mort.nombre, 0);
+               const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
+               const age = calculerAgeLot(lot);
+               const poids = lot.livraisons.reduce((sum, livraison) => sum + livraison.poids, 0);
+               return (
+                 <tr key={lot.id}>
+                   <td><button type="button" className="poultry-lot-link" onClick={() => setDetailLot(lot)}>{lot.nom}</button></td>
+                   <td>{lot.batiment}</td>
+                   <td>{new Date(`${lot.dateArrivee}T00:00:00`).toLocaleDateString("fr-FR")}</td>
+                   <td>{age} jours</td>
+                   <td>{sujetsRestants}</td>
+                   <td>{poids.toFixed(2)} kg</td>
+                   <td className={taux >= 3 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
+                   <td>{(Number(lot.resultat_brut) || 0).toFixed(2)} €</td>
+                   <td><span className="poultry-status">En cours</span></td>
+                   <td>
+                     <div className="poultry-row-actions">
+                       <button type="button" title="Voir la fiche" onClick={() => setDetailLot(lot)}>◉</button>
+                       <button type="button" title="Mortalité" onClick={() => ouvrirMortaliteModal(lot.id)}>♥</button>
+                       <button type="button" title="Livraison" onClick={() => {
+                         setSelectedLot(lot);
+                         setLivraisons([{ date: '', quantite: '', poids: '' }]);
+                         setShowLivraisonModal(true);
+                       }}>▣</button>
+                       <button type="button" title="Vente" onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }}>€</button>
+                       <button type="button" title="Archiver" disabled={saving} onClick={() => archiverLot(lot.id)}>↓</button>
+                       <button type="button" title="Supprimer" disabled={saving} onClick={() => supprimerLot(lot)}>×</button>
+                     </div>
+                   </td>
+                 </tr>
+               );
+             })}
+             {!sortedLots.length && (
+               <tr><td colSpan={10}><div className="poultry-empty">Aucun lot actif à afficher.</div></td></tr>
+             )}
+           </tbody>
+         </table>
+       </div>
+     </article>
+
+     <aside className="poultry-quick-actions">
+       <h2>Actions rapides</h2>
+       <button type="button" onClick={() => setNouveauLotModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
+       <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span>♧</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
+       <Link to="/volailles/alimentation"><span>◫</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
+       <Link to="/volailles/historique"><span>☷</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique</small></div></Link>
+     </aside>
+   </section>
+ </div>
 
 {nouveauLotModalOpen && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -1164,9 +1124,7 @@ return (
     ? lotDetail.mortalites.reduce((sum, mort) => sum + (mort.nombre || 0), 0)
     : 0;
   const tauxMortaliteLot = lotDetail.quantite > 0 ? (totalMortalitesLot / lotDetail.quantite) * 100 : 0;
-  const ageJours = Math.floor(
-    (new Date().getTime() - new Date(lotDetail.dateArrivee).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const ageJours = calculerAgeLot(lotDetail);
   const livraisonsExistantes = lotDetail.livraisons || [];
 
   return (
@@ -1604,8 +1562,33 @@ return (
 
 
 
- </div>
+ </>
 );
+}
+
+function PoultryKpi({
+  icon,
+  tone,
+  label,
+  value,
+  note,
+}: {
+  icon: string;
+  tone: "green" | "blue" | "orange" | "red";
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <article className="poultry-kpi">
+      <span className={`poultry-kpi-icon poultry-kpi-${tone}`}>{icon}</span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        <em>{note}</em>
+      </div>
+    </article>
+  );
 }
 
 

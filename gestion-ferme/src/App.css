@@ -759,11 +759,470 @@
   background: #0f6d31;
 }
 
+.poultry-page {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px 10px 34px;
+  color: #172a3c;
+}
+
+.poultry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.poultry-heading h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.poultry-heading h1 span {
+  color: #16853d;
+  font-size: 30px;
+}
+
+.poultry-heading p {
+  margin: 7px 0 0;
+  color: #637487;
+  font-size: 14px;
+}
+
+.poultry-heading-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.poultry-heading-actions button {
+  min-height: 42px;
+  border: 1px solid #dce4e0;
+  border-radius: 6px;
+  padding: 9px 15px;
+  color: #30465a;
+  background: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.poultry-heading-actions .poultry-primary-button {
+  border-color: #126f35;
+  color: white;
+  background: #126f35;
+}
+
+.poultry-tabs {
+  display: flex;
+  gap: 34px;
+  margin-top: 28px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e2e8e5;
+}
+
+.poultry-tabs a {
+  flex: 0 0 auto;
+  padding: 12px 7px 11px;
+  color: #596b7c;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.poultry-tabs .poultry-tab-active {
+  border-bottom: 2px solid #16853d;
+  color: #14763a;
+}
+
+.poultry-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.poultry-kpi,
+.poultry-panel,
+.poultry-quick-actions {
+  border: 1px solid #e3e9e6;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 7px 24px rgba(40, 62, 51, 0.05);
+}
+
+.poultry-kpi {
+  display: flex;
+  min-height: 118px;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+}
+
+.poultry-kpi-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 25px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.poultry-kpi-green { color: #16853d; background: #e6f5e9; }
+.poultry-kpi-blue { color: #2d70c4; background: #e8f1fb; }
+.poultry-kpi-orange { color: #e89500; background: #fff1d8; }
+.poultry-kpi-red { color: #e12929; background: #fde5e5; }
+
+.poultry-kpi div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.poultry-kpi small {
+  color: #647487;
+  font-size: 13px;
+}
+
+.poultry-kpi strong {
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: #12283b;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.poultry-kpi em {
+  margin-top: 9px;
+  color: #16853d;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.poultry-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.85fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.poultry-panel {
+  padding: 18px;
+}
+
+.poultry-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.poultry-panel-heading h2,
+.poultry-lots-toolbar h2,
+.poultry-quick-actions h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.poultry-panel-heading > span {
+  border-radius: 20px;
+  padding: 4px 9px;
+  color: #5f7083;
+  background: #f0f4f2;
+  font-size: 11px;
+}
+
+.poultry-building-content {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  gap: 46px;
+  padding: 18px 8px 2px;
+}
+
+.poultry-building-ring {
+  display: grid;
+  width: 160px;
+  height: 160px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.poultry-building-ring > div {
+  display: flex;
+  width: 88px;
+  height: 88px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: white;
+}
+
+.poultry-building-ring strong { font-size: 22px; }
+.poultry-building-ring span { color: #738294; font-size: 11px; }
+
+.poultry-building-list {
+  display: grid;
+  min-width: 230px;
+  gap: 12px;
+}
+
+.poultry-building-list > div {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.poultry-building-list i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.poultry-building-list span {
+  display: flex;
+  flex-direction: column;
+}
+
+.poultry-building-list strong { font-size: 12px; }
+.poultry-building-list small { color: #718093; font-size: 10px; }
+.poultry-building-list b { font-size: 12px; }
+
+.poultry-alert-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.poultry-alert {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.poultry-alert > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.poultry-alert div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.poultry-alert strong { color: #2a3d4e; font-size: 12px; }
+.poultry-alert small { color: #637487; font-size: 10px; }
+.poultry-alert-danger { background: #fff0f0; }
+.poultry-alert-danger > span { color: #d92c2c; background: #ffe1e1; }
+.poultry-alert-warning { background: #fff8e9; }
+.poultry-alert-warning > span { color: #dc8d00; background: #ffedc4; }
+.poultry-alert-success { background: #eff8f1; }
+.poultry-alert-success > span { color: #16853d; background: #daf0df; }
+
+.poultry-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 235px;
+  align-items: start;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.poultry-lots-panel {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.poultry-lots-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e7ece9;
+}
+
+.poultry-lots-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.poultry-lots-toolbar input[type="search"] {
+  width: 185px;
+  border: 1px solid #d9e2dd;
+  border-radius: 6px;
+  padding: 9px 11px;
+  color: #34495c;
+  font-size: 11px;
+}
+
+.poultry-lots-toolbar label {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d9e2dd;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #526579;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.poultry-table-wrap {
+  overflow-x: auto;
+}
+
+.poultry-table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.poultry-table th {
+  padding: 13px 10px;
+  color: #586a7c;
+  background: #f7f9f8;
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 9px;
+  cursor: default;
+}
+
+.poultry-table th:nth-child(1),
+.poultry-table th:nth-child(2),
+.poultry-table th:nth-child(3) {
+  cursor: pointer;
+}
+
+.poultry-table td {
+  padding: 12px 10px;
+  border-top: 1px solid #e9eeeb;
+  color: #33495c;
+  white-space: nowrap;
+}
+
+.poultry-lot-link {
+  padding: 0;
+  color: #08743a;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.poultry-success-text { color: #16853d !important; font-weight: 750; }
+.poultry-danger-text { color: #dc2626 !important; font-weight: 750; }
+
+.poultry-status {
+  display: inline-flex;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #18723a;
+  background: #dff1e3;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.poultry-row-actions {
+  display: flex;
+  gap: 3px;
+}
+
+.poultry-row-actions button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid #dfe6e2;
+  border-radius: 6px;
+  padding: 0;
+  color: #40566a;
+  background: white;
+  font-size: 12px;
+}
+
+.poultry-row-actions button:hover { border-color: #16853d; color: #16853d; }
+.poultry-row-actions button:last-child:hover { border-color: #dc2626; color: #dc2626; }
+
+.poultry-quick-actions {
+  display: grid;
+  gap: 9px;
+  padding: 16px;
+}
+
+.poultry-quick-actions h2 {
+  margin-bottom: 5px;
+}
+
+.poultry-quick-actions > button,
+.poultry-quick-actions > a {
+  display: flex;
+  min-height: 63px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 11px;
+  color: #294154;
+  background: #f1f8f2;
+  text-align: left;
+}
+
+.poultry-quick-actions > a:last-child { background: #f1f5f8; }
+
+.poultry-quick-actions > button > span,
+.poultry-quick-actions > a > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #16853d;
+  font-size: 21px;
+}
+
+.poultry-quick-actions div {
+  display: flex;
+  flex-direction: column;
+}
+
+.poultry-quick-actions strong { font-size: 11px; }
+.poultry-quick-actions small { color: #6f7e8c; font-size: 9px; }
+.poultry-empty { padding: 32px; color: #718093; text-align: center; font-size: 12px; }
+.poultry-mobile-lots { display: none; }
+
 @media (max-width: 1180px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-calendar { grid-column: 1 / span 2; grid-row: auto; }
   .dashboard-side-column { grid-column: 1 / span 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .poultry-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .poultry-main-grid { grid-template-columns: 1fr; }
+  .poultry-quick-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -830,4 +1289,31 @@
   }
   .dashboard-lot-row > div:nth-child(2),
   .dashboard-lot-row > div:nth-child(3) { display: none; }
+
+  .poultry-page { padding: 18px 0 24px; }
+  .poultry-heading { align-items: flex-start; }
+  .poultry-heading h1 { font-size: 25px; }
+  .poultry-heading-actions button:first-child { display: none; }
+  .poultry-tabs { gap: 22px; margin-top: 20px; }
+  .poultry-kpis { grid-template-columns: 1fr; gap: 10px; }
+  .poultry-kpi { min-height: 96px; }
+  .poultry-overview-grid { grid-template-columns: 1fr; }
+  .poultry-building-content { flex-direction: column; gap: 22px; }
+  .poultry-building-list { width: 100%; min-width: 0; }
+  .poultry-lots-toolbar { align-items: flex-start; flex-direction: column; }
+  .poultry-lots-toolbar > div { width: 100%; flex-wrap: wrap; }
+  .poultry-lots-toolbar input[type="search"] { min-width: 0; flex: 1 1 130px; width: auto; }
+  .poultry-table-wrap { display: none; }
+  .poultry-mobile-lots { display: grid; gap: 10px; padding: 12px; }
+  .poultry-mobile-card { border: 1px solid #e2e8e5; border-radius: 7px; padding: 14px; background: white; }
+  .poultry-mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .poultry-mobile-card-heading > div { display: flex; flex-direction: column; }
+  .poultry-mobile-card-heading strong { font-size: 15px; }
+  .poultry-mobile-card-heading > div span { color: #718093; font-size: 11px; }
+  .poultry-mobile-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 13px; }
+  .poultry-mobile-values span { display: flex; flex-direction: column; border-radius: 6px; padding: 9px; color: #718093; background: #f7f9f8; font-size: 9px; }
+  .poultry-mobile-values b { margin-top: 3px; color: #263e51; font-size: 12px; }
+  .poultry-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 12px; }
+  .poultry-card-actions button { border: 1px solid #dce5e0; border-radius: 6px; padding: 8px 5px; color: #365064; background: white; font-size: 10px; }
+  .poultry-quick-actions { grid-template-columns: 1fr 1fr; }
 }

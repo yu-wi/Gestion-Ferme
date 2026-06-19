@@ -63,4 +63,6 @@ Pour gerer les references depuis l'interface :
 3. Verifier que le statut affiche `OK`.
 
 La fonction supprime le lot et ses donnees rattachees dans une seule
-transaction. En cas d'erreur, aucune suppression partielle n'est conservee.
+transaction, y compris les consommations de l'ancienne table
+`feed_consumption`. En cas d'erreur, aucune suppression partielle n'est
+conservee.

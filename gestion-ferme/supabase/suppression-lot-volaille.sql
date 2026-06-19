@@ -9,6 +9,13 @@ as $$
 begin
   delete from public.charges where lot_id = p_lot_id;
   delete from public.consommations_aliment where lot_id = p_lot_id;
+
+  -- Ancienne table de consommations, encore utilisee par certains lots.
+  if to_regclass('public.feed_consumption') is not null then
+    execute 'delete from public.feed_consumption where lot_id = $1'
+      using p_lot_id;
+  end if;
+
   delete from public.mortalites_volailles where lot_id = p_lot_id;
   delete from public.livraisons_volailles where lot_id = p_lot_id;
   delete from public.lots_volailles where id = p_lot_id;

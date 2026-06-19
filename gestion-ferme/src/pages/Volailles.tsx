@@ -226,6 +226,11 @@ const enregistrerMortalite = async () => {
 
   const lot = lots.find((l) => l.id === mortaliteLotId);
   if (!lot) return;
+  const sujetsDisponibles = calculerSujetsRestants(lot);
+  if (mortaliteNombre > sujetsDisponibles) {
+    toast.error(`Il ne reste que ${sujetsDisponibles} sujets dans ce lot.`);
+    return;
+  }
   setSaving(true);
 
   const totalMortalites = lot.mortalites.reduce((sum, m) => sum + m.nombre, 0) + mortaliteNombre;
@@ -270,14 +275,6 @@ const enregistrerMortalite = async () => {
         sujets_restants: sujetsRestants,
       };
     });
-
-    const { error: aggregateError } = await supabase
-      .from('lots_volailles')
-      .update({ nb_morts: totalMortalites, sujets_restants: sujetsRestants })
-      .eq('id', mortaliteLotId);
-    if (aggregateError) {
-      console.warn('Les totaux du lot seront recalculés au prochain chargement.', aggregateError);
-    }
 
     setMortaliteModalOpen(false);
     setMortaliteNombre(0);
@@ -336,22 +333,6 @@ const appliquerMortalitesLocales = (
   });
 };
 
-const synchroniserTotauxMortalites = async (
-  lot: LotVolaille,
-  mortalites: Mortalite[]
-) => {
-  const nbMorts = mortalites.reduce((total, mortalite) => total + mortalite.nombre, 0);
-  const sujetsRestants = lot.quantite - nbMorts - (lot.autoconsommation || 0);
-  const { error } = await supabase
-    .from('lots_volailles')
-    .update({ nb_morts: nbMorts, sujets_restants: sujetsRestants })
-    .eq('id', lot.id);
-
-  if (error) {
-    console.warn('Les totaux du lot seront recalculés au prochain chargement.', error);
-  }
-};
-
 const enregistrerModificationMortalite = async () => {
   if (saving || !mortaliteEnModification) return;
   if (!mortaliteEnModification.date || mortaliteEnModification.nombre <= 0) {
@@ -361,6 +342,15 @@ const enregistrerModificationMortalite = async () => {
 
   const lot = lots.find((item) => item.id === mortaliteEnModification.lot_id);
   if (!lot) return;
+  const ancienneMortalite = lot.mortalites.find(
+    (item) => item.id === mortaliteEnModification.id
+  );
+  const maximumAutorise =
+    calculerSujetsRestants(lot) + (ancienneMortalite?.nombre || 0);
+  if (mortaliteEnModification.nombre > maximumAutorise) {
+    toast.error(`Le maximum disponible est de ${maximumAutorise} sujets.`);
+    return;
+  }
 
   setSaving(true);
   const { data, error } = await supabase
@@ -385,7 +375,6 @@ const enregistrerModificationMortalite = async () => {
       mortalite.id === mortaliteModifiee.id ? mortaliteModifiee : mortalite
     );
     appliquerMortalitesLocales(lot.id, nouvellesMortalites);
-    await synchroniserTotauxMortalites(lot, nouvellesMortalites);
     setMortaliteEnModification(null);
     toast.success('Mortalité modifiée.');
   }
@@ -409,7 +398,6 @@ const supprimerMortalite = async (mortalite: Mortalite) => {
   } else {
     const nouvellesMortalites = lot.mortalites.filter((item) => item.id !== mortalite.id);
     appliquerMortalitesLocales(lot.id, nouvellesMortalites);
-    await synchroniserTotauxMortalites(lot, nouvellesMortalites);
     toast.success('Mortalité supprimée.');
   }
   setSaving(false);
@@ -705,16 +693,19 @@ const handleSaveAutoconsommation = async () => {
     return;
   }
 
+  const maximumDisponible =
+    (selectedLot.quantite || 0) - (selectedLot.nb_morts || 0);
+  if (autoconsommation > maximumDisponible) {
+    toast.error(`Le maximum disponible est de ${maximumDisponible} sujets.`);
+    return;
+  }
+
   setSaving(true);
-  const quantite = selectedLot.quantite || 0;
-  const nb_morts = selectedLot.nb_morts || 0;
-  const sujets_restants = quantite - nb_morts - autoconsommation;
 
   const { data, error } = await supabase
     .from('lots_volailles')
     .update({
-      autoconsommation,
-      sujets_restants
+      autoconsommation
     })
     .eq('id', selectedLot.id)
     .select('*');

@@ -25,3 +25,17 @@ Aujourd'hui, l'application utilise la cle `anon` Supabase cote navigateur et ne 
 ## Fichier fourni
 
 `rls-authenticated.sql` propose une base simple : autoriser uniquement les utilisateurs connectes a lire et modifier les tables utilisees par l'application.
+
+## Totaux automatiques des volailles
+
+Apres la creation des tables `mortalites_volailles` et `livraisons_volailles` :
+
+1. Executer `volailles-automatic-totals.sql` dans le SQL Editor.
+2. Executer `check-volailles-automatic-totals.sql`.
+3. Verifier que la colonne `statut` affiche `OK` pour chaque lot.
+
+Cette automatisation recalcule `nb_morts`, `sujets_restants` et
+`total_poids_livre` apres chaque ajout, modification ou suppression.
+
+`rollback-volailles-automatic-totals.sql` retire seulement cette
+automatisation et ne supprime aucune donnee.

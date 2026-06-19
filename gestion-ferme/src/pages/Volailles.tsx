@@ -1081,38 +1081,40 @@ return (
  </div>
 
 {nouveauLotModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="relative w-full max-w-xl rounded-lg bg-white p-6 shadow-lg">
+  <div className="poultry-modal-backdrop">
+    <div className="poultry-modal poultry-modal-medium">
       <ModalCloseButton
         onClick={() => setNouveauLotModalOpen(false)}
         disabled={saving}
       />
-      <h2 className="pr-12 text-xl font-semibold">Nouveau lot</h2>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <label className="text-left text-sm font-medium text-gray-700">
+      <div className="poultry-modal-header">
+        <span className="poultry-modal-icon">＋</span>
+        <div><h2>Nouveau lot</h2><p>Créer un nouveau lot de volailles.</p></div>
+      </div>
+      <div className="poultry-form-grid">
+        <label>
           Nom
-          <input type="text" placeholder="Ex. Lot 12" value={nom} onChange={e => setNom(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+          <input type="text" placeholder="Ex. Lot 12" value={nom} onChange={e => setNom(e.target.value)} />
         </label>
-        <label className="text-left text-sm font-medium text-gray-700">
+        <label>
           Quantité
-          <input type="number" min={1} placeholder="0" value={quantite} onChange={e => setQuantite(+e.target.value)} className="mt-1 w-full border p-2 rounded" />
+          <input type="number" min={1} placeholder="0" value={quantite} onChange={e => setQuantite(+e.target.value)} />
         </label>
-        <label className="text-left text-sm font-medium text-gray-700">
+        <label>
           Date arrivée
-          <input type="date" value={dateArrivee} onChange={e => setDateArrivee(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+          <input type="date" value={dateArrivee} onChange={e => setDateArrivee(e.target.value)} />
         </label>
-        <label className="text-left text-sm font-medium text-gray-700">
+        <label>
           Bâtiment
-          <input type="text" placeholder="Ex. B1" value={batiment} onChange={e => setBatiment(e.target.value)} className="mt-1 w-full border p-2 rounded" />
+          <input type="text" placeholder="Ex. B1" value={batiment} onChange={e => setBatiment(e.target.value)} />
         </label>
       </div>
-      <button
-        onClick={ajouterLot}
-        disabled={saving}
-        className="mt-5 w-full rounded !bg-blue-600 p-2 !text-white disabled:opacity-60"
-      >
-        {saving ? 'Enregistrement...' : 'Ajouter le lot'}
-      </button>
+      <div className="poultry-modal-actions">
+        <button type="button" className="poultry-modal-primary" onClick={ajouterLot} disabled={saving}>
+          {saving ? 'Enregistrement...' : '＋ Ajouter le lot'}
+        </button>
+        <button type="button" className="poultry-modal-secondary" onClick={() => setNouveauLotModalOpen(false)}>Annuler</button>
+      </div>
     </div>
   </div>
 )}
@@ -1128,63 +1130,70 @@ return (
   const livraisonsExistantes = lotDetail.livraisons || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+    <div className="poultry-modal-backdrop">
+      <div className="poultry-modal poultry-modal-large poultry-lot-detail">
         <ModalCloseButton onClick={() => setDetailLot(null)} disabled={saving} />
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="pr-12">
-            <h2 className="text-2xl font-bold">{lotDetail.nom}</h2>
-            <p className="text-sm text-gray-600">
+        <div className="poultry-modal-header poultry-detail-heading">
+          <span className="poultry-modal-icon">♧</span>
+          <div>
+            <h2>{lotDetail.nom}</h2>
+            <p>
               {lotDetail.batiment} · arrivé le {lotDetail.dateArrivee} · {ageJours} jours
             </p>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded border p-3">
-            <div className="text-xs uppercase text-gray-500">Quantité initiale</div>
-            <div className="text-xl font-bold">{lotDetail.quantite}</div>
+        <div className="poultry-detail-kpis">
+          <div>
+            <span>▣</span><small>Quantité initiale</small>
+            <strong>{lotDetail.quantite}</strong>
           </div>
-          <div className="rounded border p-3">
-            <div className="text-xs uppercase text-gray-500">Restants</div>
-            <div className="text-xl font-bold">{sujetsRestants}</div>
+          <div>
+            <span>♟</span><small>Restants</small>
+            <strong>{sujetsRestants}</strong>
           </div>
-          <div className="rounded border p-3">
-            <div className="text-xs uppercase text-gray-500">Mortalités</div>
-            <div className="text-xl font-bold">{totalMortalitesLot}</div>
+          <div>
+            <span className="poultry-detail-danger">✝</span><small>Mortalités</small>
+            <strong>{totalMortalitesLot}</strong>
           </div>
-          <div className="rounded border p-3">
-            <div className="text-xs uppercase text-gray-500">Taux mortalité</div>
-            <div className="text-xl font-bold">{tauxMortaliteLot.toFixed(1)} %</div>
+          <div>
+            <span>%</span><small>Taux mortalité</small>
+            <strong>{tauxMortaliteLot.toFixed(1)} %</strong>
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <section className="rounded border p-4">
-            <h3 className="font-semibold">Livraisons</h3>
+        <div className="poultry-detail-grid">
+          <section className="poultry-detail-section">
+            <div className="poultry-detail-section-heading">
+              <h3><span>🚚</span> Livraisons</h3>
+              <button type="button" onClick={() => {
+                setSelectedLot(lotDetail);
+                setLivraisons([{ date: '', quantite: '', poids: '' }]);
+                setShowLivraisonModal(true);
+              }}>＋ Ajouter</button>
+            </div>
             {livraisonsExistantes.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500">Aucune livraison enregistrée.</p>
+              <p className="poultry-detail-empty">Aucune livraison enregistrée.</p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="poultry-detail-list">
                 {livraisonsExistantes.map((livraison, index) => (
-                  <div key={livraison.id} className="rounded bg-gray-50 p-3 text-sm">
-                    <div className="font-medium">Livraison {index + 1}</div>
-                    <div>Date : {livraison.date || '-'}</div>
-                    <div>Quantité : {livraison.quantite || 0}</div>
-                    <div>Poids : {livraison.poids || 0} kg</div>
-                    <div className="mt-3 flex gap-2">
+                  <div key={livraison.id} className="poultry-detail-row">
+                    <div><strong>Livraison {index + 1}</strong><small>{livraison.date || '-'} · {livraison.quantite || 0} unités · {livraison.poids || 0} kg</small></div>
+                    <div className="poultry-detail-row-actions">
                       <button
+                        type="button"
+                        title="Modifier la livraison"
                         onClick={() => setLivraisonEnModification({ ...livraison })}
-                        className="!bg-blue-600 !text-white rounded px-3 py-1 text-xs"
                       >
-                        Modifier
+                        ✎
                       </button>
                       <button
+                        type="button"
+                        title="Supprimer la livraison"
                         onClick={() => supprimerLivraison(livraison)}
                         disabled={saving}
-                        className="!bg-red-600 !text-white rounded px-3 py-1 text-xs disabled:opacity-60"
                       >
-                        Supprimer
+                        🗑
                       </button>
                     </div>
                   </div>
@@ -1193,36 +1202,41 @@ return (
             )}
           </section>
 
-          <section className="rounded border p-4">
-            <h3 className="font-semibold">Mortalités</h3>
+          <section className="poultry-detail-section">
+            <div className="poultry-detail-section-heading">
+              <h3><span className="poultry-detail-danger">✝</span> Mortalités</h3>
+              <button type="button" onClick={() => ouvrirMortaliteModal(lotDetail.id)}>＋ Ajouter</button>
+            </div>
             {lotDetail.mortalites?.length ? (
-              <div className="mt-3 max-h-48 overflow-y-auto">
-                <table className="w-full text-sm">
+              <div className="poultry-detail-table-wrap">
+                <table className="poultry-detail-table">
                   <thead>
-                    <tr className="border-b">
-                      <th className="py-2 text-left">Date</th>
-                      <th className="py-2 text-left">Nombre</th>
-                      <th className="py-2 text-right">Actions</th>
+                    <tr>
+                      <th>Date</th>
+                      <th>Nombre</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lotDetail.mortalites.map((mortalite) => (
-                      <tr key={mortalite.id} className="border-b">
-                        <td className="py-2">{mortalite.date}</td>
-                        <td className="py-2">{mortalite.nombre}</td>
-                        <td className="py-2 text-right">
+                      <tr key={mortalite.id}>
+                        <td>{mortalite.date}</td>
+                        <td>{mortalite.nombre}</td>
+                        <td>
                           <button
+                            type="button"
+                            title="Modifier la mortalité"
                             onClick={() => setMortaliteEnModification({ ...mortalite })}
-                            className="!bg-blue-600 !text-white rounded px-2 py-1 text-xs"
                           >
-                            Modifier
+                            ✎
                           </button>
                           <button
+                            type="button"
+                            title="Supprimer la mortalité"
                             onClick={() => supprimerMortalite(mortalite)}
                             disabled={saving}
-                            className="ml-2 !bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
                           >
-                            Supprimer
+                            🗑
                           </button>
                         </td>
                       </tr>
@@ -1231,14 +1245,26 @@ return (
                 </table>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-gray-500">Aucune mortalité enregistrée.</p>
+              <p className="poultry-detail-empty">Aucune mortalité enregistrée.</p>
             )}
           </section>
         </div>
 
-        <div className="mt-5 rounded border p-4">
-          <h3 className="font-semibold">Vente et autoconsommation</h3>
-          <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+        <div className="poultry-detail-section poultry-detail-finance">
+          <div className="poultry-detail-section-heading">
+            <h3><span>€</span> Vente et autoconsommation</h3>
+            <div>
+              <button type="button" onClick={() => {
+                setSelectedLot(lotDetail);
+                setVenteModalOpen(true);
+              }}>＋ Vente</button>
+              <button type="button" onClick={() => {
+                setSelectedLot(lotDetail);
+                setShowAutoconsommationModal(true);
+              }}>＋ Autoconsommation</button>
+            </div>
+          </div>
+          <div>
             <div>Date facture : {lotDetail.facture_date || '-'}</div>
             <div>Résultat brut : {lotDetail.resultat_brut ?? '-'} €</div>
             <div>Autoconsommation : {lotDetail.autoconsommation ?? 0}</div>
@@ -1252,63 +1278,64 @@ return (
 
    {/* Modale pour enregistrer les livraisons */}
 {showLivraisonModal && (
-  <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
+  <div className="poultry-modal-backdrop">
+    <div className="poultry-modal poultry-modal-medium">
       <ModalCloseButton onClick={() => setShowLivraisonModal(false)} disabled={saving} />
-      <h2 className="pr-12 text-xl font-semibold mb-1">Ajouter une ou plusieurs livraisons</h2>
-      {selectedLot && <p className="mb-4 text-sm text-gray-600">{selectedLot.nom}</p>}
+      <div className="poultry-modal-header">
+        <span className="poultry-modal-icon">🚚</span>
+        <div><h2>Ajouter une ou plusieurs livraisons</h2>{selectedLot && <p>{selectedLot.nom}</p>}</div>
+      </div>
 
       {livraisons.map((livraison, index) => (
-        <div key={index} className="mb-4 border-b pb-4">
-          <label className="block mb-1">Date de livraison</label>
+        <div key={index} className="poultry-form-block">
+          {livraisons.length > 1 && <strong>Livraison {index + 1}</strong>}
+          <label>Date de livraison
           <input
             type="date"
             value={livraison.date}
             onChange={(e) => handleInputChange(index, 'date', e.target.value)}
-            className="border p-2 rounded mb-2 w-full"
           />
+          </label>
 
-          <label className="block mb-1">Quantité (unités)</label>
+          <label>Quantité (unités)
           <input
             type="number"
             step="1"
+            placeholder="Ex. 150"
             value={livraison.quantite}
             onChange={(e) => handleInputChange(index, 'quantite', e.target.value)}
-            className="border p-2 rounded mb-2 w-full"
           />
+          </label>
 
-          <label className="block mb-1">Poids (kg)</label>
+          <label>Poids (kg)
           <input
             type="number"
             step="0.01"
+            placeholder="Ex. 187,5"
             value={livraison.poids}
             onChange={(e) => handleInputChange(index, 'poids', e.target.value)}
-            className="border p-2 rounded w-full"
           />
+          </label>
         </div>
       ))}
 
       <button
+        type="button"
         onClick={addLivraison}
-        className="!bg-emerald-600 !text-white p-2 rounded w-full mb-2"
+        className="poultry-modal-add"
       >
-        + Ajouter une livraison
+        ＋ Ajouter une autre livraison
       </button>
 
-      <button
-        onClick={async () => {
-          const saved = await handleSaveLivraison();
-          if (saved) setShowLivraisonModal(false);
-        }}
-        disabled={saving}
-        className="!bg-blue-600 !text-white p-2 rounded w-full disabled:opacity-60"
-      >
-        {saving ? 'Enregistrement...' : '💾 Enregistrer les livraisons'}
-      </button>
-
-      <button onClick={() => setShowLivraisonModal(false)} className="!bg-gray-200 !text-gray-900 p-2 rounded w-full mt-2">
-        Annuler
-      </button>
+      <div className="poultry-modal-actions">
+        <button type="button" className="poultry-modal-primary" onClick={async () => {
+            const saved = await handleSaveLivraison();
+            if (saved) setShowLivraisonModal(false);
+          }} disabled={saving}>
+          {saving ? 'Enregistrement...' : '▣ Enregistrer les livraisons'}
+        </button>
+        <button type="button" className="poultry-modal-secondary" onClick={() => setShowLivraisonModal(false)}>Annuler</button>
+      </div>
     </div>
   </div>
 )}
@@ -1317,28 +1344,35 @@ return (
 
    {/* Modale pour saisir une mortalité */}
    {mortaliteModalOpen && (
-     <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center p-4">
-       <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+     <div className="poultry-modal-backdrop">
+       <div className="poultry-modal poultry-modal-small">
          <ModalCloseButton onClick={() => setMortaliteModalOpen(false)} disabled={saving} />
-         <h2 className="pr-12 text-xl font-semibold mb-1">Ajouter une mortalité</h2>
-         <p className="mb-4 text-sm text-gray-600">{lots.find((lot) => lot.id === mortaliteLotId)?.nom}</p>
-         <input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} className="border p-2 rounded mb-2 w-full" />
-         <input type="number" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} className="border p-2 rounded mb-4 w-full" />
-         <button onClick={enregistrerMortalite} disabled={saving} className="!bg-blue-600 !text-white p-2 rounded w-full disabled:opacity-60">
-           {saving ? 'Enregistrement...' : 'Enregistrer'}
-         </button>
-         <button onClick={() => setMortaliteModalOpen(false)} className="!bg-gray-200 !text-gray-900 p-2 rounded w-full mt-2">Annuler</button>
+         <div className="poultry-modal-header poultry-modal-header-danger">
+           <span className="poultry-modal-icon">✝</span>
+           <div><h2>Ajouter une mortalité</h2><p>{lots.find((lot) => lot.id === mortaliteLotId)?.nom}</p></div>
+         </div>
+         <div className="poultry-form-stack">
+           <label>Date<input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} /></label>
+           <label>Nombre de sujets<input type="number" min={1} placeholder="Ex. 2" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} /></label>
+         </div>
+         <div className="poultry-modal-actions">
+           <button type="button" className="poultry-modal-primary" onClick={enregistrerMortalite} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer'}</button>
+           <button type="button" className="poultry-modal-secondary" onClick={() => setMortaliteModalOpen(false)}>Annuler</button>
+         </div>
        </div>
      </div>
    )}
 
 {mortaliteEnModification && (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+  <div className="poultry-modal-backdrop poultry-modal-backdrop-front">
+    <div className="poultry-modal poultry-modal-small">
       <ModalCloseButton onClick={() => setMortaliteEnModification(null)} disabled={saving} />
-      <h2 className="pr-12 text-xl font-semibold">Modifier la mortalité</h2>
-      <div className="mt-4 space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
+      <div className="poultry-modal-header poultry-modal-header-danger">
+        <span className="poultry-modal-icon">✝</span>
+        <div><h2>Modifier la mortalité</h2><p>Corriger les informations enregistrées.</p></div>
+      </div>
+      <div className="poultry-form-stack">
+        <label>
           Date
           <input
             type="date"
@@ -1349,10 +1383,9 @@ return (
                 date: event.target.value,
               })
             }
-            className="mt-1 w-full rounded border p-2"
           />
         </label>
-        <label className="block text-sm font-medium text-gray-700">
+        <label>
           Nombre
           <input
             type="number"
@@ -1364,35 +1397,27 @@ return (
                 nombre: Number(event.target.value),
               })
             }
-            className="mt-1 w-full rounded border p-2"
           />
         </label>
       </div>
-      <button
-        onClick={enregistrerModificationMortalite}
-        disabled={saving}
-        className="mt-5 w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
-      >
-        {saving ? 'Enregistrement...' : 'Enregistrer la modification'}
-      </button>
-      <button
-        onClick={() => setMortaliteEnModification(null)}
-        disabled={saving}
-        className="mt-2 w-full !bg-gray-200 !text-gray-900 rounded p-2 disabled:opacity-60"
-      >
-        Annuler
-      </button>
+      <div className="poultry-modal-actions">
+        <button type="button" className="poultry-modal-primary" onClick={enregistrerModificationMortalite} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer la modification'}</button>
+        <button type="button" className="poultry-modal-secondary" onClick={() => setMortaliteEnModification(null)} disabled={saving}>Annuler</button>
+      </div>
     </div>
   </div>
 )}
 
 {livraisonEnModification && (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+  <div className="poultry-modal-backdrop poultry-modal-backdrop-front">
+    <div className="poultry-modal poultry-modal-small">
       <ModalCloseButton onClick={() => setLivraisonEnModification(null)} disabled={saving} />
-      <h2 className="pr-12 text-xl font-semibold">Modifier la livraison</h2>
-      <div className="mt-4 space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
+      <div className="poultry-modal-header">
+        <span className="poultry-modal-icon">🚚</span>
+        <div><h2>Modifier la livraison</h2><p>Corriger les informations enregistrées.</p></div>
+      </div>
+      <div className="poultry-form-stack">
+        <label>
           Date
           <input
             type="date"
@@ -1403,10 +1428,9 @@ return (
                 date: event.target.value,
               })
             }
-            className="mt-1 w-full rounded border p-2"
           />
         </label>
-        <label className="block text-sm font-medium text-gray-700">
+        <label>
           Quantité
           <input
             type="number"
@@ -1418,10 +1442,9 @@ return (
                 quantite: Number(event.target.value),
               })
             }
-            className="mt-1 w-full rounded border p-2"
           />
         </label>
-        <label className="block text-sm font-medium text-gray-700">
+        <label>
           Poids (kg)
           <input
             type="number"
@@ -1434,70 +1457,42 @@ return (
                 poids: Number(event.target.value),
               })
             }
-            className="mt-1 w-full rounded border p-2"
           />
         </label>
       </div>
-      <button
-        onClick={enregistrerModificationLivraison}
-        disabled={saving}
-        className="mt-5 w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
-      >
-        {saving ? 'Enregistrement...' : 'Enregistrer la modification'}
-      </button>
-      <button
-        onClick={() => setLivraisonEnModification(null)}
-        disabled={saving}
-        className="mt-2 w-full !bg-gray-200 !text-gray-900 rounded p-2 disabled:opacity-60"
-      >
-        Annuler
-      </button>
+      <div className="poultry-modal-actions">
+        <button type="button" className="poultry-modal-primary" onClick={enregistrerModificationLivraison} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer la modification'}</button>
+        <button type="button" className="poultry-modal-secondary" onClick={() => setLivraisonEnModification(null)} disabled={saving}>Annuler</button>
+      </div>
     </div>
   </div>
 )}
 
    {/* Modale pour enregistrer la vente*/}
 {venteModalOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="relative bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+  <div className="poultry-modal-backdrop">
+    <div className="poultry-modal poultry-modal-small">
       <ModalCloseButton onClick={() => setVenteModalOpen(false)} disabled={saving} />
-      <h2 className="pr-12 text-xl font-semibold mb-1">Enregistrer la vente du lot</h2>
-      {selectedLot && <p className="mb-4 text-sm text-gray-600">{selectedLot.nom}</p>}
-      <input
-        type="date"
-        value={factureDate}
-        onChange={(e) => setFactureDate(e.target.value)}
-        className="w-full p-2 mb-4 border rounded"
-        placeholder="Date de facture"
-      />
-      <input
-        type="number"
-        value={resultatBrut}
-        onChange={(e) => setResultatBrut(e.target.value)}
-        className="w-full p-2 mb-4 border rounded"
-        placeholder="Montant brut (€)"
-      />
-      <button
-        onClick={handleEnregistrerVente}
-        disabled={saving}
-        className="w-full !bg-emerald-600 !text-white py-2 rounded mb-2 disabled:opacity-60"
-      >
-        {saving ? 'Enregistrement...' : 'Enregistrer'}
-      </button>
-      <button
-        onClick={() => setVenteModalOpen(false)}
-        className="w-full !bg-gray-200 !text-gray-900 py-2 rounded"
-      >
-        Annuler
-      </button>
+      <div className="poultry-modal-header">
+        <span className="poultry-modal-icon">€</span>
+        <div><h2>Enregistrer la vente du lot</h2>{selectedLot && <p>{selectedLot.nom}</p>}</div>
+      </div>
+      <div className="poultry-form-stack">
+        <label>Date de facture<input type="date" value={factureDate} onChange={(e) => setFactureDate(e.target.value)} /></label>
+        <label>Montant brut (€)<input type="number" value={resultatBrut} onChange={(e) => setResultatBrut(e.target.value)} placeholder="Ex. 1 250" /></label>
+      </div>
+      <div className="poultry-modal-actions">
+        <button type="button" className="poultry-modal-primary" onClick={handleEnregistrerVente} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer la vente'}</button>
+        <button type="button" className="poultry-modal-secondary" onClick={() => setVenteModalOpen(false)}>Annuler</button>
+      </div>
     </div>
   </div>
 )}
 
 {/* Modale Autoconsommation */}
 {showAutoconsommationModal && (
-  <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="relative bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+  <div className="poultry-modal-backdrop">
+    <div className="poultry-modal poultry-modal-small">
       <ModalCloseButton
         onClick={() => {
           setShowAutoconsommationModal(false);
@@ -1506,56 +1501,49 @@ return (
         }}
         disabled={saving}
       />
-      <h2 className="pr-12 text-lg font-bold mb-4">Saisir la Quantité en Autoconsommation</h2>
-      
-      <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
-      <select
-        className="w-full p-2 border rounded mb-4"
-        value={selectedLot?.id || ''}
-        onChange={(e) => {
-          const lot = lots.find((l) => l.id === e.target.value);
-          setSelectedLot(lot || null);
-        }}
-      >
-        <option value="">-- Choisir un lot --</option>
-        {lots.map((lot) => (
-          <option key={lot.id} value={lot.id}>
-            {lot.nom} (Arrivé le {new Date(lot.dateArrivee).toLocaleDateString('fr-FR', { timeZone: 'UTC' })})
-          </option>
-        ))}
-      </select>
-
-      {selectedLot && (
-        <>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Quantité Autoconsommée</label>
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Quantité autoconsommée"
-            value={quantiteAutoconsommationInput}
-            onChange={(e) => setQuantiteAutoconsommationInput(e.target.value)}
-            className="border p-2 rounded w-full mb-4"
-          />
-          <button
-            onClick={handleSaveAutoconsommation}
-            disabled={saving}
-            className="!bg-emerald-600 !text-white p-2 rounded w-full disabled:opacity-60"
+      <div className="poultry-modal-header">
+        <span className="poultry-modal-icon">🍽</span>
+        <div><h2>Saisir une autoconsommation</h2><p>Enregistrer une sortie de sujets.</p></div>
+      </div>
+      <div className="poultry-form-stack">
+        <label>Sélectionner un lot
+          <select
+            value={selectedLot?.id || ''}
+            onChange={(e) => {
+              const lot = lots.find((l) => l.id === e.target.value);
+              setSelectedLot(lot || null);
+            }}
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
-          </button>
-        </>
-      )}
+            <option value="">-- Choisir un lot --</option>
+            {lots.map((lot) => (
+              <option key={lot.id} value={lot.id}>
+                {lot.nom} (Arrivé le {new Date(lot.dateArrivee).toLocaleDateString('fr-FR', { timeZone: 'UTC' })})
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <button
-        onClick={() => {
-          setShowAutoconsommationModal(false);
-          setSelectedLot(null);
-          setQuantiteAutoconsommationInput('');
-        }}
-        className="mt-2 p-2 w-full !bg-gray-200 !text-gray-900 rounded"
-      >
-        Annuler
-      </button>
+        {selectedLot && (
+          <label>Quantité autoconsommée
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Ex. 10"
+              value={quantiteAutoconsommationInput}
+              onChange={(e) => setQuantiteAutoconsommationInput(e.target.value)}
+            />
+          </label>
+        )}
+      </div>
+
+      <div className="poultry-modal-actions">
+        {selectedLot && <button type="button" className="poultry-modal-primary" onClick={handleSaveAutoconsommation} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer'}</button>}
+        <button type="button" className="poultry-modal-secondary" onClick={() => {
+            setShowAutoconsommationModal(false);
+            setSelectedLot(null);
+            setQuantiteAutoconsommationInput('');
+          }}>Annuler</button>
+      </div>
     </div>
   </div>
 )}

@@ -1220,6 +1220,429 @@
 .poultry-empty { padding: 32px; color: #718093; text-align: center; font-size: 12px; }
 .poultry-mobile-lots { display: none; }
 
+.poultry-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(31, 48, 65, 0.38);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.poultry-modal-backdrop-front {
+  z-index: 60;
+}
+
+.poultry-modal {
+  position: relative;
+  width: 100%;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid rgba(220, 229, 224, 0.95);
+  border-radius: 8px;
+  padding: 28px;
+  color: #172a3c;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 24px 70px rgba(16, 37, 54, 0.25);
+}
+
+.poultry-modal-small { max-width: 510px; }
+.poultry-modal-medium { max-width: 650px; }
+.poultry-modal-large { max-width: 920px; }
+
+.poultry-modal > button[aria-label="Fermer"] {
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  color: #405367 !important;
+  background: #f1f4f3 !important;
+  font-size: 24px;
+}
+
+.poultry-modal > button[aria-label="Fermer"]:hover {
+  color: #18354a !important;
+  background: #e4eae7 !important;
+}
+
+.poultry-modal-header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 15px;
+  padding-right: 48px;
+}
+
+.poultry-modal-header > div {
+  min-width: 0;
+}
+
+.poultry-modal-header h2 {
+  margin: 0;
+  color: #10263a;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.poultry-modal-header p {
+  margin: 5px 0 0;
+  color: #68798b;
+  font-size: 13px;
+}
+
+.poultry-modal-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #16853d;
+  background: #eaf6ec;
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.poultry-modal-header-danger .poultry-modal-icon {
+  color: #c62828;
+  background: #fdeaea;
+}
+
+.poultry-form-grid,
+.poultry-form-stack,
+.poultry-form-block {
+  margin-top: 24px;
+}
+
+.poultry-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+
+.poultry-form-stack,
+.poultry-form-block {
+  display: grid;
+  gap: 16px;
+}
+
+.poultry-form-block {
+  border-bottom: 1px solid #e6ece8;
+  padding-bottom: 22px;
+}
+
+.poultry-form-block > strong {
+  color: #16853d;
+  font-size: 13px;
+}
+
+.poultry-form-grid label,
+.poultry-form-stack label,
+.poultry-form-block label {
+  display: grid;
+  gap: 7px;
+  color: #31475a;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.poultry-form-grid input,
+.poultry-form-stack input,
+.poultry-form-stack select,
+.poultry-form-block input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #d7e0dc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #1d3447;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.poultry-form-grid input:focus,
+.poultry-form-stack input:focus,
+.poultry-form-stack select:focus,
+.poultry-form-block input:focus {
+  border-color: #16853d;
+  outline: 3px solid rgba(22, 133, 61, 0.12);
+}
+
+.poultry-modal-add {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 18px;
+  border: 1px dashed #98c7a5;
+  border-radius: 6px;
+  color: #14763a;
+  background: #f8fcf9;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.poultry-modal-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e7ece9;
+}
+
+.poultry-modal-actions button {
+  width: 100%;
+  min-height: 47px;
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.poultry-modal-primary {
+  color: white;
+  background: #16853d;
+}
+
+.poultry-modal-primary:hover {
+  background: #116f33;
+}
+
+.poultry-modal-secondary {
+  color: #33495d;
+  background: #eef1f2;
+}
+
+.poultry-modal-secondary:hover {
+  background: #e2e7e8;
+}
+
+.poultry-modal-actions button:disabled,
+.poultry-modal-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.poultry-lot-detail {
+  padding: 30px;
+}
+
+.poultry-detail-heading .poultry-modal-icon {
+  width: 62px;
+  height: 62px;
+  font-size: 30px;
+}
+
+.poultry-detail-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.poultry-detail-kpis > div {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  min-height: 105px;
+  align-content: center;
+  gap: 3px 10px;
+  border: 1px solid #e2e9e5;
+  border-radius: 7px;
+  padding: 15px;
+  background: #fff;
+}
+
+.poultry-detail-kpis span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  grid-row: 1 / span 2;
+  place-items: center;
+  border-radius: 50%;
+  color: #16853d;
+  background: #eaf6ec;
+  font-weight: 800;
+}
+
+.poultry-detail-kpis small {
+  color: #607286;
+  font-size: 11px;
+}
+
+.poultry-detail-kpis strong {
+  color: #14763a;
+  font-size: 21px;
+}
+
+.poultry-detail-danger {
+  color: #cf2727 !important;
+}
+
+.poultry-detail-kpis .poultry-detail-danger {
+  background: #fdeaea;
+}
+
+.poultry-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.poultry-detail-section {
+  border: 1px solid #e2e9e5;
+  border-radius: 7px;
+  padding: 18px;
+  background: white;
+}
+
+.poultry-detail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: #183147;
+  font-size: 16px;
+}
+
+.poultry-detail-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.poultry-detail-section-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.poultry-detail-section-heading button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #14763a;
+  background: #eaf6ec;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.poultry-detail-section-heading button:hover {
+  background: #dcefe1;
+}
+
+.poultry-detail-section h3 span {
+  color: #16853d;
+}
+
+.poultry-detail-empty {
+  margin: 20px 0;
+  color: #748496;
+  font-size: 12px;
+}
+
+.poultry-detail-list {
+  display: grid;
+  max-height: 220px;
+  gap: 8px;
+  margin-top: 14px;
+  overflow-y: auto;
+}
+
+.poultry-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 6px;
+  padding: 11px;
+  background: #f7faf8;
+}
+
+.poultry-detail-row > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.poultry-detail-row strong { font-size: 12px; }
+.poultry-detail-row small { color: #6b7c8e; font-size: 10px; }
+
+.poultry-detail-row-actions,
+.poultry-detail-table td:last-child {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.poultry-detail-row-actions button,
+.poultry-detail-table td:last-child button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #14763a;
+  background: #eaf6ec;
+}
+
+.poultry-detail-row-actions button:last-child,
+.poultry-detail-table td:last-child button:last-child {
+  color: #c62828;
+  background: #fdeaea;
+}
+
+.poultry-detail-table-wrap {
+  max-height: 220px;
+  margin-top: 14px;
+  overflow-y: auto;
+}
+
+.poultry-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.poultry-detail-table th,
+.poultry-detail-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid #e6ece8;
+  color: #33495d;
+  text-align: left;
+}
+
+.poultry-detail-table th {
+  color: #5d6e80;
+  font-size: 10px;
+}
+
+.poultry-detail-finance {
+  margin-top: 16px;
+}
+
+.poultry-detail-finance > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 17px;
+  color: #40556a;
+  font-size: 12px;
+}
+
 @media (max-width: 1180px) {
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1323,4 +1746,79 @@
   .poultry-card-actions button span { font-size: 13px; }
   .poultry-card-actions .poultry-action-mortality { color: #b91c1c; }
   .poultry-quick-actions { grid-template-columns: 1fr 1fr; }
+
+  .poultry-modal-backdrop {
+    align-items: flex-end;
+    padding: 12px;
+    background: rgba(31, 48, 65, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .poultry-modal {
+    max-height: calc(100vh - 24px);
+    border-radius: 8px;
+    padding: 22px 18px;
+  }
+
+  .poultry-modal > button[aria-label="Fermer"] {
+    top: 14px;
+    right: 14px;
+  }
+
+  .poultry-modal-header {
+    min-height: 54px;
+    gap: 11px;
+    padding-right: 42px;
+  }
+
+  .poultry-modal-header h2 {
+    font-size: 18px;
+  }
+
+  .poultry-modal-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .poultry-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .poultry-lot-detail {
+    padding: 22px 16px;
+  }
+
+  .poultry-detail-heading .poultry-modal-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 23px;
+  }
+
+  .poultry-detail-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .poultry-detail-kpis > div {
+    min-height: 92px;
+    padding: 12px;
+  }
+
+  .poultry-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .poultry-detail-finance > div:last-child {
+    grid-template-columns: 1fr;
+  }
+
+  .poultry-detail-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .poultry-detail-section-heading > div {
+    justify-content: flex-start;
+  }
 }

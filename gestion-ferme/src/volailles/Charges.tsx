@@ -16,7 +16,11 @@ interface Lot {
   nom: string;
 }
 
-const Charges = () => {
+interface ChargesProps {
+  lotIdsFiltres?: string[];
+}
+
+const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,7 +49,14 @@ const Charges = () => {
 
   const fetchCharges = async () => {
     const { data, error } = await supabase.from("charges").select("*");
-    if (!error) setCharges(data as Charge[]);
+    if (!error) {
+      setCharges(
+        (data || []).map((charge) => ({
+          ...charge,
+          montant: Number(charge.montant) || 0,
+        })) as Charge[]
+      );
+    }
     else console.error("Erreur chargement charges:", error.message);
   };
 
@@ -96,18 +107,23 @@ const Charges = () => {
       .filter((c) => c.lot_id === lotId)
       .reduce((sum, c) => sum + c.montant, 0);
 
+  const lotsAffiches = lotIdsFiltres
+    ? lots.filter((lot) => lotIdsFiltres.includes(lot.id))
+    : lots;
+
   return (
     <div className="mt-12">
       <h2 className="text-2xl font-semibold mb-4">Charges par Lot</h2>
 
       <button
         onClick={() => setModalOpen(true)}
-        className="mb-4 bg-blue-500 text-black px-4 py-2 rounded"
+        className="mb-4 !bg-blue-600 !text-white px-4 py-2 rounded"
       >
         Ajouter une charge
       </button>
 
-      <table className="w-full table-auto border border-gray-300">
+      <div className="overflow-x-auto rounded border">
+      <table className="w-full min-w-[700px] table-auto border-collapse">
         <thead>
           <tr className="bg-gray-100">
             <th className="border px-3 py-2">Lot</th>
@@ -119,7 +135,14 @@ const Charges = () => {
           </tr>
         </thead>
         <tbody>
-          {lots.map((lot) => (
+          {lotsAffiches.length === 0 && (
+            <tr>
+              <td colSpan={6} className="border p-6 text-center text-gray-500">
+                Aucune charge à afficher pour cette recherche.
+              </td>
+            </tr>
+          )}
+          {lotsAffiches.map((lot) => (
             <tr key={lot.id}>
               <td className="border px-3 py-2">{lot.nom}</td>
               <td className="border px-3 py-2">
@@ -141,10 +164,11 @@ const Charges = () => {
           ))}
         </tbody>
       </table>
+      </div>
 
       {/* Modale d'ajout */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Ajouter une charge</h3>
 
@@ -190,13 +214,13 @@ const Charges = () => {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-green-600 text-black px-4 py-2 rounded w-full mb-2 disabled:opacity-60"
+              className="!bg-green-600 !text-white px-4 py-2 rounded w-full mb-2 disabled:opacity-60"
             >
               {saving ? "Enregistrement..." : "Enregistrer"}
             </button>
             <button
               onClick={() => setModalOpen(false)}
-              className="bg-gray-400 text-black px-4 py-2 rounded w-full"
+              className="!bg-gray-200 !text-gray-900 px-4 py-2 rounded w-full"
             >
               Annuler
             </button>

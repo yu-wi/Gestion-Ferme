@@ -512,7 +512,9 @@ export default function Historique() {
       })()}
       
       <div>
-      <Charges />
+      <Charges
+        lotIdsFiltres={lotsAffiches.map((lot) => lot.id)}
+      />
       </div>
 
      {/* Modale Résultat Net */}

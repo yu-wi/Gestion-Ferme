@@ -64,12 +64,22 @@ const aujourdHui = () => {
   return `${annee}-${mois}-${jour}`;
 };
 
-const ageAuJour = (dateArrivee: string, decalageJours = 0) => {
+const ageEntreDates = (dateArrivee: string, dateCible: string) => {
   const arrivee = new Date(`${dateArrivee}T00:00:00`);
+  const cible = new Date(`${dateCible}T00:00:00`);
+  return Math.floor((cible.getTime() - arrivee.getTime()) / 86400000);
+};
+
+const ageAuJour = (dateArrivee: string, decalageJours = 0) => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() + decalageJours);
-  return Math.max(0, Math.floor((date.getTime() - arrivee.getTime()) / 86400000));
+  const dateCible = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+  return Math.max(0, ageEntreDates(dateArrivee, dateCible));
 };
 
 const formatDate = (date: string) =>
@@ -191,6 +201,43 @@ export default function DashboardFeed() {
       setLivraisonType(typesAliment[0]);
     }
   }, [typesAliment, consommationType, livraisonType]);
+
+  const lotConsommationSelectionne = useMemo(
+    () => lots.find((lot) => lot.id === consommationLotId) || null,
+    [lots, consommationLotId]
+  );
+
+  const suggestionConsommation = useMemo(() => {
+    if (!lotConsommationSelectionne || !consommationDate) return null;
+
+    const age = ageEntreDates(
+      lotConsommationSelectionne.date_arrivee,
+      consommationDate
+    );
+    if (age < 0) return null;
+
+    const reference = references.find(
+      (item) => age >= item.age_min_days && age <= item.age_max_days
+    );
+    if (!reference) return null;
+
+    const sujets =
+      lotConsommationSelectionne.sujets_restants == null
+        ? Number(lotConsommationSelectionne.quantite) || 0
+        : Number(lotConsommationSelectionne.sujets_restants) || 0;
+    const sacs =
+      (reference.daily_consumption_g * sujets) /
+      1000 /
+      POIDS_SAC_KG;
+
+    return { age, reference, sujets, sacs };
+  }, [lotConsommationSelectionne, consommationDate, references]);
+
+  useEffect(() => {
+    if (suggestionConsommation) {
+      setConsommationType(suggestionConsommation.reference.feed_type);
+    }
+  }, [suggestionConsommation]);
 
   const stock = useMemo<StockRow[]>(
     () =>
@@ -624,6 +671,35 @@ export default function DashboardFeed() {
               />
             </Champ>
           </div>
+          {lotConsommationSelectionne && suggestionConsommation && (
+            <div className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+              <div className="font-semibold">
+                Suggestion : {suggestionConsommation.sacs.toFixed(2)} sacs de{" "}
+                {suggestionConsommation.reference.feed_type}
+              </div>
+              <div className="mt-1 text-blue-800">
+                Lot âgé de {suggestionConsommation.age} jours, calculé pour{" "}
+                {suggestionConsommation.sujets} sujet(s).
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setConsommationSacs(suggestionConsommation.sacs.toFixed(2))
+                }
+                className="mt-3 rounded !bg-blue-600 px-3 py-2 !text-white"
+              >
+                Utiliser cette quantité
+              </button>
+            </div>
+          )}
+          {lotConsommationSelectionne &&
+            consommationDate &&
+            !suggestionConsommation && (
+              <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Aucune référence alimentaire ne correspond à l’âge de ce lot à
+                cette date. La quantité peut être saisie manuellement.
+              </div>
+            )}
           <Champ label="Note facultative">
             <input
               type="text"

@@ -1,66 +1,86 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import { supabase } from "../supabaseClient";
+import ModalCloseButton from "../components/ModalCloseButton";
 import Charges from "./Charges";
-import ModalCloseButton from '../components/ModalCloseButton';
 import {
   chargerLotsAvecMouvements,
   supprimerLotEtDonnees,
   type LivraisonVolaille,
   type MortaliteVolaille,
-} from './volaillesData';
+} from "./volaillesData";
 
-type LotVolailles = {
+type LotHistorique = {
   id: string;
   nom: string;
   quantite: number;
   date_arrivee: string;
   batiment: string;
-  mortalites: MortaliteVolaille[];
-  evenements: any;
-  couleur: string;
   age: number;
   is_active: boolean;
   nb_morts: number;
   sujets_restants: number;
-  facture_date: string;
   resultat_brut: number;
-  resultat_net: number;
+  resultat_net: number | null;
   autoconsommation: number;
-  prix_vente_kg: number;
-  prix_poussins: number;
   quantite_retenue: number;
   total_poids_livre: number;
   livraisons: LivraisonVolaille[];
+  mortalites: MortaliteVolaille[];
 };
 
+type Charge = {
+  lot_id: string;
+  type_charge: string;
+  montant: number;
+};
+
+const chargeLabels: Record<string, string> = {
+  aliment: "Aliment",
+  achat_poussins: "Achat poussins",
+  ramassage: "Ramassage",
+  livraison: "Livraison",
+};
+
+const chargeColors = ["#209447", "#f5b000", "#3b78d8", "#8b6bd9", "#a7b1bc"];
+
 export default function Historique() {
-  const [historique, setHistorique] = useState<LotVolailles[]>([]);
+  const [historique, setHistorique] = useState<LotHistorique[]>([]);
+  const [charges, setCharges] = useState<Charge[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [sortedHistorique, setSortedHistorique] = useState<LotVolailles[]>([]);
-
-  const [showResultatNetModal, setShowResultatNetModal] = useState(false);
-  const [resultatNetInput, setResultatNetInput] = useState('');
-  const [selectedLot, setSelectedLot] = useState<LotVolailles | null>(null);
-
-  const [showQuantiteRetenueModal, setShowQuantiteRetenueModal] = useState(false);
-  const [quantiteRetenueInput, setQuantiteRetenueInput] = useState('');
-  const [detailLot, setDetailLot] = useState<LotVolailles | null>(null);
-  const [recherche, setRecherche] = useState('');
+  const [recherche, setRecherche] = useState("");
+  const [batimentFiltre, setBatimentFiltre] = useState("");
+  const [resultatFiltre, setResultatFiltre] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [saving, setSaving] = useState(false);
+  const [showResultatNetModal, setShowResultatNetModal] = useState(false);
+  const [showQuantiteRetenueModal, setShowQuantiteRetenueModal] = useState(false);
+  const [selectedLot, setSelectedLot] = useState<LotHistorique | null>(null);
+  const [resultatNetInput, setResultatNetInput] = useState("");
+  const [quantiteRetenueInput, setQuantiteRetenueInput] = useState("");
+  const [showChargesManager, setShowChargesManager] = useState(false);
 
-  // ✅ Fonction réutilisable pour charger les lots
   const fetchLots = async () => {
     try {
-      const lots = await chargerLotsAvecMouvements(false) as LotVolailles[];
-      setHistorique(lots);
-      setSortedHistorique(lots);
+      const [lots, chargesResult] = await Promise.all([
+        chargerLotsAvecMouvements(false),
+        supabase.from("charges").select("lot_id, type_charge, montant"),
+      ]);
+      if (chargesResult.error) throw chargesResult.error;
+      setHistorique(lots as LotHistorique[]);
+      setCharges(
+        (chargesResult.data || []).map((charge) => ({
+          ...charge,
+          montant: Number(charge.montant) || 0,
+        })) as Charge[]
+      );
     } catch (error) {
-      console.error('Erreur chargement des lots:', error);
+      console.error("Erreur chargement historique :", error);
       toast.error("L'historique n'a pas pu être chargé.");
     }
-
     setLoading(false);
   };
 
@@ -68,642 +88,441 @@ export default function Historique() {
     fetchLots();
   }, []);
 
-  // ✅ Appel fetchLots() après update
-  const handleSaveResultatNet = async (lotId: string, montant: number) => {
-    if (!Number.isFinite(montant) || montant < 0) {
-      toast.error('Indiquez un montant valide.');
+  const lignes = useMemo(
+    () =>
+      historique.map((lot) => {
+        const quantiteLivree = lot.livraisons.reduce(
+          (total, livraison) => total + Number(livraison.quantite || 0),
+          0
+        );
+        const totalCharges = charges
+          .filter((charge) => charge.lot_id === lot.id)
+          .reduce((total, charge) => total + charge.montant, 0);
+        const chiffreAffaires = Number(lot.resultat_brut) || 0;
+        const resultat =
+          lot.resultat_net != null
+            ? Number(lot.resultat_net) || 0
+            : chiffreAffaires - totalCharges;
+        return { ...lot, quantiteLivree, totalCharges, chiffreAffaires, resultat };
+      }),
+    [historique, charges]
+  );
+
+  const batiments = Array.from(
+    new Set(historique.map((lot) => lot.batiment).filter(Boolean))
+  ).sort();
+
+  const lotsAffiches = lignes
+    .filter((lot) => {
+      const terme = recherche.trim().toLowerCase();
+      const correspondRecherche =
+        !terme ||
+        lot.nom.toLowerCase().includes(terme) ||
+        lot.batiment.toLowerCase().includes(terme);
+      const correspondBatiment = !batimentFiltre || lot.batiment === batimentFiltre;
+      const correspondDebut = !dateDebut || lot.date_arrivee >= dateDebut;
+      const correspondFin = !dateFin || lot.date_arrivee <= dateFin;
+      const correspondResultat =
+        !resultatFiltre ||
+        (resultatFiltre === "positif" && lot.resultat >= 0) ||
+        (resultatFiltre === "negatif" && lot.resultat < 0);
+      return (
+        correspondRecherche &&
+        correspondBatiment &&
+        correspondDebut &&
+        correspondFin &&
+        correspondResultat
+      );
+    })
+    .sort((a, b) =>
+      sortOrder === "asc"
+        ? a.nom.localeCompare(b.nom)
+        : b.nom.localeCompare(a.nom)
+    );
+
+  const totalLivres = lotsAffiches.reduce(
+    (total, lot) => total + lot.quantiteLivree,
+    0
+  );
+  const totalPoids = lotsAffiches.reduce(
+    (total, lot) => total + Number(lot.total_poids_livre || 0),
+    0
+  );
+  const totalResultat = lotsAffiches.reduce(
+    (total, lot) => total + lot.resultat,
+    0
+  );
+  const totalCharges = lotsAffiches.reduce(
+    (total, lot) => total + lot.totalCharges,
+    0
+  );
+  const totalChiffreAffaires = lotsAffiches.reduce(
+    (total, lot) => total + lot.chiffreAffaires,
+    0
+  );
+  const tauxMarge =
+    totalChiffreAffaires > 0 ? (totalResultat / totalChiffreAffaires) * 100 : 0;
+  const lotAnalyse = lotsAffiches[0];
+
+  const repartitionCharges = Object.entries(
+    charges
+      .filter((charge) => lotsAffiches.some((lot) => lot.id === charge.lot_id))
+      .reduce<Record<string, number>>((totaux, charge) => {
+        totaux[charge.type_charge] =
+          (totaux[charge.type_charge] || 0) + charge.montant;
+        return totaux;
+      }, {})
+  )
+    .map(([type, montant]) => ({
+      type,
+      label: chargeLabels[type] || "Divers",
+      montant,
+    }))
+    .sort((a, b) => b.montant - a.montant);
+
+  const segmentsCharges = repartitionCharges.reduce(
+    (acc, charge, index) => {
+      const debut = acc.fin;
+      const fin =
+        index === repartitionCharges.length - 1 || totalCharges <= 0
+          ? 360
+          : debut + (charge.montant / totalCharges) * 360;
+      acc.segments.push(
+        `${chargeColors[index % chargeColors.length]} ${debut}deg ${fin}deg`
+      );
+      acc.fin = fin;
+      return acc;
+    },
+    { segments: [] as string[], fin: 0 }
+  ).segments;
+
+  const resetFiltres = () => {
+    setRecherche("");
+    setBatimentFiltre("");
+    setResultatFiltre("");
+    setDateDebut("");
+    setDateFin("");
+  };
+
+  const handleSaveResultatNet = async () => {
+    const montant = Number(resultatNetInput);
+    if (!selectedLot || !Number.isFinite(montant)) {
+      toast.error("Sélectionnez un lot et indiquez un montant valide.");
       return;
     }
     setSaving(true);
     const { error } = await supabase
-      .from('lots_volailles')
+      .from("lots_volailles")
       .update({ resultat_net: montant })
-      .eq('id', lotId)
-      .select('*');
-
+      .eq("id", selectedLot.id);
     if (error) {
-      console.error('Erreur mise à jour résultat net :', error);
       toast.error("Le résultat net n'a pas pu être enregistré.");
     } else {
-      await fetchLots(); // Recharge les données après mise à jour
-
+      toast.success("Résultat net enregistré.");
       setShowResultatNetModal(false);
       setSelectedLot(null);
-      setResultatNetInput('');
-      toast.success('Résultat net enregistré.');
+      setResultatNetInput("");
+      await fetchLots();
     }
     setSaving(false);
   };
 
-  // ✅ Appel fetchLots() après update
-  const handleSaveQuantiteRetenue = async (lotId: string, nouvelleQuantiteRetenue: number) => {
-    if (!Number.isFinite(nouvelleQuantiteRetenue) || nouvelleQuantiteRetenue < 0) {
-      toast.error('Indiquez une quantité valide.');
+  const handleSaveQuantiteRetenue = async () => {
+    const quantite = Number(quantiteRetenueInput);
+    if (!selectedLot || !Number.isFinite(quantite) || quantite < 0) {
+      toast.error("Sélectionnez un lot et indiquez une quantité valide.");
       return;
     }
     setSaving(true);
     const { error } = await supabase
-      .from('lots_volailles')
-      .update({ quantite_retenue: nouvelleQuantiteRetenue })
-      .eq('id', lotId)
-      .select('*');
-
+      .from("lots_volailles")
+      .update({ quantite_retenue: quantite })
+      .eq("id", selectedLot.id);
     if (error) {
-      console.error('Erreur mise à jour quantité retenue :', error);
       toast.error("La quantité retenue n'a pas pu être enregistrée.");
     } else {
-      await fetchLots(); // Recharge les données après mise à jour
-
+      toast.success("Quantité retenue enregistrée.");
       setShowQuantiteRetenueModal(false);
       setSelectedLot(null);
-      setQuantiteRetenueInput('');
-      toast.success('Quantité retenue enregistrée.');
+      setQuantiteRetenueInput("");
+      await fetchLots();
     }
     setSaving(false);
   };
 
-  const reactiverLot = async (lot: LotVolailles) => {
+  const reactiverLot = async (lot: LotHistorique) => {
     if (saving || !window.confirm(`Réactiver le lot ${lot.nom} ?`)) return;
-
     setSaving(true);
     const { error } = await supabase
-      .from('lots_volailles')
+      .from("lots_volailles")
       .update({ is_active: true })
-      .eq('id', lot.id);
-
-    if (error) {
-      console.error('Erreur réactivation du lot :', error);
-      toast.error("Le lot n'a pas pu être réactivé.");
-    } else {
+      .eq("id", lot.id);
+    if (error) toast.error("Le lot n'a pas pu être réactivé.");
+    else {
       setHistorique((lots) => lots.filter((item) => item.id !== lot.id));
-      setSortedHistorique((lots) => lots.filter((item) => item.id !== lot.id));
-      setDetailLot(null);
-      toast.success('Lot réactivé. Il apparaît de nouveau dans les lots en cours.');
+      toast.success("Lot réactivé.");
     }
     setSaving(false);
   };
 
-  const supprimerLot = async (lot: LotVolailles) => {
+  const supprimerLot = async (lot: LotHistorique) => {
     if (
       saving ||
-      !window.confirm(
-        `Supprimer définitivement le lot ${lot.nom} et toutes ses données ?`
-      )
-    ) {
+      !window.confirm(`Supprimer définitivement le lot ${lot.nom} ?`)
+    )
       return;
-    }
-
     setSaving(true);
     try {
       await supprimerLotEtDonnees(lot.id);
       setHistorique((lots) => lots.filter((item) => item.id !== lot.id));
-      setSortedHistorique((lots) =>
-        lots.filter((item) => item.id !== lot.id)
-      );
-      if (detailLot?.id === lot.id) setDetailLot(null);
-      toast.success('Lot supprimé définitivement.');
+      toast.success("Lot supprimé définitivement.");
     } catch (error) {
-      console.error('Erreur suppression du lot :', error);
+      console.error("Erreur suppression lot :", error);
       toast.error("Le lot n'a pas pu être supprimé.");
-    } finally {
-      setSaving(false);
     }
-  };
-  
-  
-
-  const totalLivres = historique.reduce(
-    (acc, lot) => acc + lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0),
-    0
-  );
-
-  const totalRestants = historique.reduce(
-    (acc, lot) => acc + (lot.sujets_restants || 0),
-    0
-  );
-
-  const totalPoids = historique.reduce(
-    (acc, lot) => acc + lot.livraisons.reduce((total, livraison) => total + livraison.poids, 0),
-    0
-  );
-
-  const totalQuantiteRetenue = historique.reduce(
-    (acc, lot) => acc + (lot.quantite_retenue || 0),
-    0
-  );
-
-  const totalResultatBrut = historique.reduce(
-    (acc, lot) => acc + (lot.resultat_brut || 0),
-    0
-  );
-
-  const totalResultatNet = historique.reduce(
-    (acc, lot) => acc + (lot.resultat_net || 0),
-    0
-  );
-
-  const trierParNom = () => {
-    const order = sortOrder === 'asc' ? 'desc' : 'asc';
-    setSortOrder(order);
-    const sorted = [...historique].sort((a, b) =>
-      order === 'asc'
-        ? a.nom.localeCompare(b.nom)
-        : b.nom.localeCompare(a.nom)
-    );
-    setSortedHistorique(sorted);
+    setSaving(false);
   };
 
-  const lotsAffiches = sortedHistorique.filter((lot) => {
-    const terme = recherche.trim().toLowerCase();
-    return (
-      !terme ||
-      lot.nom.toLowerCase().includes(terme) ||
-      lot.batiment.toLowerCase().includes(terme)
-    );
-  });
-
-  if (loading) return <div className="p-4">Chargement...</div>;
+  if (loading) return <div className="history-loading">Chargement...</div>;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Historique des lots</h1>
-        <p className="text-sm text-gray-600">Lots archivés, résultats et livraisons.</p>
-      </div>
-
-      {/* Boutons modaux */}
-      <div className="flex flex-wrap gap-3">
-        <button className="!bg-yellow-400 !text-black px-4 py-2 rounded" onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
-        <button className="!bg-blue-600 !text-white px-4 py-2 rounded" onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase text-gray-500">Lots archivés</div>
-          <div className="mt-1 text-2xl font-bold">{historique.length}</div>
+    <div className="history-page">
+      <header className="history-heading">
+        <div>
+          <h1><span>▣</span> Historique des lots</h1>
+          <p>Lots archivés, résultats et livraisons.</p>
         </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase text-gray-500">Sujets livrés</div>
-          <div className="mt-1 text-2xl font-bold">{totalLivres}</div>
-        </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase text-gray-500">Poids livré</div>
-          <div className="mt-1 text-2xl font-bold">{totalPoids.toFixed(1)} kg</div>
-        </div>
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase text-gray-500">Résultat net</div>
-          <div className="mt-1 text-2xl font-bold">{totalResultatNet.toFixed(2)} €</div>
-        </div>
-      </div>
+        <button type="button" onClick={() => window.print()}>▤ Exporter PDF</button>
+      </header>
 
-      <input
-        type="search"
-        value={recherche}
-        onChange={(event) => setRecherche(event.target.value)}
-        placeholder="Rechercher un lot ou un bâtiment"
-        className="w-full rounded border bg-white p-3 md:max-w-md"
-      />
+      <section className="history-kpis">
+        <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={String(lotsAffiches.length)} note="Lots affichés" />
+        <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={String(totalLivres)} note="Sur la période" />
+        <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={`${totalPoids.toFixed(1)} kg`} note="Poids cumulé" />
+        <HistoryKpi tone="orange" icon="€" label="Résultat net" value={`${totalResultat.toFixed(2)} €`} note="Après charges" />
+      </section>
 
-      <div className="space-y-3 md:hidden">
-        {lotsAffiches.length === 0 && (
-          <div className="rounded-lg border bg-white p-6 text-center text-gray-500">
-            Aucun lot archivé à afficher.
+      <section className="history-filters">
+        <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un lot ou un bâtiment..." />
+        <select value={batimentFiltre} onChange={(event) => setBatimentFiltre(event.target.value)}>
+          <option value="">Tous les bâtiments</option>
+          {batiments.map((batiment) => <option key={batiment} value={batiment}>{batiment}</option>)}
+        </select>
+        <div className="history-date-filter">
+          <input type="date" aria-label="Date de début" value={dateDebut} onChange={(event) => setDateDebut(event.target.value)} />
+          <span>→</span>
+          <input type="date" aria-label="Date de fin" value={dateFin} onChange={(event) => setDateFin(event.target.value)} />
+        </div>
+        <select value={resultatFiltre} onChange={(event) => setResultatFiltre(event.target.value)}>
+          <option value="">Tous les résultats</option>
+          <option value="positif">Résultat positif</option>
+          <option value="negatif">Résultat négatif</option>
+        </select>
+        <button type="button" onClick={resetFiltres}>↻ Réinitialiser</button>
+      </section>
+
+      <section className="history-panel history-table-panel">
+        <div className="history-panel-heading">
+          <h2>Historique des lots</h2>
+          <div>
+            <button type="button" onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
+            <button type="button" onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
           </div>
-        )}
-        {lotsAffiches.map((lot) => {
-          const quantiteLivree = lot.livraisons.reduce(
-            (total, livraison) => total + livraison.quantite,
-            0
-          );
-          return (
-            <article key={lot.id} className="rounded-lg border bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">{lot.nom}</h2>
-                  <p className="text-sm text-gray-600">
-                    {lot.batiment} · {new Date(lot.date_arrivee).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <span
-                  className="h-7 w-7 rounded-full border"
-                  style={{ backgroundColor: lot.couleur || '#999999' }}
-                />
+        </div>
+
+        <div className="history-mobile-list">
+          {lotsAffiches.map((lot) => (
+            <article key={lot.id}>
+              <div><strong>{lot.nom}</strong><span>{lot.batiment} · {formatDate(lot.date_arrivee)}</span></div>
+              <div className="history-mobile-values">
+                <span>Livrés <b>{lot.quantiteLivree}</b></span>
+                <span>Poids <b>{lot.total_poids_livre.toFixed(1)} kg</b></span>
+                <span>Résultat <b>{lot.resultat.toFixed(2)} €</b></span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded border p-3">
-                  <div className="text-gray-500">Livrés</div>
-                  <div className="font-semibold">{quantiteLivree}</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-gray-500">Âge à la clôture</div>
-                  <div className="font-semibold">{lot.age || 0} jours</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-gray-500">Poids</div>
-                  <div className="font-semibold">{Number(lot.total_poids_livre || 0).toFixed(2)} kg</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-gray-500">Résultat brut</div>
-                  <div className="font-semibold">{lot.resultat_brut || 0} €</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-gray-500">Résultat net</div>
-                  <div className="font-semibold">{lot.resultat_net || 0} €</div>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setDetailLot(lot)}
-                  className="!bg-slate-700 !text-white rounded px-3 py-2"
-                >
-                  Voir la fiche
-                </button>
-                <button
-                  onClick={() => reactiverLot(lot)}
-                  disabled={saving}
-                  className="!bg-emerald-600 !text-white rounded px-3 py-2 disabled:opacity-60"
-                >
-                  Réactiver
-                </button>
-                <button
-                  onClick={() => supprimerLot(lot)}
-                  disabled={saving}
-                  className="col-span-2 rounded !bg-red-700 px-3 py-2 !text-white disabled:opacity-60"
-                >
-                  × Supprimer le lot
-                </button>
+              <div className="history-mobile-actions">
+                <Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse</Link>
+                <button type="button" onClick={() => reactiverLot(lot)}>Réactiver</button>
+                <button type="button" onClick={() => supprimerLot(lot)}>🗑</button>
               </div>
             </article>
-          );
-        })}
-      </div>
+          ))}
+        </div>
 
-      {/* Table */}
-      <div className="hidden overflow-x-auto rounded border md:block">
-        <table className="min-w-full text-sm border border-gray-300">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 py-2 border cursor-pointer" onClick={trierParNom}>
-                N° lot {sortOrder === 'asc' ? '↑' : '↓'}
-              </th>
-              <th className="px-3 py-2 border">Arrivée</th>
-              <th className="px-3 py-2 border">Bâtiment</th>
-              <th className="px-3 py-2 border">Restants</th>
-              <th className="px-3 py-2 border">Livraisons</th>
-              <th className="px-3 py-2 border">Quantité livrée</th>
-              <th className="px-3 py-2 border">Quantité retenue</th>
-              <th className="px-3 py-2 border">Poids total</th>
-              <th className="px-3 py-2 border">Autoconsommation</th>
-              <th className="px-3 py-2 border">Résultat brut</th>
-              <th className="px-3 py-2 border">Résultat net</th>
-              <th className="px-3 py-2 border">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lotsAffiches.length === 0 && (
+        <div className="history-table-wrap">
+          <table className="history-table">
+            <thead>
               <tr>
-                <td colSpan={12} className="border p-6 text-center text-gray-500">
-                  Aucun lot archivé à afficher.
-                </td>
+                <th onClick={() => setSortOrder((ordre) => ordre === "asc" ? "desc" : "asc")}>N° lot {sortOrder === "asc" ? "↑" : "↓"}</th>
+                <th>Arrivée</th><th>Bâtiment</th><th>Restants</th><th>Livraisons</th>
+                <th>Quantité livrée</th><th>Quantité retenue</th><th>Poids total</th>
+                <th>Autoconsommation</th><th>Résultat net</th><th>Actions</th>
               </tr>
+            </thead>
+            <tbody>
+              {lotsAffiches.map((lot) => (
+                <tr key={lot.id}>
+                  <td>{lot.nom}</td>
+                  <td>{formatDate(lot.date_arrivee)}</td>
+                  <td>{lot.batiment}</td>
+                  <td>{lot.sujets_restants}</td>
+                  <td>{lot.livraisons.length ? lot.livraisons.map((livraison) => formatDate(livraison.date)).join(" → ") : "—"}</td>
+                  <td>{lot.quantiteLivree}</td>
+                  <td>{lot.quantite_retenue || 0}</td>
+                  <td>{lot.total_poids_livre.toFixed(2)} kg</td>
+                  <td>{lot.autoconsommation || 0}</td>
+                  <td className={lot.resultat < 0 ? "history-negative" : "history-positive"}>{lot.resultat.toFixed(2)} €</td>
+                  <td>
+                    <div className="history-row-actions">
+                      <Link title="Voir l’analyse complète" to={`/volailles/historique/${lot.id}/analyse`}>👁</Link>
+                      <button type="button" title="Réactiver le lot" onClick={() => reactiverLot(lot)}>↻</button>
+                      <button type="button" title="Supprimer le lot" onClick={() => supprimerLot(lot)}>🗑</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!lotsAffiches.length && <tr><td colSpan={11} className="history-empty">Aucun lot archivé à afficher.</td></tr>}
+            </tbody>
+            {!!lotsAffiches.length && (
+              <tfoot><tr><td>Totaux</td><td>—</td><td>—</td><td>{lotsAffiches.reduce((total, lot) => total + lot.sujets_restants, 0)}</td><td>—</td><td>{totalLivres}</td><td>{lotsAffiches.reduce((total, lot) => total + Number(lot.quantite_retenue || 0), 0)}</td><td>{totalPoids.toFixed(2)} kg</td><td>{lotsAffiches.reduce((total, lot) => total + Number(lot.autoconsommation || 0), 0)}</td><td>{totalResultat.toFixed(2)} €</td><td>—</td></tr></tfoot>
             )}
-            {lotsAffiches.map((lot) => (
-              <tr key={lot.id} className="even:bg-gray-50">
-                <td className="border px-3 py-2">{lot.nom}</td>
-                <td className="border px-3 py-2">{new Date(lot.date_arrivee).toLocaleDateString('fr-FR')}</td>
-                <td className="border px-3 py-2">{lot.batiment}</td>
-                <td className="border px-3 py-2">{lot.sujets_restants}</td>
-                <td className="border px-3 py-2">
-                  {lot.livraisons.length
-                    ? lot.livraisons.map((livraison) => livraison.date).join(', ')
-                    : '-'}
-                </td>
-                <td className="border px-3 py-2">
-                  {lot.livraisons.reduce((total, livraison) => total + livraison.quantite, 0)}
-                </td>
-                <td className="border px-3 py-2">{lot.quantite_retenue}</td>
-                <td className="border px-3 py-2">{lot.total_poids_livre != null ? lot.total_poids_livre.toFixed(2) + ' kg' : '-'}</td>
-                <td className="border px-3 py-2">{lot.autoconsommation}</td>
-                <td className="border px-3 py-2">{lot.resultat_brut}</td>
-                <td className="border px-3 py-2">{lot.resultat_net}</td>
-                <td className="border px-3 py-2">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setDetailLot(lot)}
-                      className="!bg-slate-700 !text-white rounded px-3 py-2 text-xs"
-                    >
-                      Fiche
-                    </button>
-                    <button
-                      onClick={() => reactiverLot(lot)}
-                      disabled={saving}
-                      className="!bg-emerald-600 !text-white rounded px-3 py-2 text-xs disabled:opacity-60"
-                    >
-                      Réactiver
-                    </button>
-                    <button
-                      onClick={() => supprimerLot(lot)}
-                      disabled={saving}
-                      className="rounded !bg-red-700 px-3 py-2 text-xs !text-white disabled:opacity-60"
-                      title="Supprimer définitivement le lot"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="font-semibold bg-gray-200">
-              <td className="px-3 py-2 border">Totaux</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">{totalRestants}</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">{totalLivres}</td>
-              <td className="px-3 py-2 border">{totalQuantiteRetenue}</td>
-              <td className="px-3 py-2 border">{totalPoids.toFixed(2)} kg</td>
-              <td className="px-3 py-2 border">—</td>
-              <td className="px-3 py-2 border">{totalResultatBrut.toFixed(2)} €</td>
-              <td className="px-3 py-2 border">{totalResultatNet.toFixed(2)} €</td>
-              <td className="px-3 py-2 border">—</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+          </table>
+        </div>
+      </section>
 
-      {detailLot && (() => {
-        const totalMortalites = detailLot.mortalites.reduce(
-          (total, mortalite) => total + mortalite.nombre,
-          0
-        );
-        const quantiteLivree = detailLot.livraisons.reduce(
-          (total, livraison) => total + livraison.quantite,
-          0
-        );
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
-              <ModalCloseButton onClick={() => setDetailLot(null)} disabled={saving} />
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="pr-12">
-                  <h2 className="text-2xl font-bold">{detailLot.nom}</h2>
-                  <p className="text-sm text-gray-600">
-                    {detailLot.batiment} · arrivé le{' '}
-                    {new Date(detailLot.date_arrivee).toLocaleDateString('fr-FR')} ·
-                    {' '}{detailLot.age || 0} jours à la clôture
-                  </p>
-                </div>
+      <section className="history-summary-grid">
+        <article className="history-panel history-charges">
+          <div className="history-card-heading">
+            <h2>Charges des lots affichés</h2>
+            <button type="button" onClick={() => setShowChargesManager(true)}>Gérer les charges</button>
+          </div>
+          {totalCharges > 0 ? (
+            <div>
+              <div className="history-charge-ring" style={{ background: `conic-gradient(${segmentsCharges.join(", ")})` }}>
+                <span><small>Total charges</small><strong>{totalCharges.toFixed(2)} €</strong></span>
               </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="rounded border p-3">
-                  <div className="text-xs uppercase text-gray-500">Quantité initiale</div>
-                  <div className="text-xl font-bold">{detailLot.quantite}</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-xs uppercase text-gray-500">Mortalités</div>
-                  <div className="text-xl font-bold">{totalMortalites}</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-xs uppercase text-gray-500">Quantité livrée</div>
-                  <div className="text-xl font-bold">{quantiteLivree}</div>
-                </div>
-                <div className="rounded border p-3">
-                  <div className="text-xs uppercase text-gray-500">Poids livré</div>
-                  <div className="text-xl font-bold">
-                    {Number(detailLot.total_poids_livre || 0).toFixed(2)} kg
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <section className="rounded border p-4">
-                  <h3 className="font-semibold">Mortalités</h3>
-                  {detailLot.mortalites.length === 0 ? (
-                    <p className="mt-2 text-sm text-gray-500">Aucune mortalité enregistrée.</p>
-                  ) : (
-                    <div className="mt-3 max-h-56 overflow-y-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="py-2 text-left">Date</th>
-                            <th className="py-2 text-right">Nombre</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detailLot.mortalites.map((mortalite) => (
-                            <tr key={mortalite.id} className="border-b">
-                              <td className="py-2">{mortalite.date}</td>
-                              <td className="py-2 text-right">{mortalite.nombre}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </section>
-
-                <section className="rounded border p-4">
-                  <h3 className="font-semibold">Livraisons</h3>
-                  {detailLot.livraisons.length === 0 ? (
-                    <p className="mt-2 text-sm text-gray-500">Aucune livraison enregistrée.</p>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {detailLot.livraisons.map((livraison, index) => (
-                        <div key={livraison.id} className="rounded bg-gray-50 p-3 text-sm">
-                          <div className="font-medium">Livraison {index + 1}</div>
-                          <div>Date : {livraison.date}</div>
-                          <div>Quantité : {livraison.quantite}</div>
-                          <div>Poids : {livraison.poids.toFixed(2)} kg</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-
-              <div className="mt-5 rounded border p-4">
-                <h3 className="font-semibold">Résultats</h3>
-                <div className="mt-3 grid gap-3 text-sm md:grid-cols-4">
-                  <div>Autoconsommation : {detailLot.autoconsommation || 0}</div>
-                  <div>Quantité retenue : {detailLot.quantite_retenue || 0}</div>
-                  <div>Résultat brut : {detailLot.resultat_brut || 0} €</div>
-                  <div>Résultat net : {detailLot.resultat_net || 0} €</div>
-                </div>
-              </div>
-
-              <div className="mt-5 flex flex-col-reverse gap-2 md:flex-row md:justify-end">
-                <button
-                  onClick={() => reactiverLot(detailLot)}
-                  disabled={saving}
-                  className="!bg-emerald-600 !text-white rounded px-4 py-2 disabled:opacity-60"
-                >
-                  Réactiver ce lot
-                </button>
-                <button
-                  onClick={() => supprimerLot(detailLot)}
-                  disabled={saving}
-                  className="rounded !bg-red-700 px-4 py-2 !text-white disabled:opacity-60"
-                >
-                  × Supprimer le lot
-                </button>
+              <div className="history-charge-list">
+                {repartitionCharges.map((charge, index) => (
+                  <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{charge.montant.toFixed(2)} €</b><em>{((charge.montant / totalCharges) * 100).toFixed(0)}%</em></div>
+                ))}
               </div>
             </div>
+          ) : <p className="history-empty">Aucune charge enregistrée.</p>}
+        </article>
+
+        <article className="history-panel history-economy">
+          <h2>Résultat économique</h2>
+          <div className="history-economy-kpis">
+            <span><small>Chiffre d’affaires</small><strong>{totalChiffreAffaires.toFixed(2)} €</strong></span>
+            <span><small>Total charges</small><strong>{totalCharges.toFixed(2)} €</strong></span>
+            <span><small>Marge nette</small><strong>{totalResultat.toFixed(2)} €</strong><em>{tauxMarge.toFixed(1)} %</em></span>
           </div>
-        );
-      })()}
-      
-      <div>
-      <Charges
-        lotIdsFiltres={lotsAffiches.map((lot) => lot.id)}
+          <p className={totalResultat >= 0 ? "history-performance-good" : "history-performance-alert"}>
+            {totalResultat >= 0 ? "Performance positive sur les lots affichés." : "Les charges dépassent le chiffre d’affaires sur la sélection."}
+          </p>
+        </article>
+      </section>
+
+      {lotAnalyse && (
+        <section className="history-analysis-callout">
+          <span>☼</span>
+          <div><h2>Analyse du lot {lotAnalyse.nom}</h2><p>Consultez ses performances de production, ses livraisons, ses mortalités et son résultat économique.</p></div>
+          <Link to={`/volailles/historique/${lotAnalyse.id}/analyse`}>Voir l’analyse complète →</Link>
+        </section>
+      )}
+
+      <HistoryInputModal
+        open={showResultatNetModal}
+        title="Saisir le résultat net"
+        icon="€"
+        lots={historique}
+        selectedLot={selectedLot}
+        onLotChange={setSelectedLot}
+        value={resultatNetInput}
+        onValueChange={setResultatNetInput}
+        label="Montant (€)"
+        onSave={handleSaveResultatNet}
+        onClose={() => {
+          setShowResultatNetModal(false);
+          setSelectedLot(null);
+          setResultatNetInput("");
+        }}
+        saving={saving}
       />
-      </div>
-
-     {/* Modale Résultat Net */}
-     {showResultatNetModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white p-6 rounded shadow-lg w-full max-w-md">
-            <ModalCloseButton
-              onClick={() => {
-                setShowResultatNetModal(false);
-                setSelectedLot(null);
-                setResultatNetInput('');
-              }}
-              disabled={saving}
-            />
-            <h2 className="pr-12 text-lg font-bold mb-4">Saisir le Résultat Net</h2>
-            <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
-            <select
-              className="w-full p-2 border rounded mb-4"
-              value={selectedLot?.id || ''}
-              onChange={(e) => {
-                const lot = historique.find((l) => l.id === e.target.value);
-                setSelectedLot(lot || null);
-              }}
-            >
-              <option value="">-- Choisir un lot --</option>
-              {historique.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  {lot.nom} (Arrivé le {new Date(lot.date_arrivee).toLocaleDateString('fr-FR', { timeZone: 'UTC' })})
-                </option>
-              ))}
-            </select>
-
-            {selectedLot && (
-              <>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Montant (€)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Montant"
-                  value={resultatNetInput}
-                  onChange={(e) => setResultatNetInput(e.target.value)}
-                  className="border p-2 rounded w-full mb-4"
-                />
-                <button
-                className="!bg-green-600 !text-white p-2 rounded w-full disabled:opacity-60"
-                disabled={saving}
-                onClick={() => {
-                  if (selectedLot && resultatNetInput !== '') {
-                    handleSaveResultatNet(selectedLot.id, parseFloat(resultatNetInput));
-                  }
-                }}
-              >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-              </>
-            )}
-
-            <button
-              onClick={() => {
-                setShowResultatNetModal(false);
-                setSelectedLot(null);
-                setResultatNetInput('');
-              }}
-              disabled={saving}
-              className="mt-2 p-2 w-full !bg-gray-200 !text-gray-900 rounded disabled:opacity-60"
-            >
-              Annuler
-            </button>
+      <HistoryInputModal
+        open={showQuantiteRetenueModal}
+        title="Saisir la quantité retenue"
+        icon="▣"
+        lots={historique}
+        selectedLot={selectedLot}
+        onLotChange={setSelectedLot}
+        value={quantiteRetenueInput}
+        onValueChange={setQuantiteRetenueInput}
+        label="Quantité retenue"
+        onSave={handleSaveQuantiteRetenue}
+        onClose={() => {
+          setShowQuantiteRetenueModal(false);
+          setSelectedLot(null);
+          setQuantiteRetenueInput("");
+        }}
+        saving={saving}
+      />
+      {showChargesManager && (
+        <div className="poultry-modal-backdrop">
+          <div className="poultry-modal poultry-modal-large history-charge-manager">
+            <ModalCloseButton onClick={() => {
+              setShowChargesManager(false);
+              fetchLots();
+            }} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">€</span>
+              <div><h2>Gestion des charges</h2><p>Ajouter, consulter ou modifier les charges des lots archivés.</p></div>
+            </div>
+            <Charges lotIdsFiltres={lotsAffiches.map((lot) => lot.id)} />
           </div>
         </div>
       )}
-
-      {/* Modale Quantité Retenue */}
-      {showQuantiteRetenueModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white p-6 rounded shadow-lg w-full max-w-md">
-            <ModalCloseButton
-              onClick={() => {
-                setShowQuantiteRetenueModal(false);
-                setSelectedLot(null);
-                setQuantiteRetenueInput('');
-              }}
-              disabled={saving}
-            />
-            <h2 className="pr-12 text-lg font-bold mb-4">Saisir la Quantité Retenue</h2>
-            <label className="block mb-2 text-sm font-medium text-gray-700">Sélectionner un lot</label>
-            <select
-              className="w-full p-2 border rounded mb-4"
-              value={selectedLot?.id || ''}
-              onChange={(e) => {
-                const lot = historique.find((l) => l.id === e.target.value);
-                setSelectedLot(lot || null);
-              }}
-            >
-              <option value="">-- Choisir un lot --</option>
-              {historique.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  {lot.nom} (Arrivé le {new Date(lot.date_arrivee).toLocaleDateString('fr-FR', { timeZone: 'UTC' })})
-                </option>
-              ))}
-            </select>
-
-            {selectedLot && (
-              <>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Quantité Retenue</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Quantité retenue"
-                  value={quantiteRetenueInput}
-                  onChange={(e) => setQuantiteRetenueInput(e.target.value)}
-                  className="border p-2 rounded w-full mb-4"
-                />
-                <button
-                className="!bg-blue-600 !text-white p-2 rounded w-full disabled:opacity-60"
-                disabled={saving}
-                onClick={() => {
-                  if (selectedLot && quantiteRetenueInput !== '') {
-                    handleSaveQuantiteRetenue(selectedLot.id, parseFloat(quantiteRetenueInput));
-                  }
-                }}
-              >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-              </>
-            )}
-
-            <button
-              onClick={() => {
-                setShowQuantiteRetenueModal(false);
-                setSelectedLot(null);
-                setQuantiteRetenueInput('');
-              }}
-              disabled={saving}
-              className="mt-2 p-2 w-full !bg-gray-200 !text-gray-900 rounded disabled:opacity-60"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
-
-
-
     </div>
   );
+}
+
+function HistoryKpi({ tone, icon, label, value, note }: { tone: string; icon: string; label: string; value: string; note: string }) {
+  return <article className="history-kpi"><span className={`history-kpi-icon history-kpi-${tone}`}>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div></article>;
+}
+
+function HistoryInputModal({
+  open, title, icon, lots, selectedLot, onLotChange, value, onValueChange,
+  label, onSave, onClose, saving,
+}: {
+  open: boolean;
+  title: string;
+  icon: string;
+  lots: LotHistorique[];
+  selectedLot: LotHistorique | null;
+  onLotChange: (lot: LotHistorique | null) => void;
+  value: string;
+  onValueChange: (value: string) => void;
+  label: string;
+  onSave: () => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div className="poultry-modal-backdrop">
+      <div className="poultry-modal poultry-modal-small">
+        <ModalCloseButton onClick={onClose} disabled={saving} />
+        <div className="poultry-modal-header"><span className="poultry-modal-icon">{icon}</span><div><h2>{title}</h2><p>Compléter les données du lot archivé.</p></div></div>
+        <div className="poultry-form-stack">
+          <label>Lot<select value={selectedLot?.id || ""} onChange={(event) => onLotChange(lots.find((lot) => lot.id === event.target.value) || null)}><option value="">-- Choisir un lot --</option>{lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom} · {lot.batiment}</option>)}</select></label>
+          {selectedLot && <label>{label}<input type="number" step="0.01" value={value} onChange={(event) => onValueChange(event.target.value)} /></label>}
+        </div>
+        <div className="poultry-modal-actions">{selectedLot && <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>}<button type="button" className="poultry-modal-secondary" onClick={onClose}>Annuler</button></div>
+      </div>
+    </div>
+  );
+}
+
+function formatDate(date: string) {
+  if (!date) return "—";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR");
 }

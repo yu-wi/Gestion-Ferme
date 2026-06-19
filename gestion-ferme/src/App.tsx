@@ -15,6 +15,7 @@ import Accueil from './pages/Accueil';
 import AlimentationPage from './volailles/alimentationPage'
 import Historique from './volailles/Historique'; 
 import Analyse from './volailles/Analyse';
+import AnalyseLot from './volailles/AnalyseLot';
 
 
 
@@ -37,6 +38,7 @@ function App() {
                 <Route path="ovins" element={<Ovins />} />
                 <Route path="/volailles/alimentation" element={<AlimentationPage />} />
                 <Route path="/volailles/historique" element={<Historique />} />
+                <Route path="/volailles/historique/:lotId/analyse" element={<AnalyseLot />} />
                 <Route path="/volailles/analyse" element={<Analyse />} />
                 <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
                 <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />

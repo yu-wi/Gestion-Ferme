@@ -1,327 +1,513 @@
-import { useState, useEffect} from 'react';
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { supabase } from '../supabaseClient';
+import frLocale from "@fullcalendar/core/locales/fr";
+import type { EventClickArg } from "@fullcalendar/core";
+import type { DateClickArg } from "@fullcalendar/interaction";
 import { v4 as uuidv4 } from "uuid";
-import frLocale from '@fullcalendar/core/locales/fr';
-import timeGridPlugin from '@fullcalendar/timegrid';
+import toast from "react-hot-toast";
+import { supabase } from "../supabaseClient";
 import AddEventModal from "../outils/AddEventModal";
-import toast from 'react-hot-toast';
 
-
-export default function Accueil() {
- const [events, setEvents] = useState<any[]>([]);
- const [isOpen, setIsOpen] = useState(false);
- const [isEdit, setIsEdit] = useState(false);
- const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
- const [newEvent, setNewEvent] = useState({
-  title: '',
-  start: '',
-  end: '',
-  category: '',
- });
- const [saving, setSaving] = useState(false);
-
- useEffect(() => {
-  const fetchAllEvents = async () => {
-    const [eventRes, volaillesRes] = await Promise.all([
-      supabase.from("evenements").select("*"),
-      supabase.from("lots_volailles").select("*"),
-    ]);
-
-    const eventData = eventRes.data || [];
-    const lotData = volaillesRes.data || [];
-
-    if (eventRes.error) console.error("Erreur événements :", eventRes.error);
-    if (volaillesRes.error) console.error("Erreur lots volailles :", volaillesRes.error);
-
-    // Génération des événements volailles
-    const volaillesEvents = lotData.flatMap((lot: any) => {
-      const dateArrivee = lot.date_arrivee || lot.date;
-      if (!dateArrivee) return [];
-
-      const events = [];
-
-      const formatDate = (date: Date) => date.toISOString().split("T")[0];
-
-      const date = new Date(dateArrivee);
-
-      events.push({
-        id: `reception-${lot.id}`,
-        title: `Réception - ${lot.nom || "Lot"}`,
-        start: formatDate(date),
-        end: formatDate(date),
-        category: "volailles",
-      });
-
-      const poussiniere = new Date(date);
-      poussiniere.setDate(poussiniere.getDate() + 3);
-      events.push({
-        id: `poussiniere-${lot.id}`,
-        title: `Ouverture poussinière - ${lot.nom || "Lot"}`,
-        start: formatDate(poussiniere),
-        end: formatDate(poussiniere),
-        category: "volailles",
-      });
-
-      const vaccination = new Date(date);
-      vaccination.setDate(vaccination.getDate() + 15);
-      events.push({
-        id: `vaccination-${lot.id}`,
-        title: `Vaccination - ${lot.nom || "Lot"}`,
-        start: formatDate(vaccination),
-        end: formatDate(vaccination),
-        category: "volailles",
-      });
-
-      const analyse = new Date(date);
-      analyse.setDate(analyse.getDate() + 46);
-      events.push({
-        id: `analyse-${lot.id}`,
-        title: `Analyse - ${lot.nom || "Lot"}`,
-        start: formatDate(analyse),
-        end: formatDate(analyse),
-        category: "volailles",
-      });
-
-      const livraison = new Date(date);
-      livraison.setDate(livraison.getDate() + 70);
-      events.push({
-        id: `livraison-${lot.id}`,
-        title: `Livraison - ${lot.nom || "Lot"}`,
-        start: formatDate(livraison),
-        end: formatDate(livraison),
-        category: "volailles",
-      });
-
-      return events;
-    });
-
-    // Combine les deux
-    setEvents([...eventData, ...volaillesEvents]);
-  };
-
-  fetchAllEvents();
-}, []);
-
-
- const resetModal = () => {
-   setNewEvent({ title: "", start: "", end: "", category: "volailles" });
-   setIsOpen(false);
-   setIsEdit(false);
-   setSelectedEventId(null);
- };
-
-
- const handleDateClick = (arg: any) => {
-   setNewEvent({
-     title: "",
-     start: new Date(arg.date).toISOString(),
-      end: new Date(arg.date).toISOString(),
-     category: "volailles",
-   });
-   setIsEdit(false);
-   setIsOpen(true);
- };
-
-
- const handleEventClick = (clickInfo: any) => {
-   const { id, title, start, end, extendedProps } = clickInfo.event;
-   setSelectedEventId(id);
-   setNewEvent({
-     title,
-     start: start.toISOString(),
-      end: end ? end.toISOString() : start.toISOString(),
-     category: extendedProps.category || "volailles",
-   });
-   setIsEdit(true);
-   setIsOpen(true);
- };
-
-
- const handleAddOrUpdateEvent = async () => {
-  if (saving) return;
-  if (!newEvent.title.trim() || !newEvent.start || !newEvent.category) {
-    toast.error("Renseignez le titre, la date et la catégorie.");
-    return;
-  }
-
-  setSaving(true);
-  if (isEdit && selectedEventId) {
-    // 🔄 Mettre à jour dans Supabase
-    const { error } = await supabase
-      .from("evenements")
-      .update({
-        title: newEvent.title,
-        start: newEvent.start,
-        end: newEvent.end,
-        category: newEvent.category
-      })
-      .eq("id", selectedEventId);
-
-    if (error) {
-      console.error("Erreur lors de la mise à jour :", error);
-      toast.error("L'événement n'a pas pu être modifié.");
-      setSaving(false);
-      return;
-    }
-
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === selectedEventId ? { ...event, ...newEvent } : event
-      )
-    );
-    toast.success('Événement modifié.');
-  } else {
-    const id = uuidv4();
-    const { error } = await supabase.from("evenements").insert([
-      {
-        id,
-        title: newEvent.title,
-        start: newEvent.start,
-        end: newEvent.end,
-        category: newEvent.category
-      }
-    ]);
-
-    if (error) {
-      console.error("Erreur lors de l'ajout :", error);
-      toast.error("L'événement n'a pas pu être ajouté.");
-      setSaving(false);
-      return;
-    }
-
-    setEvents([...events, { ...newEvent, id }]);
-    toast.success('Événement ajouté.');
-  }
-
-  setSaving(false);
-  resetModal();
+type AccueilProps = {
+  userName: string;
 };
 
-const handleDeleteEvent = async () => {
-  if (saving) return;
-  if (selectedEventId) {
+type DashboardEvent = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  category: string;
+};
+
+type LotDashboard = {
+  id: string;
+  nom: string;
+  batiment: string;
+  date_arrivee: string;
+  quantite: number;
+  sujets_restants: number | null;
+  nb_morts: number | null;
+  resultat_brut: number | null;
+  is_active: boolean;
+};
+
+type FeedMovement = {
+  feed_type: string;
+  quantite_kg: number;
+  date?: string;
+};
+
+const POIDS_SAC_KG = 25;
+
+const formatDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR");
+
+const dateDuJour = () =>
+  new Date().toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+export default function Accueil({ userName }: AccueilProps) {
+  const [events, setEvents] = useState<DashboardEvent[]>([]);
+  const [lots, setLots] = useState<LotDashboard[]>([]);
+  const [consommations, setConsommations] = useState<FeedMovement[]>([]);
+  const [livraisonsAliment, setLivraisonsAliment] = useState<FeedMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    start: "",
+    end: "",
+    category: "volailles",
+  });
+
+  useEffect(() => {
+    const chargerTableauDeBord = async () => {
+      const [eventRes, lotsRes, consommationsRes, livraisonsRes] =
+        await Promise.all([
+          supabase.from("evenements").select("*"),
+          supabase
+            .from("lots_volailles")
+            .select(
+              "id, nom, batiment, date_arrivee, quantite, sujets_restants, nb_morts, resultat_brut, is_active"
+            )
+            .order("date_arrivee", { ascending: false }),
+          supabase
+            .from("consommations_aliment")
+            .select("feed_type, quantite_kg, date"),
+          supabase
+            .from("livraisons_aliment")
+            .select("feed_type, quantite_kg, date"),
+        ]);
+
+      if (eventRes.error) console.error("Erreur événements :", eventRes.error);
+      if (lotsRes.error) console.error("Erreur lots :", lotsRes.error);
+      if (consommationsRes.error)
+        console.error("Erreur consommations :", consommationsRes.error);
+      if (livraisonsRes.error)
+        console.error("Erreur livraisons d'aliment :", livraisonsRes.error);
+
+      const lotsData = (lotsRes.data || []) as LotDashboard[];
+      const evenementsLots: DashboardEvent[] = lotsData.flatMap((lot) => {
+        if (!lot.date_arrivee) return [];
+        const creerDate = (decalage: number) => {
+          const date = new Date(`${lot.date_arrivee}T00:00:00`);
+          date.setDate(date.getDate() + decalage);
+          return date.toISOString().split("T")[0];
+        };
+
+        return [
+          {
+            id: `reception-${lot.id}`,
+            title: `Réception - ${lot.nom}`,
+            start: creerDate(0),
+            end: creerDate(0),
+            category: "volailles",
+          },
+          {
+            id: `vaccination-${lot.id}`,
+            title: `Vaccination - ${lot.nom}`,
+            start: creerDate(15),
+            end: creerDate(15),
+            category: "volailles",
+          },
+          {
+            id: `livraison-${lot.id}`,
+            title: `Livraison - ${lot.nom}`,
+            start: creerDate(70),
+            end: creerDate(70),
+            category: "volailles",
+          },
+        ];
+      });
+
+      const evenementsManuels = (eventRes.data || []).map((event) => ({
+        id: String(event.id),
+        title: String(event.title || ""),
+        start: String(event.start || ""),
+        end: String(event.end || event.start || ""),
+        category: String(event.category || "administratif"),
+      }));
+
+      setEvents([...evenementsManuels, ...evenementsLots]);
+      setLots(lotsData);
+      setConsommations(
+        (consommationsRes.data || []).map((item) => ({
+          ...item,
+          quantite_kg: Number(item.quantite_kg) || 0,
+        })) as FeedMovement[]
+      );
+      setLivraisonsAliment(
+        (livraisonsRes.data || []).map((item) => ({
+          ...item,
+          quantite_kg: Number(item.quantite_kg) || 0,
+        })) as FeedMovement[]
+      );
+      setLoading(false);
+    };
+
+    chargerTableauDeBord();
+  }, []);
+
+  const lotsActifs = lots.filter((lot) => lot.is_active);
+  const lotsArchives = lots.filter((lot) => !lot.is_active);
+  const sujetsInitiaux = lotsActifs.reduce(
+    (total, lot) => total + (Number(lot.quantite) || 0),
+    0
+  );
+  const sujetsRestants = lotsActifs.reduce(
+    (total, lot) =>
+      total +
+      (lot.sujets_restants == null
+        ? Number(lot.quantite) || 0
+        : Number(lot.sujets_restants) || 0),
+    0
+  );
+  const mortalites = lotsActifs.reduce(
+    (total, lot) => total + (Number(lot.nb_morts) || 0),
+    0
+  );
+  const resultatBrut = lotsArchives.reduce(
+    (total, lot) => total + (Number(lot.resultat_brut) || 0),
+    0
+  );
+  const stockKg =
+    livraisonsAliment.reduce((total, item) => total + item.quantite_kg, 0) -
+    consommations.reduce((total, item) => total + item.quantite_kg, 0);
+  const consommationDuJourKg = consommations
+    .filter((item) => item.date === new Date().toISOString().split("T")[0])
+    .reduce((total, item) => total + item.quantite_kg, 0);
+
+  const repartition = useMemo(() => {
+    const total = Math.max(1, sujetsInitiaux);
+    const restants = Math.max(0, sujetsRestants);
+    const livresOuSortis = Math.max(0, sujetsInitiaux - restants - mortalites);
+    return {
+      restants,
+      mortalites,
+      livresOuSortis,
+      angleRestants: (restants / total) * 360,
+      angleMortalites: ((restants + mortalites) / total) * 360,
+    };
+  }, [sujetsInitiaux, sujetsRestants, mortalites]);
+
+  const resetModal = () => {
+    setNewEvent({ title: "", start: "", end: "", category: "volailles" });
+    setIsOpen(false);
+    setIsEdit(false);
+    setSelectedEventId(null);
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    const date = arg.date.toISOString();
+    setNewEvent({ title: "", start: date, end: date, category: "volailles" });
+    setIsEdit(false);
+    setIsOpen(true);
+  };
+
+  const handleEventClick = (clickInfo: EventClickArg) => {
+    const { id, title, start, end, extendedProps } = clickInfo.event;
+    if (
+      ["reception-", "vaccination-", "livraison-"].some((prefix) =>
+        id.startsWith(prefix)
+      )
+    ) {
+      return;
+    }
+    if (!start) return;
+    setSelectedEventId(id);
+    setNewEvent({
+      title,
+      start: start.toISOString(),
+      end: (end || start).toISOString(),
+      category: extendedProps.category || "volailles",
+    });
+    setIsEdit(true);
+    setIsOpen(true);
+  };
+
+  const handleAddOrUpdateEvent = async () => {
+    if (saving || !newEvent.title.trim() || !newEvent.start) return;
+    setSaving(true);
+
+    if (isEdit && selectedEventId) {
+      const { error } = await supabase
+        .from("evenements")
+        .update(newEvent)
+        .eq("id", selectedEventId);
+      if (error) {
+        toast.error("L'événement n'a pas pu être modifié.");
+      } else {
+        setEvents((items) =>
+          items.map((item) =>
+            item.id === selectedEventId ? { ...item, ...newEvent } : item
+          )
+        );
+        toast.success("Événement modifié.");
+        resetModal();
+      }
+    } else {
+      const id = uuidv4();
+      const { error } = await supabase
+        .from("evenements")
+        .insert({ id, ...newEvent });
+      if (error) {
+        toast.error("L'événement n'a pas pu être ajouté.");
+      } else {
+        setEvents((items) => [...items, { id, ...newEvent }]);
+        toast.success("Événement ajouté.");
+        resetModal();
+      }
+    }
+    setSaving(false);
+  };
+
+  const handleDeleteEvent = async () => {
+    if (saving || !selectedEventId) return;
     setSaving(true);
     const { error } = await supabase
       .from("evenements")
       .delete()
       .eq("id", selectedEventId);
-
     if (error) {
-      console.error("Erreur suppression :", error);
       toast.error("L'événement n'a pas pu être supprimé.");
-      setSaving(false);
-      return;
+    } else {
+      setEvents((items) => items.filter((item) => item.id !== selectedEventId));
+      toast.success("Événement supprimé.");
+      resetModal();
     }
+    setSaving(false);
+  };
 
-    setEvents(events.filter((e) => e.id !== selectedEventId));
-    toast.success('Événement supprimé.');
+  const evenementsFiltres = events
+    .filter(
+      (event) => filterCategory === "all" || event.category === filterCategory
+    )
+    .map((event) => ({
+      ...event,
+      className: `event-${event.category}`,
+      extendedProps: { category: event.category },
+    }));
+
+  if (loading) {
+    return <div className="dashboard-loading">Chargement du tableau de bord...</div>;
   }
 
-  setSaving(false);
-  resetModal();
-};
+  return (
+    <div className="dashboard-page">
+      <header className="dashboard-heading">
+        <div>
+          <h1>Bonjour {userName || "à vous"}</h1>
+          <p>Voici un aperçu de votre exploitation.</p>
+        </div>
+        <div className="dashboard-date">
+          <span className="dashboard-weather">☀</span>
+          <span>{dateDuJour()}</span>
+        </div>
+      </header>
 
- const [filterCategory, setFilterCategory] = useState("all");  // Par défaut, tous les événements sont visibles
+      <section className="dashboard-kpis">
+        <KpiCard icon="▣" tone="green" label="Stock total" value={`${(stockKg / POIDS_SAC_KG).toFixed(2)} sacs`} note="Disponible" />
+        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${(consommationDuJourKg / POIDS_SAC_KG).toFixed(2)} sacs`} note="Suivi quotidien" />
+        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${sujetsRestants} sujets restants`} />
+        <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${resultatBrut.toFixed(2)} €`} note={`${lotsArchives.length} lots archivés`} />
+      </section>
 
- return (
-   <div className="space-y-8">
-     {/* Titre */}
-     <h1 className="text-3xl font-bold text-center">La Ferme de Bernard</h1>
+      <section className="dashboard-grid">
+        <article className="dashboard-panel dashboard-production">
+          <PanelTitle icon="◔" title="Aperçu de la production" />
+          <div className="production-content">
+            <div
+              className="production-ring"
+              style={{
+                background: `conic-gradient(#37b45a 0deg ${repartition.angleRestants}deg, #ef4444 ${repartition.angleRestants}deg ${repartition.angleMortalites}deg, #f59e0b ${repartition.angleMortalites}deg 360deg)`,
+              }}
+            >
+              <div className="production-ring-center">
+                <span>Lots actifs</span>
+                <strong>{lotsActifs.length}</strong>
+              </div>
+            </div>
+            <div className="production-legend">
+              <Legend color="#37b45a" label="Sujets restants" value={repartition.restants} />
+              <Legend color="#f59e0b" label="Sujets sortis" value={repartition.livresOuSortis} />
+              <Legend color="#ef4444" label="Mortalités" value={repartition.mortalites} />
+              <Legend color="#4f83cc" label="Sujets initiaux" value={sujetsInitiaux} />
+            </div>
+          </div>
+        </article>
 
-     {/* Logos */}
-     <div className="logo-container grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-       {[
-       ].map(({ to, img, label }) => (
-         <Link to={to} key={to} className="logo-card">
-           <div className="bg-white rounded-xl p-4 shadow-md text-center hover:bg-gray-100">
-             <img src={img} className="logo mx-auto" alt={`${label} logo`} />
-             <p className="mt-2 font-semibold">{label}</p>
-           </div>
-         </Link>
-       ))}
-     </div>
+        <article className="dashboard-panel dashboard-finance">
+          <PanelTitle icon="€" title="Résultats financiers" />
+          <div className="finance-grid">
+            <div className="finance-value">
+              <span>Résultat brut enregistré</span>
+              <strong>{resultatBrut.toFixed(2)} €</strong>
+            </div>
+            <div className="finance-value">
+              <span>Lots clôturés</span>
+              <strong>{lotsArchives.length}</strong>
+            </div>
+          </div>
+          <div className="dashboard-information">
+            Consultez l’analyse économique pour le détail par lot.
+          </div>
+          <Link className="dashboard-text-link" to="/volailles/analyseeconomie">
+            Ouvrir l’analyse économique →
+          </Link>
+        </article>
 
-     {/* Planning mensuel */}
-     <div className="bg-white p-4 rounded-xl shadow-xl">
-       <h2 className="text-xl font-semibold mb-4 text-center">Planning mensuel</h2>
-       <div className="mb-4 text-center">
- <label className="text-lg font-semibold">Filtrer par catégorie</label>
- <select
-   value={filterCategory}
-   onChange={(e) => setFilterCategory(e.target.value)}
-   className="mt-2 px-4 py-2 border rounded-md"
- >
-   <option value="all">Tous</option>
-   <option value="volailles">Volailles</option>
-   <option value="aquaponie">Aquaponie</option>
-   <option value="cultures">Cultures</option>
-   <option value="ovins">Ovins</option>
-   <option value="ovins">Administratif</option>
- </select>
-</div>
-       <FullCalendar
- plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
- locale={frLocale}
- initialView="dayGridMonth"
- firstDay={1}
- timeZone="America/Martinique"
- headerToolbar={{
-  left: 'prev,next today',
-  center: 'title',
-  right: 'dayGridMonth,timeGridWeek,timeGridDay' // boutons affichés
-}}
- events={events.filter(event => filterCategory === "all" || event.category === filterCategory).map(event => ({
-   id: event.id,
-   title: event.title,
-   start: event.start,
-   end: event.end,
-   className: getClassByCategory(event.category), 
-   extendedProps: {
-     category: event.category,
-   },
- }))}
- dateClick={handleDateClick}
- eventClick={handleEventClick}
- height="auto"
-/>
-     </div>
+        <article className="dashboard-panel dashboard-calendar">
+          <div className="panel-title-row">
+            <PanelTitle icon="□" title="Planning" />
+            <select
+              value={filterCategory}
+              onChange={(event) => setFilterCategory(event.target.value)}
+              className="dashboard-filter"
+            >
+              <option value="all">Tous</option>
+              <option value="volailles">Volailles</option>
+              <option value="aquaponie">Aquaponie</option>
+              <option value="cultures">Cultures</option>
+              <option value="ovins">Ovins</option>
+              <option value="administratif">Administratif</option>
+            </select>
+          </div>
+          <FullCalendar
+            plugins={[dayGridPlugin, interactionPlugin]}
+            locale={frLocale}
+            initialView="dayGridMonth"
+            firstDay={1}
+            timeZone="America/Martinique"
+            headerToolbar={{ left: "prev,next", center: "title", right: "today" }}
+            events={evenementsFiltres}
+            dateClick={handleDateClick}
+            eventClick={handleEventClick}
+            height="auto"
+          />
+        </article>
 
-    
+        <article className="dashboard-panel dashboard-lots">
+          <div className="panel-title-row">
+            <PanelTitle icon="▤" title="Derniers lots enregistrés" />
+            <Link className="dashboard-primary-link" to="/volailles">
+              Gérer les lots →
+            </Link>
+          </div>
+          <div className="dashboard-lot-list">
+            {lots.slice(0, 5).map((lot) => (
+              <div className="dashboard-lot-row" key={lot.id}>
+                <div>
+                  <strong>{lot.nom}</strong>
+                  <span>{lot.batiment || "Bâtiment non renseigné"}</span>
+                </div>
+                <div>
+                  <span>Arrivée</span>
+                  <strong>{formatDate(lot.date_arrivee)}</strong>
+                </div>
+                <div>
+                  <span>Effectif</span>
+                  <strong>{lot.quantite}</strong>
+                </div>
+                <span className={`lot-status ${lot.is_active ? "lot-status-active" : "lot-status-archived"}`}>
+                  {lot.is_active ? "En cours" : "Archivé"}
+                </span>
+              </div>
+            ))}
+            {lots.length === 0 && (
+              <div className="dashboard-empty">Aucun lot enregistré.</div>
+            )}
+          </div>
+        </article>
 
-     {/* Modal d'ajout/édition */}
-     <AddEventModal
-  isOpen={isOpen}
-  onClose={resetModal}
-  isEdit={isEdit}
-  newEvent={newEvent}
-  setNewEvent={setNewEvent}
-  onSubmit={handleAddOrUpdateEvent}
-  onDelete={handleDeleteEvent}
-  saving={saving}
-/>
-   </div>
- );
+        <aside className="dashboard-side-column">
+          <article className="dashboard-panel dashboard-feed-card">
+            <PanelTitle icon="▣" title="Alimentation" />
+            <span>Stock disponible</span>
+            <strong>{(stockKg / POIDS_SAC_KG).toFixed(2)} sacs</strong>
+            <Link to="/volailles/alimentation">Gérer l’alimentation →</Link>
+          </article>
+          <article className="dashboard-panel dashboard-reminders">
+            <PanelTitle icon="!" title="Repères rapides" />
+            <Link to="/volailles">{lotsActifs.length} lots actuellement actifs</Link>
+            <Link to="/volailles/historique">{lotsArchives.length} lots archivés</Link>
+            <Link to="/volailles/statistiques">{mortalites} mortalités sur les lots actifs</Link>
+          </article>
+        </aside>
+      </section>
+
+      <AddEventModal
+        isOpen={isOpen}
+        onClose={resetModal}
+        isEdit={isEdit}
+        newEvent={newEvent}
+        setNewEvent={setNewEvent}
+        onSubmit={handleAddOrUpdateEvent}
+        onDelete={handleDeleteEvent}
+        saving={saving}
+      />
+    </div>
+  );
 }
 
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  note,
+}: {
+  icon: string;
+  tone: string;
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <article className="dashboard-kpi">
+      <div className={`dashboard-kpi-icon dashboard-kpi-${tone}`}>{icon}</div>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{note}</small>
+      </div>
+    </article>
+  );
+}
 
-// 🔵 Couleurs par catégorie
-function getClassByCategory(category: string) {
- switch (category) {
-   case "volailles":
-     return "event-volailles";
-   case "aquaponie":
-     return "event-aquaponie";
-   case "cultures":
-     return "event-cultures";
-   case "ovins":
-     return "event-ovins";
-    case "administratif":
-     return "event-administratif";
-   default:
-     return "";
- }
+function PanelTitle({ icon, title }: { icon: string; title: string }) {
+  return (
+    <div className="panel-title">
+      <span>{icon}</span>
+      <h2>{title}</h2>
+    </div>
+  );
+}
+
+function Legend({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="production-legend-row">
+      <i style={{ backgroundColor: color }} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
 }

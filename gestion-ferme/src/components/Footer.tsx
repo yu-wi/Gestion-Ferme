@@ -1,19 +1,8 @@
-import type { FC } from 'react';
-
-const Footer: FC = () => {
+export default function Footer() {
   return (
-    <footer
-      style={{
-        padding: '5px',
-        backgroundColor: '#ce7644aa',
-        color: 'white',
-        textAlign: 'center',
-        borderRadius: '10px',
-      }}
-    >
-      <p>© 2025 Ma Ferme Agricole. Tous droits réservés.</p>
+    <footer className="app-footer">
+      <span>La Ferme de Bernard</span>
+      <span>Gestion agricole</span>
     </footer>
   );
-};
-
-export default Footer;
+}

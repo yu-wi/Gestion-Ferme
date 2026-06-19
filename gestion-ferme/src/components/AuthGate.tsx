@@ -76,12 +76,11 @@ export default function AuthGate({ children }: AuthGateProps) {
 
   if (!session) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-stone-50 px-4">
-        <section className="w-full max-w-sm rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-stone-900">Gestion SCEA La Ferme de Bernard</h1>
-          <p className="mt-2 text-sm text-stone-600">
-            Connectez-vous pour acceder a l'interface de gestion.
-          </p>
+      <main className="app-login-page">
+        <section className="app-login-panel">
+          <div className="app-login-mark">FB</div>
+          <h1>La Ferme de Bernard</h1>
+          <p>Accédez à votre espace de gestion agricole.</p>
           <form className="mt-6 space-y-4" onSubmit={handleSignIn}>
             <label className="block text-left text-sm font-medium text-stone-700">
               Identifiant
@@ -89,7 +88,7 @@ export default function AuthGate({ children }: AuthGateProps) {
                 type="text"
                 value={identifiant}
                 onChange={(event) => setIdentifiant(event.target.value)}
-                className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2 text-stone-900"
+                className="app-login-input"
                 autoComplete="username"
                 required
               />
@@ -101,7 +100,7 @@ export default function AuthGate({ children }: AuthGateProps) {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2 text-stone-900"
+                className="app-login-input"
                 autoComplete="current-password"
                 required
               />
@@ -114,7 +113,7 @@ export default function AuthGate({ children }: AuthGateProps) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-md bg-emerald-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
+              className="app-login-submit"
             >
               {submitting ? 'Connexion...' : 'Se connecter'}
             </button>

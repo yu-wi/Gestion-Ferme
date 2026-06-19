@@ -1,5 +1,6 @@
-import { Link, useLocation } from 'react-router-dom';
-import type { FC } from 'react';
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
+import type { FC, ReactNode } from "react";
 import chickenLogo from "../assets/chicken.svg";
 import fishLogo from "../assets/fish.svg";
 import plantsLogo from "../assets/plants.svg";
@@ -10,90 +11,124 @@ type HeaderProps = {
   userEmail: string;
 };
 
-const Header: FC<HeaderProps> = ({ userEmail }) => {
-  const location = useLocation();
+type NavigationItem = {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  end?: boolean;
+};
 
-  const isVolaillesPage = location.pathname.startsWith("/volailles");
+const production: NavigationItem[] = [
+  { to: "/volailles", label: "Volailles", icon: <img src={chickenLogo} alt="" /> },
+  { to: "/aquaponie", label: "Aquaponie", icon: <img src={fishLogo} alt="" /> },
+  { to: "/cultures", label: "Cultures", icon: <img src={plantsLogo} alt="" /> },
+  { to: "/ovins", label: "Ovins", icon: <img src={sheepLogo} alt="" /> },
+];
+
+const gestion: NavigationItem[] = [
+  { to: "/volailles/alimentation", label: "Alimentation", icon: "◫" },
+  { to: "/volailles/historique", label: "Historique", icon: "◷" },
+  { to: "/volailles/statistiques", label: "Statistiques", icon: "▥" },
+  { to: "/volailles/analyseeconomie", label: "Analyse économique", icon: "◔" },
+];
+
+const Header: FC<HeaderProps> = ({ userEmail }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const fermerMenu = () => setMenuOpen(false);
+
+  const liens = (items: NavigationItem[]) =>
+    items.map((item) => (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.end}
+        onClick={fermerMenu}
+        className={({ isActive }) =>
+          `app-nav-link${isActive ? " app-nav-link-active" : ""}`
+        }
+      >
+        <span className="app-nav-icon">{item.icon}</span>
+        <span>{item.label}</span>
+      </NavLink>
+    ));
 
   return (
-    <header
-      style={{
-        padding: '10px 20px',
-        backgroundColor: '#ce7644aa',
-        color: 'white',
-        borderRadius: '10px',
-        marginBottom: '20px',
-      }} >
-        
-      {/* Titre */}  
-      <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
-          Gestion SCEA La Ferme de Bernard
-        </h1>
-        <div style={{ marginTop: '6px', fontSize: '0.85rem' }}>
-          <span>{userEmail}</span>
-          <button
-            type="button"
-            onClick={() => supabase.auth.signOut()}
-            style={{
-              marginLeft: '12px',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: '1px solid rgba(255,255,255,0.8)',
-              background: 'rgba(255,255,255,0.15)',
-              color: 'white',
-              cursor: 'pointer',
-            }}
-          >
-            Deconnexion
-          </button>
+    <>
+      <div className="app-mobile-header">
+        <button
+          type="button"
+          className="app-menu-button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-label="Ouvrir le menu"
+        >
+          ☰
+        </button>
+        <div>
+          <div className="app-mobile-brand">La Ferme de Bernard</div>
+          <div className="app-mobile-subtitle">Gestion agricole</div>
         </div>
       </div>
 
-      {/* Menu principal */}
-      <nav>
-        <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0, justifyContent: 'center' }}>
-          <li><Link to="/" style={{ color: 'white', textDecoration: 'none' }}>Accueil</Link></li>
-          <li>
-            <Link to="/volailles" style={{ color: 'white', textDecoration: 'none' }}>
-              <img src={chickenLogo} alt="Volailles" style={{ width: '30px', height: '30px', marginBottom: '5px' }} />
-              Volailles
-            </Link>
-          </li>
-          <li>
-            <Link to="/aquaponie" style={{ color: 'white', textDecoration: 'none' }}>
-              <img src={fishLogo} alt="Aquaponie" style={{ width: '30px', height: '30px', marginBottom: '5px' }} />
-              Aquaponie
-            </Link>
-          </li>
-          <li>
-            <Link to="/cultures" style={{ color: 'white', textDecoration: 'none' }}>
-              <img src={plantsLogo} alt="Cultures" style={{ width: '30px', height: '30px', marginBottom: '5px' }} />
-              Cultures
-            </Link>
-          </li>
-          <li>
-            <Link to="/ovins" style={{ color: 'white', textDecoration: 'none' }}>
-              <img src={sheepLogo} alt="Ovins" style={{ width: '30px', height: '30px', marginBottom: '5px' }} />
-              Ovins
-            </Link>
-          </li>
-        </ul>
-      </nav>
-
-      {/* Sous-catégories pour "Volailles" */}
-      {isVolaillesPage && (
-        <nav style={{ marginTop: '10px', backgroundColor: '#d4945acc', borderRadius: '8px', padding: '5px 15px' }}>
-          <ul style={{ display: 'flex', gap: '15px', listStyle: 'none', margin: 0, padding: 0, justifyContent: 'center' }}>
-            <li><Link to="/volailles/alimentation" style={{ color: 'white', textDecoration: 'none' }}>Alimentation</Link></li>
-            <li><Link to="/volailles/historique" style={{ color: 'white', textDecoration: 'none' }}>Historique</Link></li>
-            <li><Link to="/volailles/statistiques" style={{ color: 'white', textDecoration: 'none' }}>Statistiques</Link></li>
-            <li><Link to="/volailles/analyseeconomie" style={{ color: 'white', textDecoration: 'none' }}>Analyse économique</Link></li>
-
-          </ul>
-        </nav>
+      {menuOpen && (
+        <button
+          type="button"
+          className="app-sidebar-overlay"
+          onClick={fermerMenu}
+          aria-label="Fermer le menu"
+        />
       )}
-    </header>
+
+      <aside className={`app-sidebar${menuOpen ? " app-sidebar-open" : ""}`}>
+        <div className="app-brand">
+          <div className="app-brand-mark">
+            <img src={chickenLogo} alt="" />
+          </div>
+          <div>
+            <div className="app-brand-name">La Ferme<br />de Bernard</div>
+            <div className="app-brand-subtitle">Gestion agricole</div>
+          </div>
+        </div>
+
+        <nav className="app-navigation" aria-label="Navigation principale">
+          <NavLink
+            to="/"
+            end
+            onClick={fermerMenu}
+            className={({ isActive }) =>
+              `app-nav-link${isActive ? " app-nav-link-active" : ""}`
+            }
+          >
+            <span className="app-nav-icon">⌂</span>
+            <span>Accueil</span>
+          </NavLink>
+
+          <div className="app-nav-section">Production</div>
+          {liens(production)}
+
+          <div className="app-nav-section">Gestion</div>
+          {liens(gestion)}
+        </nav>
+
+        <div className="app-user-panel">
+          <div className="app-user-avatar">
+            {userEmail.slice(0, 1).toUpperCase() || "U"}
+          </div>
+          <div className="app-user-copy">
+            <strong>{userEmail || "Utilisateur"}</strong>
+            <span>Administrateur</span>
+          </div>
+          <button
+            type="button"
+            className="app-logout-button"
+            onClick={() => supabase.auth.signOut()}
+            title="Déconnexion"
+          >
+            ↪
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

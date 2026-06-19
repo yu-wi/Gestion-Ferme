@@ -127,7 +127,7 @@ interface AddEventModalProps {
               <button
                 onClick={onSubmit}
                 disabled={saving}
-                className="px-4 py-2 bg-green-600 text-black rounded hover:bg-green-700 disabled:opacity-60"
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
               >
                 {saving ? "Enregistrement..." : isEdit ? "Modifier" : "Ajouter"}
               </button>

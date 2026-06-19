@@ -47,14 +47,14 @@ type StockRow = {
 
 type PrevisionRow = {
   feedType: string;
-  besoinKg: number;
-  stockKg: number;
-  aCommanderKg: number;
-  sacs: number;
+  besoinSacs: number;
+  stockSacs: number;
+  aCommanderSacs: number;
 };
 
-const SAC_KG = 20;
+const POIDS_SAC_KG = 25;
 const PREVISION_JOURS = 15;
+const enSacs = (quantiteKg: number) => quantiteKg / POIDS_SAC_KG;
 const aujourdHui = () => {
   const date = new Date();
   const annee = date.getFullYear();
@@ -85,12 +85,12 @@ export default function DashboardFeed() {
   const [consommationLotId, setConsommationLotId] = useState("");
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
   const [consommationType, setConsommationType] = useState("");
-  const [consommationKg, setConsommationKg] = useState("");
+  const [consommationSacs, setConsommationSacs] = useState("");
   const [consommationNote, setConsommationNote] = useState("");
 
   const [livraisonDate, setLivraisonDate] = useState(aujourdHui());
   const [livraisonType, setLivraisonType] = useState("");
-  const [livraisonKg, setLivraisonKg] = useState("");
+  const [livraisonSacs, setLivraisonSacs] = useState("");
   const [livraisonFournisseur, setLivraisonFournisseur] = useState("");
   const [livraisonPrix, setLivraisonPrix] = useState("");
 
@@ -230,20 +230,22 @@ export default function DashboardFeed() {
       new Set([...typesAliment, ...Array.from(besoins.keys())])
     )
       .map((feedType) => {
-        const besoinKg = besoins.get(feedType) || 0;
-        const stockKg =
-          stock.find((item) => item.feedType === feedType)?.stock || 0;
-        const aCommanderKg = Math.max(0, besoinKg - stockKg);
+        const besoinSacs = enSacs(besoins.get(feedType) || 0);
+        const stockSacs = enSacs(
+          stock.find((item) => item.feedType === feedType)?.stock || 0
+        );
+        const aCommanderSacs = Math.ceil(
+          Math.max(0, besoinSacs - stockSacs)
+        );
         return {
           feedType,
-          besoinKg,
-          stockKg,
-          aCommanderKg,
-          sacs: Math.ceil(aCommanderKg / SAC_KG),
+          besoinSacs,
+          stockSacs,
+          aCommanderSacs,
         };
       })
-      .filter((item) => item.besoinKg > 0 || item.stockKg !== 0)
-      .sort((a, b) => b.aCommanderKg - a.aCommanderKg);
+      .filter((item) => item.besoinSacs > 0 || item.stockSacs !== 0)
+      .sort((a, b) => b.aCommanderSacs - a.aCommanderSacs);
   }, [lots, references, stock, typesAliment]);
 
   const joursSansReference = useMemo(() => {
@@ -269,14 +271,14 @@ export default function DashboardFeed() {
   }, [lots, references]);
 
   const enregistrerConsommation = async () => {
-    const quantite = Number(consommationKg);
+    const nombreSacs = Number(consommationSacs);
     if (
       saving ||
       !consommationLotId ||
       !consommationDate ||
       !consommationType ||
-      !Number.isFinite(quantite) ||
-      quantite <= 0
+      !Number.isFinite(nombreSacs) ||
+      nombreSacs <= 0
     ) {
       toast.error("Complétez le lot, la date, l'aliment et la quantité.");
       return;
@@ -289,7 +291,7 @@ export default function DashboardFeed() {
         lot_id: consommationLotId,
         date: consommationDate,
         feed_type: consommationType,
-        quantite_kg: quantite,
+        quantite_kg: nombreSacs * POIDS_SAC_KG,
         note: consommationNote.trim() || null,
       })
       .select("id, lot_id, date, feed_type, quantite_kg, note")
@@ -303,7 +305,7 @@ export default function DashboardFeed() {
         { ...data, quantite_kg: Number(data.quantite_kg) || 0 } as Consommation,
         ...items,
       ]);
-      setConsommationKg("");
+      setConsommationSacs("");
       setConsommationNote("");
       toast.success("Consommation enregistrée.");
     }
@@ -311,14 +313,14 @@ export default function DashboardFeed() {
   };
 
   const enregistrerLivraison = async () => {
-    const quantite = Number(livraisonKg);
+    const nombreSacs = Number(livraisonSacs);
     const prix = livraisonPrix.trim() ? Number(livraisonPrix) : null;
     if (
       saving ||
       !livraisonDate ||
       !livraisonType ||
-      !Number.isFinite(quantite) ||
-      quantite <= 0 ||
+      !Number.isFinite(nombreSacs) ||
+      nombreSacs <= 0 ||
       (prix != null && (!Number.isFinite(prix) || prix < 0))
     ) {
       toast.error("Complétez la date, l'aliment et une quantité positive.");
@@ -331,7 +333,7 @@ export default function DashboardFeed() {
       .insert({
         date: livraisonDate,
         feed_type: livraisonType,
-        quantite_kg: quantite,
+        quantite_kg: nombreSacs * POIDS_SAC_KG,
         fournisseur: livraisonFournisseur.trim() || null,
         prix_total_ht: prix,
       })
@@ -353,7 +355,7 @@ export default function DashboardFeed() {
         } as LivraisonStock,
         ...items,
       ]);
-      setLivraisonKg("");
+      setLivraisonSacs("");
       setLivraisonFournisseur("");
       setLivraisonPrix("");
       toast.success("Livraison ajoutée au stock.");
@@ -397,12 +399,12 @@ export default function DashboardFeed() {
     .filter((item) => item.date === aujourdHui())
     .reduce((total, item) => total + item.quantite_kg, 0);
   const stockTotal = stock.reduce((total, item) => total + item.stock, 0);
-  const besoinTotal = prevision.reduce(
-    (total, item) => total + item.besoinKg,
+  const besoinTotalSacs = prevision.reduce(
+    (total, item) => total + item.besoinSacs,
     0
   );
-  const commandeTotale = prevision.reduce(
-    (total, item) => total + item.aCommanderKg,
+  const commandeTotaleSacs = prevision.reduce(
+    (total, item) => total + item.aCommanderSacs,
     0
   );
 
@@ -418,18 +420,21 @@ export default function DashboardFeed() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Indicateur label="Stock total" value={`${stockTotal.toFixed(1)} kg`} />
+        <Indicateur
+          label="Stock total"
+          value={`${enSacs(stockTotal).toFixed(2)} sacs`}
+        />
         <Indicateur
           label="Consommé aujourd’hui"
-          value={`${consommationDuJour.toFixed(1)} kg`}
+          value={`${enSacs(consommationDuJour).toFixed(2)} sacs`}
         />
         <Indicateur
           label="Besoin sur 15 jours"
-          value={`${besoinTotal.toFixed(1)} kg`}
+          value={`${besoinTotalSacs.toFixed(2)} sacs`}
         />
         <Indicateur
           label="À commander"
-          value={`${commandeTotale.toFixed(1)} kg`}
+          value={`${commandeTotaleSacs} sacs`}
         />
       </div>
 
@@ -472,13 +477,13 @@ export default function DashboardFeed() {
                 ))}
               </select>
             </Champ>
-            <Champ label="Quantité consommée (kg)">
+            <Champ label="Nombre de sacs consommés (25 kg)">
               <input
                 type="number"
                 min={0.01}
                 step="0.01"
-                value={consommationKg}
-                onChange={(event) => setConsommationKg(event.target.value)}
+                value={consommationSacs}
+                onChange={(event) => setConsommationSacs(event.target.value)}
                 className="w-full rounded border p-2"
               />
             </Champ>
@@ -527,13 +532,13 @@ export default function DashboardFeed() {
                 ))}
               </select>
             </Champ>
-            <Champ label="Quantité livrée (kg)">
+            <Champ label="Nombre de sacs livrés (25 kg)">
               <input
                 type="number"
                 min={0.01}
                 step="0.01"
-                value={livraisonKg}
-                onChange={(event) => setLivraisonKg(event.target.value)}
+                value={livraisonSacs}
+                onChange={(event) => setLivraisonSacs(event.target.value)}
                 className="w-full rounded border p-2"
               />
             </Champ>
@@ -581,13 +586,18 @@ export default function DashboardFeed() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-semibold">{item.feedType}</h3>
-                  <span className="text-xl font-bold">{item.stock.toFixed(1)} kg</span>
+                  <span className="text-xl font-bold">
+                    {enSacs(item.stock).toFixed(2)} sacs
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <Valeur label="Livré" value={`${item.entrees.toFixed(1)} kg`} />
+                  <Valeur
+                    label="Livré"
+                    value={`${enSacs(item.entrees).toFixed(2)} sacs`}
+                  />
                   <Valeur
                     label="Consommé"
-                    value={`${item.consommations.toFixed(1)} kg`}
+                    value={`${enSacs(item.consommations).toFixed(2)} sacs`}
                   />
                 </div>
               </article>
@@ -615,10 +625,9 @@ export default function DashboardFeed() {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="border px-3 py-2 text-left">Aliment</th>
-                  <th className="border px-3 py-2 text-right">Besoin 15 j</th>
-                  <th className="border px-3 py-2 text-right">Stock</th>
-                  <th className="border px-3 py-2 text-right">À commander</th>
-                  <th className="border px-3 py-2 text-right">Sacs de 20 kg</th>
+                  <th className="border px-3 py-2 text-right">Sacs à consommer</th>
+                  <th className="border px-3 py-2 text-right">Stock en sacs</th>
+                  <th className="border px-3 py-2 text-right">Sacs à commander</th>
                 </tr>
               </thead>
               <tbody>
@@ -626,15 +635,14 @@ export default function DashboardFeed() {
                   <tr key={item.feedType} className="odd:bg-white even:bg-gray-50">
                     <td className="border px-3 py-2">{item.feedType}</td>
                     <td className="border px-3 py-2 text-right">
-                      {item.besoinKg.toFixed(1)} kg
+                      {item.besoinSacs.toFixed(2)}
                     </td>
                     <td className="border px-3 py-2 text-right">
-                      {item.stockKg.toFixed(1)} kg
+                      {item.stockSacs.toFixed(2)}
                     </td>
                     <td className="border px-3 py-2 text-right font-semibold">
-                      {item.aCommanderKg.toFixed(1)} kg
+                      {item.aCommanderSacs}
                     </td>
-                    <td className="border px-3 py-2 text-right">{item.sacs}</td>
                   </tr>
                 ))}
               </tbody>
@@ -653,7 +661,7 @@ export default function DashboardFeed() {
               key={item.id}
               titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`}
               sousTitre={formatDate(item.date)}
-              valeur={`-${item.quantite_kg.toFixed(1)} kg`}
+              valeur={`-${enSacs(item.quantite_kg).toFixed(2)} sacs`}
               onDelete={() => supprimerConsommation(item)}
               saving={saving}
             />
@@ -669,7 +677,7 @@ export default function DashboardFeed() {
               key={item.id}
               titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`}
               sousTitre={formatDate(item.date)}
-              valeur={`+${item.quantite_kg.toFixed(1)} kg`}
+              valeur={`+${enSacs(item.quantite_kg).toFixed(2)} sacs`}
               onDelete={() => supprimerLivraison(item)}
               saving={saving}
             />

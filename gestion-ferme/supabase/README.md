@@ -46,5 +46,6 @@ automatisation et ne supprime aucune donnee.
 2. Executer `check-alimentation-stock-suivi.sql`.
 3. Verifier que les deux tables apparaissent avec le statut `OK`.
 
-Les quantites sont en kilogrammes. Le stock est calcule avec les livraisons
-moins les consommations quotidiennes.
+L'interface utilise des sacs de 25 kg. Les quantites restent stockees en
+kilogrammes dans Supabase pour conserver la precision et la compatibilite des
+donnees. Le stock est calcule avec les livraisons moins les consommations.

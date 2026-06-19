@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -54,13 +54,15 @@ type LigneAnalyse = LotAnalyse & {
   chargeAliments: number;
   chargeRamassage: number;
   chargeLivraison: number;
+  chargeDivers: number;
   totalCharges: number;
   resultatCalcule: number;
   margeParKg: number;
   tauxCharges: number;
+  tauxLivraison: number;
 };
 
-const couleursCharges = ["#2563eb", "#f59e0b", "#dc2626", "#059669"];
+const couleursCharges = ["#209447", "#f5b000", "#3b78d8", "#8b6bd9", "#9aa6b2"];
 
 export default function Analyse() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -70,6 +72,7 @@ export default function Analyse() {
     searchParams.get("onglet") === "economie" ? "economie" : "production"
   );
   const [recherche, setRecherche] = useState("");
+  const [lotFiltreId, setLotFiltreId] = useState("");
   const [lotSelectionneId, setLotSelectionneId] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -80,9 +83,7 @@ export default function Analyse() {
           chargerLotsAvecMouvements(false),
           supabase.from("charges").select("lot_id, type_charge, montant"),
         ]);
-
         if (chargesResult.error) throw chargesResult.error;
-
         setLots(lotsData as LotAnalyse[]);
         setCharges(
           (chargesResult.data || []).map((charge) => ({
@@ -96,7 +97,6 @@ export default function Analyse() {
       }
       setLoading(false);
     };
-
     chargerAnalyse();
   }, []);
 
@@ -104,7 +104,7 @@ export default function Analyse() {
     () =>
       lots.map((lot) => {
         const quantiteLivree = lot.livraisons.reduce(
-          (total, livraison) => total + (Number(livraison.quantite) || 0),
+          (total, livraison) => total + Number(livraison.quantite || 0),
           0
         );
         const poidsLivre = Number(lot.total_poids_livre) || 0;
@@ -118,9 +118,22 @@ export default function Analyse() {
         const chargeAliments = totalType("aliment");
         const chargeRamassage = totalType("ramassage");
         const chargeLivraison = totalType("livraison");
-        const totalCharges =
-          chargePoussins + chargeAliments + chargeRamassage + chargeLivraison;
-        const resultatCalcule = chiffreAffaires - totalCharges;
+        const chargeDivers = chargesLot
+          .filter(
+            (charge) =>
+              !["achat_poussins", "aliment", "ramassage", "livraison"].includes(
+                charge.type_charge
+              )
+          )
+          .reduce((total, charge) => total + charge.montant, 0);
+        const totalCharges = chargesLot.reduce(
+          (total, charge) => total + charge.montant,
+          0
+        );
+        const resultatCalcule =
+          lot.resultat_net != null
+            ? Number(lot.resultat_net) || 0
+            : chiffreAffaires - totalCharges;
 
         return {
           ...lot,
@@ -134,11 +147,14 @@ export default function Analyse() {
           chargeAliments,
           chargeRamassage,
           chargeLivraison,
+          chargeDivers,
           totalCharges,
           resultatCalcule,
           margeParKg: poidsLivre > 0 ? resultatCalcule / poidsLivre : 0,
           tauxCharges:
             chiffreAffaires > 0 ? (totalCharges / chiffreAffaires) * 100 : 0,
+          tauxLivraison:
+            lot.quantite > 0 ? (quantiteLivree / lot.quantite) * 100 : 0,
         };
       }),
     [lots, charges]
@@ -147,9 +163,10 @@ export default function Analyse() {
   const terme = recherche.trim().toLowerCase();
   const lignesAffichees = lignes.filter(
     (lot) =>
-      !terme ||
-      lot.nom.toLowerCase().includes(terme) ||
-      lot.batiment.toLowerCase().includes(terme)
+      (!lotFiltreId || lot.id === lotFiltreId) &&
+      (!terme ||
+        lot.nom.toLowerCase().includes(terme) ||
+        lot.batiment.toLowerCase().includes(terme))
   );
 
   useEffect(() => {
@@ -165,122 +182,105 @@ export default function Analyse() {
     lignesAffichees.find((lot) => lot.id === lotSelectionneId) ||
     lignesAffichees[0];
 
-  if (loading) return <div className="p-6">Chargement de l’analyse...</div>;
+  if (loading) return <div className="analysis-loading">Chargement de l’analyse...</div>;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Analyse des lots</h1>
-        <p className="text-sm text-gray-600">
-          Comparez les performances de production et les résultats économiques
-          des lots archivés.
-        </p>
-      </div>
+    <div className="analysis-page">
+      <header className="analysis-heading">
+        <h1>Analyse des lots</h1>
+        <p>Comparez les performances de production et les résultats économiques des lots archivés.</p>
+      </header>
 
-      <div className="flex flex-col gap-4 rounded-lg border bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="inline-flex w-full rounded-md bg-gray-100 p-1 md:w-auto">
-          <Onglet
-            actif={onglet === "production"}
-            onClick={() => {
-              setOnglet("production");
-              setSearchParams({});
-            }}
-          >
-            Production
-          </Onglet>
-          <Onglet
-            actif={onglet === "economie"}
-            onClick={() => {
-              setOnglet("economie");
-              setSearchParams({ onglet: "economie" });
-            }}
-          >
-            Économie
-          </Onglet>
+      <section className="analysis-toolbar">
+        <div className="analysis-tabs">
+          <button type="button" className={onglet === "production" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("production"); setSearchParams({}); }}>▥ Production</button>
+          <button type="button" className={onglet === "economie" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("economie"); setSearchParams({ onglet: "economie" }); }}>€ Économie</button>
         </div>
-        <input
-          type="search"
-          value={recherche}
-          onChange={(event) => setRecherche(event.target.value)}
-          placeholder="Rechercher un lot ou un bâtiment"
-          className="w-full rounded border p-3 md:max-w-md"
-        />
-      </div>
+        <select value={lotFiltreId} onChange={(event) => setLotFiltreId(event.target.value)}>
+          <option value="">Tous les lots</option>
+          {lignes.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}
+        </select>
+        <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un lot ou un bâtiment..." />
+      </section>
 
-      {lignesAffichees.length === 0 ? (
-        <div className="rounded-lg border bg-white p-8 text-center text-gray-500">
-          Aucun lot ne correspond à cette recherche.
-        </div>
+      {!lignesAffichees.length ? (
+        <div className="analysis-empty">Aucun lot ne correspond à cette recherche.</div>
       ) : onglet === "production" ? (
-        <AnalyseProduction lignes={lignesAffichees} />
+        <AnalyseProduction lignes={lignesAffichees} lotSelectionne={lotSelectionne} />
       ) : (
-        <AnalyseEconomie
-          lignes={lignesAffichees}
-          lotSelectionne={lotSelectionne}
-          onSelection={setLotSelectionneId}
-        />
+        <AnalyseEconomie lignes={lignesAffichees} lotSelectionne={lotSelectionne} onSelection={setLotSelectionneId} />
       )}
     </div>
   );
 }
 
-function AnalyseProduction({ lignes }: { lignes: LigneAnalyse[] }) {
+function AnalyseProduction({
+  lignes,
+  lotSelectionne,
+}: {
+  lignes: LigneAnalyse[];
+  lotSelectionne?: LigneAnalyse;
+}) {
   const totalInitial = somme(lignes, "quantite");
   const totalMorts = somme(lignes, "nb_morts");
   const totalLivres = somme(lignes, "quantiteLivree");
   const totalPoids = somme(lignes, "total_poids_livre");
-  const tauxMortalite =
-    totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
+  const tauxMortalite = totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
   const poidsMoyen = totalLivres > 0 ? totalPoids / totalLivres : 0;
+  const quantiteRetenue = somme(lignes, "quantite_retenue");
+  const tauxLivraison = totalInitial > 0 ? (totalLivres / totalInitial) * 100 : 0;
+  const margeParKg =
+    totalPoids > 0 ? somme(lignes, "resultatCalcule") / totalPoids : 0;
+  const chiffreAffaires = somme(lignes, "resultat_brut");
+  const tauxCharges =
+    chiffreAffaires > 0 ? (somme(lignes, "totalCharges") / chiffreAffaires) * 100 : 0;
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Indicateur label="Lots analysés" valeur={lignes.length} />
-        <Indicateur label="Sujets initiaux" valeur={totalInitial} />
-        <Indicateur label="Sujets livrés" valeur={totalLivres} />
-        <Indicateur label="Mortalités" valeur={totalMorts} />
-        <Indicateur
-          label="Taux de mortalité"
-          valeur={`${tauxMortalite.toFixed(1)} %`}
-        />
-        <Indicateur
-          label="Poids livré"
-          valeur={`${totalPoids.toFixed(2)} kg`}
-        />
-        <Indicateur
-          label="Poids moyen"
-          valeur={`${poidsMoyen.toFixed(2)} kg`}
-        />
-        <Indicateur
-          label="Quantité retenue"
-          valeur={somme(lignes, "quantite_retenue")}
-        />
-      </div>
+      <section className="analysis-kpis analysis-kpis-eight">
+        <AnalysisKpi tone="green" icon="▣" label="Lots analysés" value={String(lignes.length)} note="Lots affichés" />
+        <AnalysisKpi tone="blue" icon="♧" label="Sujets initiaux" value={String(totalInitial)} note="Effectif cumulé" />
+        <AnalysisKpi tone="blue" icon="✓" label="Sujets livrés" value={String(totalLivres)} note={`${tauxLivraison.toFixed(1)} % des sujets`} />
+        <AnalysisKpi tone="red" icon="✝" label="Mortalités" value={String(totalMorts)} note="Sujets perdus" />
+        <AnalysisKpi tone="orange" icon="%" label="Taux de mortalité" value={`${tauxMortalite.toFixed(1)} %`} note="Moyenne globale" />
+        <AnalysisKpi tone="green" icon="⚖" label="Poids livré" value={`${totalPoids.toFixed(2)} kg`} note="Poids cumulé" />
+        <AnalysisKpi tone="violet" icon="◔" label="Poids moyen" value={`${poidsMoyen.toFixed(2)} kg`} note="Par sujet livré" />
+        <AnalysisKpi tone="orange" icon="▣" label="Quantité retenue" value={String(quantiteRetenue)} note="Sujets conservés" />
+      </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold">
-          Comparaison technique par lot
-        </h2>
-        <div className="h-80">
+      <section className="analysis-panel analysis-chart-panel">
+        <div className="analysis-panel-heading"><h2>Comparaison technique par lot</h2><span>Sujets livrés et mortalités</span></div>
+        <div className="analysis-chart">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={lignes}
-              margin={{ top: 10, right: 10, left: 0, bottom: 45 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nom" angle={-35} textAnchor="end" height={70} />
-              <YAxis />
+            <BarChart data={lignes} margin={{ top: 24, right: 25, left: 0, bottom: 18 }}>
+              <CartesianGrid stroke="#e5ebe8" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="nom" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="quantiteLivree" fill="#2563eb" name="Sujets livrés" />
-              <Bar dataKey="nb_morts" fill="#dc2626" name="Mortalités" />
+              <Bar yAxisId="left" dataKey="quantiteLivree" fill="#2563eb" name="Sujets livrés" radius={[5, 5, 0, 0]} />
+              <Bar yAxisId="right" dataKey="nb_morts" fill="#ef1018" name="Mortalités" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
 
       <TableauLots lignes={lignes} mode="production" />
+
+      <section className="analysis-panel">
+        <h2>Indicateurs de performance</h2>
+        <div className="analysis-performance-grid">
+          <PerformanceCard tone="blue" icon="✓" label="Taux de livraison" value={`${tauxLivraison.toFixed(1)} %`} status={tauxLivraison >= 80 ? "Bon" : "À surveiller"} />
+          <PerformanceCard tone="green" icon="⚖" label="Poids moyen" value={`${poidsMoyen.toFixed(2)} kg`} status={poidsMoyen >= 2 ? "Bon" : "À améliorer"} />
+          <PerformanceCard tone="orange" icon="€" label="Marge par kg" value={`${margeParKg.toFixed(2)} €`} status={margeParKg >= 0 ? "Positive" : "Négative"} />
+          <PerformanceCard tone="violet" icon="%" label="Poids des charges" value={`${tauxCharges.toFixed(1)} %`} status={tauxCharges <= 60 ? "Maîtrisé" : "Élevé"} />
+        </div>
+      </section>
+
+      {lotSelectionne && (
+        <Insight lot={lotSelectionne} />
+      )}
     </>
   );
 }
@@ -296,266 +296,110 @@ function AnalyseEconomie({
 }) {
   const chiffreAffaires = somme(lignes, "resultat_brut");
   const totalCharges = somme(lignes, "totalCharges");
-  const resultat = chiffreAffaires - totalCharges;
-  const lignesAvecNet = lignes.filter((lot) => lot.resultat_net != null);
-  const resultatNetSaisi = somme(lignesAvecNet, "resultat_net");
+  const resultat = somme(lignes, "resultatCalcule");
+  const tauxMarge = chiffreAffaires > 0 ? (resultat / chiffreAffaires) * 100 : 0;
+  const margeParKg =
+    somme(lignes, "total_poids_livre") > 0
+      ? resultat / somme(lignes, "total_poids_livre")
+      : 0;
   const pieData = lotSelectionne
     ? [
         { name: "Poussins", value: lotSelectionne.chargePoussins },
         { name: "Aliment", value: lotSelectionne.chargeAliments },
         { name: "Ramassage", value: lotSelectionne.chargeRamassage },
         { name: "Livraison", value: lotSelectionne.chargeLivraison },
+        { name: "Divers", value: lotSelectionne.chargeDivers },
       ].filter((charge) => charge.value > 0)
     : [];
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Indicateur
-          label="Chiffre d’affaires"
-          valeur={`${chiffreAffaires.toFixed(2)} €`}
-        />
-        <Indicateur label="Charges" valeur={`${totalCharges.toFixed(2)} €`} />
-        <Indicateur label="Résultat calculé" valeur={`${resultat.toFixed(2)} €`} />
-        <Indicateur
-          label="Résultat net saisi"
-          valeur={
-            lignesAvecNet.length
-              ? `${resultatNetSaisi.toFixed(2)} €`
-              : "Non renseigné"
-          }
-        />
-      </div>
+      <section className="analysis-kpis">
+        <AnalysisKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={`${chiffreAffaires.toFixed(2)} €`} note="Ventes enregistrées" />
+        <AnalysisKpi tone="red" icon="↘" label="Total charges" value={`${totalCharges.toFixed(2)} €`} note="Charges cumulées" />
+        <AnalysisKpi tone="green" icon="€" label="Résultat net" value={`${resultat.toFixed(2)} €`} note={`${tauxMarge.toFixed(1)} % de marge`} />
+        <AnalysisKpi tone="violet" icon="◔" label="Marge par kg" value={`${margeParKg.toFixed(2)} €`} note="Sur le poids livré" />
+      </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="rounded-lg border bg-white p-4 shadow-sm">
-          <label className="block text-sm font-medium text-gray-700">
-            Répartition des charges du lot
-            <select
-              value={lotSelectionne?.id || ""}
-              onChange={(event) => onSelection(event.target.value)}
-              className="mt-1 w-full rounded border p-2 md:max-w-md"
-            >
-              {lignes.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  {lot.nom}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="mt-4 h-80">
-            {pieData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-gray-500">
-                Aucune charge enregistrée pour ce lot.
-              </div>
-            ) : (
+      <section className="analysis-economic-grid">
+        <article className="analysis-panel">
+          <div className="analysis-panel-heading"><h2>Répartition des charges</h2><select value={lotSelectionne?.id || ""} onChange={(event) => onSelection(event.target.value)}>{lignes.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}</select></div>
+          <div className="analysis-pie">
+            {pieData.length ? (
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="45%"
-                    outerRadius={90}
-                  >
-                    {pieData.map((charge, index) => (
-                      <Cell
-                        key={charge.name}
-                        fill={couleursCharges[index % couleursCharges.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Legend />
-                  <Tooltip
-                    formatter={(value: number) =>
-                      `${Number(value).toFixed(2)} €`
-                    }
-                  />
-                </PieChart>
+                <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={55} outerRadius={95}>{pieData.map((charge, index) => <Cell key={charge.name} fill={couleursCharges[index % couleursCharges.length]} />)}</Pie><Legend /><Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} /></PieChart>
               </ResponsiveContainer>
-            )}
+            ) : <div className="analysis-empty">Aucune charge enregistrée pour ce lot.</div>}
           </div>
-        </section>
-
-        <section className="rounded-lg border bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold">
-            Rentabilité par lot
-          </h2>
-          <div className="h-80">
+        </article>
+        <article className="analysis-panel">
+          <div className="analysis-panel-heading"><h2>Rentabilité par lot</h2><span>CA, charges et résultat</span></div>
+          <div className="analysis-pie">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={lignes}
-                margin={{ top: 10, right: 10, left: 0, bottom: 45 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nom" angle={-35} textAnchor="end" height={70} />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number) =>
-                    `${Number(value).toFixed(2)} €`
-                  }
-                />
-                <Legend />
-                <Bar
-                  dataKey="resultat_brut"
-                  fill="#2563eb"
-                  name="Chiffre d’affaires"
-                />
-                <Bar
-                  dataKey="totalCharges"
-                  fill="#f59e0b"
-                  name="Charges"
-                />
-                <Bar
-                  dataKey="resultatCalcule"
-                  fill="#059669"
-                  name="Résultat"
-                />
-              </BarChart>
+              <BarChart data={lignes} margin={{ top: 20, right: 15, left: 0, bottom: 18 }}><CartesianGrid stroke="#e5ebe8" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="nom" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} /><Legend /><Bar dataKey="resultat_brut" fill="#2563eb" name="Chiffre d’affaires" radius={[4, 4, 0, 0]} /><Bar dataKey="totalCharges" fill="#f5b000" name="Charges" radius={[4, 4, 0, 0]} /><Bar dataKey="resultatCalcule" fill="#16853d" name="Résultat" radius={[4, 4, 0, 0]} /></BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
-      </div>
+        </article>
+      </section>
 
       <TableauLots lignes={lignes} mode="economie" />
+
+      <section className="analysis-panel">
+        <h2>Indicateurs économiques</h2>
+        <div className="analysis-performance-grid">
+          <PerformanceCard tone="green" icon="%" label="Taux de marge" value={`${tauxMarge.toFixed(1)} %`} status={tauxMarge >= 20 ? "Bon" : "À améliorer"} />
+          <PerformanceCard tone="blue" icon="€" label="Marge par kg" value={`${margeParKg.toFixed(2)} €`} status={margeParKg >= 0 ? "Positive" : "Négative"} />
+          <PerformanceCard tone="orange" icon="▣" label="Charge alimentaire" value={`${somme(lignes, "chargeAliments").toFixed(2)} €`} status="Poste principal" />
+          <PerformanceCard tone="violet" icon="◔" label="Charges / CA" value={`${(chiffreAffaires > 0 ? totalCharges / chiffreAffaires * 100 : 0).toFixed(1)} %`} status="Ratio global" />
+        </div>
+      </section>
+
+      {lotSelectionne && <Insight lot={lotSelectionne} />}
     </>
   );
 }
 
-function TableauLots({
-  lignes,
-  mode,
-}: {
-  lignes: LigneAnalyse[];
-  mode: OngletAnalyse;
-}) {
+function TableauLots({ lignes, mode }: { lignes: LigneAnalyse[]; mode: OngletAnalyse }) {
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <h2 className="mb-3 text-lg font-semibold">Détail par lot</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-3 py-2 text-left">Lot</th>
-              <th className="border px-3 py-2 text-left">Bâtiment</th>
-              {mode === "production" ? (
-                <>
-                  <th className="border px-3 py-2 text-right">Livrés</th>
-                  <th className="border px-3 py-2 text-right">Mortalités</th>
-                  <th className="border px-3 py-2 text-right">Taux</th>
-                  <th className="border px-3 py-2 text-right">Poids livré</th>
-                  <th className="border px-3 py-2 text-right">Poids moyen</th>
-                </>
-              ) : (
-                <>
-                  <th className="border px-3 py-2 text-right">CA</th>
-                  <th className="border px-3 py-2 text-right">Charges</th>
-                  <th className="border px-3 py-2 text-right">Résultat</th>
-                  <th className="border px-3 py-2 text-right">Marge / kg</th>
-                  <th className="border px-3 py-2 text-right">Taux charges</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {lignes.map((lot) => (
-              <tr key={lot.id} className="odd:bg-white even:bg-gray-50">
-                <td className="border px-3 py-2 font-medium">{lot.nom}</td>
-                <td className="border px-3 py-2">{lot.batiment}</td>
-                {mode === "production" ? (
-                  <>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.quantiteLivree}
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.nb_morts}
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.tauxMortalite.toFixed(1)} %
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {Number(lot.total_poids_livre).toFixed(2)} kg
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.poidsMoyen.toFixed(2)} kg
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="border px-3 py-2 text-right">
-                      {(Number(lot.resultat_brut) || 0).toFixed(2)} €
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.totalCharges.toFixed(2)} €
-                    </td>
-                    <td
-                      className={`border px-3 py-2 text-right font-semibold ${
-                        lot.resultatCalcule < 0 ? "text-red-700" : "text-emerald-700"
-                      }`}
-                    >
-                      {lot.resultatCalcule.toFixed(2)} €
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.margeParKg.toFixed(2)} €
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {lot.tauxCharges.toFixed(1)} %
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
+    <section className="analysis-panel analysis-detail">
+      <h2>Détail par lot</h2>
+      <div className="analysis-mobile-list">
+        {lignes.map((lot) => <article key={lot.id}><div><strong>{lot.nom}</strong><span>{lot.batiment}</span></div><div><span>{mode === "production" ? "Livrés" : "Résultat"}<b>{mode === "production" ? lot.quantiteLivree : `${lot.resultatCalcule.toFixed(2)} €`}</b></span><span>{mode === "production" ? "Mortalité" : "Charges"}<b>{mode === "production" ? `${lot.tauxMortalite.toFixed(1)} %` : `${lot.totalCharges.toFixed(2)} €`}</b></span><span>{mode === "production" ? "Poids moyen" : "Marge / kg"}<b>{mode === "production" ? `${lot.poidsMoyen.toFixed(2)} kg` : `${lot.margeParKg.toFixed(2)} €`}</b></span></div><Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse complète →</Link></article>)}
+      </div>
+      <div className="analysis-table-wrap">
+        <table className="analysis-table">
+          <thead><tr><th>Lot</th><th>Bâtiment</th>{mode === "production" ? <><th>Livrés</th><th>Mortalités</th><th>Taux de mortalité</th><th>Poids livré</th><th>Poids moyen</th></> : <><th>Chiffre d’affaires</th><th>Charges</th><th>Résultat</th><th>Marge / kg</th><th>Charges / CA</th></>}</tr></thead>
+          <tbody>{lignes.map((lot) => <tr key={lot.id}><td><Link to={`/volailles/historique/${lot.id}/analyse`}>{lot.nom}</Link></td><td>{lot.batiment}</td>{mode === "production" ? <><td className="analysis-blue">{lot.quantiteLivree}</td><td className="analysis-red">{lot.nb_morts}</td><td className="analysis-orange">{lot.tauxMortalite.toFixed(1)} %</td><td className="analysis-green">{Number(lot.total_poids_livre).toFixed(2)} kg</td><td>{lot.poidsMoyen.toFixed(2)} kg</td></> : <><td className="analysis-blue">{(Number(lot.resultat_brut) || 0).toFixed(2)} €</td><td className="analysis-orange">{lot.totalCharges.toFixed(2)} €</td><td className={lot.resultatCalcule < 0 ? "analysis-red" : "analysis-green"}>{lot.resultatCalcule.toFixed(2)} €</td><td>{lot.margeParKg.toFixed(2)} €</td><td>{lot.tauxCharges.toFixed(1)} %</td></>}</tr>)}</tbody>
         </table>
       </div>
+      {lignes.length === 1 && <Link className="analysis-history-link" to={`/volailles/historique/${lignes[0].id}/analyse`}>Voir l’historique complet du lot →</Link>}
     </section>
   );
 }
 
-function Onglet({
-  actif,
-  onClick,
-  children,
-}: {
-  actif: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded px-5 py-2 text-sm font-semibold md:flex-none ${
-        actif
-          ? "!bg-emerald-700 !text-white shadow-sm"
-          : "!bg-transparent !text-gray-700"
-      }`}
-    >
-      {children}
-    </button>
-  );
+function AnalysisKpi({ tone, icon, label, value, note }: { tone: string; icon: string; label: string; value: string; note: string }) {
+  return <article className="analysis-kpi"><span className={`analysis-kpi-icon analysis-tone-${tone}`}>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div></article>;
 }
 
-function Indicateur({
-  label,
-  valeur,
-}: {
-  label: string;
-  valeur: number | string;
-}) {
-  return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="text-xs uppercase text-gray-500">{label}</div>
-      <div className="mt-1 text-xl font-bold">{valeur}</div>
-    </div>
-  );
+function PerformanceCard({ tone, icon, label, value, status }: { tone: string; icon: string; label: string; value: string; status: string }) {
+  return <article className={`analysis-performance-card analysis-card-${tone}`}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><b>{status}</b></div></article>;
 }
 
-function somme<T extends keyof LigneAnalyse>(
-  lignes: LigneAnalyse[],
-  cle: T
-) {
+function Insight({ lot }: { lot: LigneAnalyse }) {
+  const message =
+    lot.resultatCalcule >= 0 && lot.tauxMortalite <= 15
+      ? `Le lot ${lot.nom} présente de bonnes performances globales.`
+      : lot.tauxMortalite > 15
+        ? `Le lot ${lot.nom} nécessite une attention particulière sur la mortalité.`
+        : `Le résultat économique du lot ${lot.nom} peut être amélioré.`;
+  const conseil =
+    lot.chargeAliments > lot.totalCharges * 0.5
+      ? "Les charges alimentaires représentent plus de la moitié des charges : surveillez la conversion alimentaire."
+      : "La structure des charges reste équilibrée. Continuez à suivre le poids moyen et les pertes.";
+  return <section className="analysis-insight"><span>✓</span><div><strong>Insights et recommandations</strong><p>{message} {conseil}</p></div></section>;
+}
+
+function somme<T extends keyof LigneAnalyse>(lignes: LigneAnalyse[], cle: T) {
   return lignes.reduce((total, ligne) => {
     const valeur = ligne[cle];
     return total + (typeof valeur === "number" ? valeur : 0);

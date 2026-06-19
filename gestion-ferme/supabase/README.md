@@ -39,3 +39,12 @@ Cette automatisation recalcule `nb_morts`, `sujets_restants` et
 
 `rollback-volailles-automatic-totals.sql` retire seulement cette
 automatisation et ne supprime aucune donnee.
+
+## Suivi et stock d'aliment
+
+1. Executer `alimentation-stock-suivi.sql`.
+2. Executer `check-alimentation-stock-suivi.sql`.
+3. Verifier que les deux tables apparaissent avec le statut `OK`.
+
+Les quantites sont en kilogrammes. Le stock est calcule avec les livraisons
+moins les consommations quotidiennes.

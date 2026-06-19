@@ -1,263 +1,785 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { Children, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import toast from "react-hot-toast";
+import { supabase } from "../supabaseClient";
 
+type Lot = {
+  id: string;
+  nom: string;
+  quantite: number;
+  sujets_restants: number;
+  date_arrivee: string;
+};
 
-interface Lot {
-  id: string
-  nom?: string
-  quantite: number
-  age: number
-}
+type FeedReference = {
+  feed_type: string;
+  daily_consumption_g: number;
+  age_min_days: number;
+  age_max_days: number;
+  feed_price_ht?: number;
+};
 
-interface FeedReference {
-  feed_type: string
-  daily_consumption_g: number
-  age_min_days: number
-  age_max_days: number
-  feed_price_ht?: number
-}
+type Consommation = {
+  id: string;
+  lot_id: string;
+  date: string;
+  feed_type: string;
+  quantite_kg: number;
+  note?: string | null;
+};
 
-type WeekRow = {
-  weekLabel: string
-  feedType: string
-  kg: number
-  sacs: number
-  cost: number
-}
+type LivraisonStock = {
+  id: string;
+  date: string;
+  feed_type: string;
+  quantite_kg: number;
+  fournisseur?: string | null;
+  prix_total_ht?: number | null;
+  note?: string | null;
+};
 
-export default function DashboardFeedForecast10Weeks() {
-  const [lots, setLots] = useState<Lot[]>([])
-  const [references, setReferences] = useState<FeedReference[]>([])
-  const [selectedLotId, setSelectedLotId] = useState<string | "">("")
-  const [forecastRows, setForecastRows] = useState<WeekRow[]>([])
-  const [loading, setLoading] = useState(true)
+type StockRow = {
+  feedType: string;
+  entrees: number;
+  consommations: number;
+  stock: number;
+};
 
-  const SAC_KG = 20
-  const WEEKS = 10
-  const DAYS_PER_WEEK = 7
+type PrevisionRow = {
+  feedType: string;
+  besoinKg: number;
+  stockKg: number;
+  aCommanderKg: number;
+  sacs: number;
+};
 
-  // États pour simulation lot type
-  const [customLotQty, setCustomLotQty] = useState<number>(1800)
-  const [customLotAge, setCustomLotAge] = useState<number>(1)
-  const [useCustomLot, setUseCustomLot] = useState(false)
+const SAC_KG = 20;
+const PREVISION_JOURS = 15;
+const aujourdHui = () => {
+  const date = new Date();
+  const annee = date.getFullYear();
+  const mois = String(date.getMonth() + 1).padStart(2, "0");
+  const jour = String(date.getDate()).padStart(2, "0");
+  return `${annee}-${mois}-${jour}`;
+};
 
-  // Chargement des données Supabase
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      const { data: lotsData } = await supabase
-        .from("lots_volailles")
-        .select("id, nom, quantite, age")
-        .eq("is_active", true)
+const ageAuJour = (dateArrivee: string, decalageJours = 0) => {
+  const arrivee = new Date(`${dateArrivee}T00:00:00`);
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + decalageJours);
+  return Math.max(0, Math.floor((date.getTime() - arrivee.getTime()) / 86400000));
+};
 
-      const { data: refsData } = await supabase.from("feed_reference").select("*")
+const formatDate = (date: string) =>
+  new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR");
 
-      setLots(lotsData || [])
-      setReferences(refsData || [])
-      setLoading(false)
+export default function DashboardFeed() {
+  const [lots, setLots] = useState<Lot[]>([]);
+  const [references, setReferences] = useState<FeedReference[]>([]);
+  const [consommations, setConsommations] = useState<Consommation[]>([]);
+  const [livraisons, setLivraisons] = useState<LivraisonStock[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [consommationLotId, setConsommationLotId] = useState("");
+  const [consommationDate, setConsommationDate] = useState(aujourdHui());
+  const [consommationType, setConsommationType] = useState("");
+  const [consommationKg, setConsommationKg] = useState("");
+  const [consommationNote, setConsommationNote] = useState("");
+
+  const [livraisonDate, setLivraisonDate] = useState(aujourdHui());
+  const [livraisonType, setLivraisonType] = useState("");
+  const [livraisonKg, setLivraisonKg] = useState("");
+  const [livraisonFournisseur, setLivraisonFournisseur] = useState("");
+  const [livraisonPrix, setLivraisonPrix] = useState("");
+
+  const chargerDonnees = async () => {
+    const [lotsResult, refsResult, consommationsResult, livraisonsResult] =
+      await Promise.all([
+        supabase
+          .from("lots_volailles")
+          .select("id, nom, quantite, sujets_restants, date_arrivee")
+          .eq("is_active", true)
+          .order("nom"),
+        supabase
+          .from("feed_reference")
+          .select(
+            "feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht"
+          )
+          .order("age_min_days"),
+        supabase
+          .from("consommations_aliment")
+          .select("id, lot_id, date, feed_type, quantite_kg, note")
+          .order("date", { ascending: false }),
+        supabase
+          .from("livraisons_aliment")
+          .select(
+            "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
+          )
+          .order("date", { ascending: false }),
+      ]);
+
+    const error =
+      lotsResult.error ||
+      refsResult.error ||
+      consommationsResult.error ||
+      livraisonsResult.error;
+
+    if (error) {
+      console.error("Erreur chargement alimentation:", error);
+      toast.error("Le suivi d'alimentation n'a pas pu être chargé.");
+    } else {
+      setLots((lotsResult.data || []) as Lot[]);
+      setReferences(
+        (refsResult.data || []).map((item) => ({
+          ...item,
+          daily_consumption_g: Number(item.daily_consumption_g) || 0,
+          age_min_days: Number(item.age_min_days) || 0,
+          age_max_days: Number(item.age_max_days) || 0,
+          feed_price_ht: Number(item.feed_price_ht) || 0,
+        })) as FeedReference[]
+      );
+      setConsommations(
+        (consommationsResult.data || []).map((item) => ({
+          ...item,
+          quantite_kg: Number(item.quantite_kg) || 0,
+        })) as Consommation[]
+      );
+      setLivraisons(
+        (livraisonsResult.data || []).map((item) => ({
+          ...item,
+          quantite_kg: Number(item.quantite_kg) || 0,
+          prix_total_ht:
+            item.prix_total_ht == null ? null : Number(item.prix_total_ht) || 0,
+        })) as LivraisonStock[]
+      );
     }
-    load()
-  }, [])
+    setLoading(false);
+  };
 
-  // Calcul prévisionnel pour un lot réel
   useEffect(() => {
-    if (!selectedLotId || selectedLotId === "custom") {
-      setForecastRows([])
-      return
+    chargerDonnees();
+  }, []);
+
+  const typesAliment = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...references.map((item) => item.feed_type),
+          ...consommations.map((item) => item.feed_type),
+          ...livraisons.map((item) => item.feed_type),
+        ])
+      ).sort((a, b) => a.localeCompare(b)),
+    [references, consommations, livraisons]
+  );
+
+  useEffect(() => {
+    if (!consommationType && typesAliment.length) {
+      setConsommationType(typesAliment[0]);
     }
+    if (!livraisonType && typesAliment.length) {
+      setLivraisonType(typesAliment[0]);
+    }
+  }, [typesAliment, consommationType, livraisonType]);
 
-    const lot = lots.find(l => l.id === selectedLotId)
-    if (!lot) return
+  const stock = useMemo<StockRow[]>(
+    () =>
+      typesAliment.map((feedType) => {
+        const entrees = livraisons
+          .filter((item) => item.feed_type === feedType)
+          .reduce((total, item) => total + item.quantite_kg, 0);
+        const sorties = consommations
+          .filter((item) => item.feed_type === feedType)
+          .reduce((total, item) => total + item.quantite_kg, 0);
+        return {
+          feedType,
+          entrees,
+          consommations: sorties,
+          stock: entrees - sorties,
+        };
+      }),
+    [typesAliment, livraisons, consommations]
+  );
 
-    const rows: WeekRow[] = []
+  const prevision = useMemo<PrevisionRow[]>(() => {
+    const besoins = new Map<string, number>();
 
-    for (let i = 0; i < WEEKS; i++) {
-      const startAge = lot.age + i * DAYS_PER_WEEK
-      const endAge = startAge + DAYS_PER_WEEK - 1
-      const avgAge = (startAge + endAge) / 2
+    lots.forEach((lot) => {
+      const sujets =
+        lot.sujets_restants == null
+          ? Number(lot.quantite) || 0
+          : Number(lot.sujets_restants) || 0;
+      if (sujets <= 0) return;
 
-      const ref = references.find(
-        r => avgAge >= r.age_min_days && avgAge <= r.age_max_days
-      )
-
-      if (ref) {
-        const kg = (ref.daily_consumption_g * DAYS_PER_WEEK * lot.quantite) / 1000
-        const sacs = Math.ceil(kg / SAC_KG)
-        const cost = sacs * (ref.feed_price_ht ?? 0)
-
-        rows.push({
-          weekLabel: `${i * 7 + 1} - ${i * 7 + 7}`,
-          feedType: ref.feed_type,
-          kg,
-          sacs,
-          cost,
-        })
-      } else {
-        rows.push({
-          weekLabel: `${i * 7 + 1} - ${i * 7 + 7}`,
-          feedType: "-",
-          kg: 0,
-          sacs: 0,
-          cost: 0,
-        })
+      for (let jour = 0; jour < PREVISION_JOURS; jour += 1) {
+        const age = ageAuJour(lot.date_arrivee, jour);
+        const reference = references.find(
+          (item) => age >= item.age_min_days && age <= item.age_max_days
+        );
+        if (!reference) continue;
+        const besoin = (reference.daily_consumption_g * sujets) / 1000;
+        besoins.set(
+          reference.feed_type,
+          (besoins.get(reference.feed_type) || 0) + besoin
+        );
       }
-    }
+    });
 
-    setForecastRows(rows)
-  }, [selectedLotId, lots, references])
+    return Array.from(
+      new Set([...typesAliment, ...Array.from(besoins.keys())])
+    )
+      .map((feedType) => {
+        const besoinKg = besoins.get(feedType) || 0;
+        const stockKg =
+          stock.find((item) => item.feedType === feedType)?.stock || 0;
+        const aCommanderKg = Math.max(0, besoinKg - stockKg);
+        return {
+          feedType,
+          besoinKg,
+          stockKg,
+          aCommanderKg,
+          sacs: Math.ceil(aCommanderKg / SAC_KG),
+        };
+      })
+      .filter((item) => item.besoinKg > 0 || item.stockKg !== 0)
+      .sort((a, b) => b.aCommanderKg - a.aCommanderKg);
+  }, [lots, references, stock, typesAliment]);
 
-  // Calcul prévisionnel pour le lot type simulé
-  useEffect(() => {
-    if (!useCustomLot) return
-
-    const rows: WeekRow[] = []
-
-    for (let i = 0; i < WEEKS; i++) {
-      const startAge = customLotAge + i * DAYS_PER_WEEK
-      const endAge = startAge + DAYS_PER_WEEK - 1
-      const avgAge = (startAge + endAge) / 2
-
-      const ref = references.find(
-        r => avgAge >= r.age_min_days && avgAge <= r.age_max_days
-      )
-
-      if (ref) {
-        const kg = (ref.daily_consumption_g * DAYS_PER_WEEK * customLotQty) / 1000
-        const sacs = Math.ceil(kg / SAC_KG)
-        const cost = sacs * (ref.feed_price_ht ?? 0)
-
-        rows.push({
-          weekLabel: `${i * 7 + 1} - ${i * 7 + 7}`,
-          feedType: ref.feed_type,
-          kg,
-          sacs,
-          cost,
-        })
-      } else {
-        rows.push({
-          weekLabel: `${i * 7 + 1} - ${i * 7 + 7}`,
-          feedType: "-",
-          kg: 0,
-          sacs: 0,
-          cost: 0,
-        })
+  const joursSansReference = useMemo(() => {
+    let total = 0;
+    lots.forEach((lot) => {
+      const sujets =
+        lot.sujets_restants == null
+          ? Number(lot.quantite) || 0
+          : Number(lot.sujets_restants) || 0;
+      if (sujets <= 0) return;
+      for (let jour = 0; jour < PREVISION_JOURS; jour += 1) {
+        const age = ageAuJour(lot.date_arrivee, jour);
+        if (
+          !references.some(
+            (item) => age >= item.age_min_days && age <= item.age_max_days
+          )
+        ) {
+          total += 1;
+        }
       }
+    });
+    return total;
+  }, [lots, references]);
+
+  const enregistrerConsommation = async () => {
+    const quantite = Number(consommationKg);
+    if (
+      saving ||
+      !consommationLotId ||
+      !consommationDate ||
+      !consommationType ||
+      !Number.isFinite(quantite) ||
+      quantite <= 0
+    ) {
+      toast.error("Complétez le lot, la date, l'aliment et la quantité.");
+      return;
     }
 
-    setForecastRows(rows)
-  }, [useCustomLot, customLotQty, customLotAge, references])
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("consommations_aliment")
+      .insert({
+        lot_id: consommationLotId,
+        date: consommationDate,
+        feed_type: consommationType,
+        quantite_kg: quantite,
+        note: consommationNote.trim() || null,
+      })
+      .select("id, lot_id, date, feed_type, quantite_kg, note")
+      .single();
 
-  const totalKg = forecastRows.reduce((sum, r) => sum + r.kg, 0)
-  const totalSacs = forecastRows.reduce((sum, r) => sum + r.sacs, 0)
-  const totalCost = forecastRows.reduce((sum, r) => sum + r.cost, 0)
+    if (error) {
+      console.error("Erreur consommation aliment:", error);
+      toast.error("La consommation n'a pas pu être enregistrée.");
+    } else if (data) {
+      setConsommations((items) => [
+        { ...data, quantite_kg: Number(data.quantite_kg) || 0 } as Consommation,
+        ...items,
+      ]);
+      setConsommationKg("");
+      setConsommationNote("");
+      toast.success("Consommation enregistrée.");
+    }
+    setSaving(false);
+  };
 
-  if (loading) return <p>Chargement...</p>
+  const enregistrerLivraison = async () => {
+    const quantite = Number(livraisonKg);
+    const prix = livraisonPrix.trim() ? Number(livraisonPrix) : null;
+    if (
+      saving ||
+      !livraisonDate ||
+      !livraisonType ||
+      !Number.isFinite(quantite) ||
+      quantite <= 0 ||
+      (prix != null && (!Number.isFinite(prix) || prix < 0))
+    ) {
+      toast.error("Complétez la date, l'aliment et une quantité positive.");
+      return;
+    }
+
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("livraisons_aliment")
+      .insert({
+        date: livraisonDate,
+        feed_type: livraisonType,
+        quantite_kg: quantite,
+        fournisseur: livraisonFournisseur.trim() || null,
+        prix_total_ht: prix,
+      })
+      .select(
+        "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
+      )
+      .single();
+
+    if (error) {
+      console.error("Erreur livraison aliment:", error);
+      toast.error("La livraison n'a pas pu être enregistrée.");
+    } else if (data) {
+      setLivraisons((items) => [
+        {
+          ...data,
+          quantite_kg: Number(data.quantite_kg) || 0,
+          prix_total_ht:
+            data.prix_total_ht == null ? null : Number(data.prix_total_ht) || 0,
+        } as LivraisonStock,
+        ...items,
+      ]);
+      setLivraisonKg("");
+      setLivraisonFournisseur("");
+      setLivraisonPrix("");
+      toast.success("Livraison ajoutée au stock.");
+    }
+    setSaving(false);
+  };
+
+  const supprimerConsommation = async (item: Consommation) => {
+    if (saving || !window.confirm("Supprimer cette consommation ?")) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("consommations_aliment")
+      .delete()
+      .eq("id", item.id);
+    if (error) {
+      toast.error("La consommation n'a pas pu être supprimée.");
+    } else {
+      setConsommations((items) => items.filter((ligne) => ligne.id !== item.id));
+      toast.success("Consommation supprimée.");
+    }
+    setSaving(false);
+  };
+
+  const supprimerLivraison = async (item: LivraisonStock) => {
+    if (saving || !window.confirm("Supprimer cette livraison de stock ?")) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("livraisons_aliment")
+      .delete()
+      .eq("id", item.id);
+    if (error) {
+      toast.error("La livraison n'a pas pu être supprimée.");
+    } else {
+      setLivraisons((items) => items.filter((ligne) => ligne.id !== item.id));
+      toast.success("Livraison supprimée.");
+    }
+    setSaving(false);
+  };
+
+  const consommationDuJour = consommations
+    .filter((item) => item.date === aujourdHui())
+    .reduce((total, item) => total + item.quantite_kg, 0);
+  const stockTotal = stock.reduce((total, item) => total + item.stock, 0);
+  const besoinTotal = prevision.reduce(
+    (total, item) => total + item.besoinKg,
+    0
+  );
+  const commandeTotale = prevision.reduce(
+    (total, item) => total + item.aCommanderKg,
+    0
+  );
+
+  if (loading) return <div className="p-4">Chargement...</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Prévision de charge - 10 semaines</h1>
-
-      {/* Sélecteur de lot */}
-      <div className="bg-white p-4 border rounded shadow max-w-3xl">
-        <label className="block font-medium mb-2">Sélectionnez un lot</label>
-        <select
-          value={selectedLotId}
-          onChange={(e) => {
-            setSelectedLotId(e.target.value)
-            setUseCustomLot(false)
-          }}
-          className="border rounded px-3 py-2 w-full"
-        >
-          <option value="">-- Choisir un lot --</option>
-          {lots.map(l => (
-            <option key={l.id} value={l.id}>
-              {l.nom ?? `Lot ${l.id}`} — {l.quantite} sujets — âge {l.age}j
-            </option>
-          ))}
-          <option value="custom">Simulation lot type</option>
-        </select>
+      <div>
+        <h1 className="text-2xl font-bold">Suivi de l’alimentation</h1>
+        <p className="text-sm text-gray-600">
+          Consommations quotidiennes, stock disponible et besoins sur 15 jours.
+        </p>
       </div>
 
-      {/* Formulaire simulation lot type */}
-      {selectedLotId === "custom" && (
-        <div className="bg-white p-4 border rounded shadow max-w-3xl">
-          <h2 className="font-medium mb-2">Simulation pour un lot type</h2>
-          <div className="flex gap-4 items-end">
-            <div>
-              <label className="block mb-1">Nombre de poussins</label>
-              <input
-                type="number"
-                value={customLotQty}
-                min={1}
-                onChange={(e) => setCustomLotQty(Number(e.target.value))}
-                className="border rounded px-3 py-2 w-full"
-              />
-            </div>
-            <div>
-              <label className="block mb-1">Âge initial (jours)</label>
-              <input
-                type="number"
-                value={customLotAge}
-                min={1}
-                onChange={(e) => setCustomLotAge(Number(e.target.value))}
-                className="border rounded px-3 py-2 w-full"
-              />
-            </div>
-            <div>
-              <button
-                onClick={() => setUseCustomLot(true)}
-                className="bg-blue-600 text-black px-4 py-2 rounded"
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Indicateur label="Stock total" value={`${stockTotal.toFixed(1)} kg`} />
+        <Indicateur
+          label="Consommé aujourd’hui"
+          value={`${consommationDuJour.toFixed(1)} kg`}
+        />
+        <Indicateur
+          label="Besoin sur 15 jours"
+          value={`${besoinTotal.toFixed(1)} kg`}
+        />
+        <Indicateur
+          label="À commander"
+          value={`${commandeTotale.toFixed(1)} kg`}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Formulaire title="Saisir une consommation">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Champ label="Lot">
+              <select
+                value={consommationLotId}
+                onChange={(event) => setConsommationLotId(event.target.value)}
+                className="w-full rounded border p-2"
               >
-                Calculer
-              </button>
-            </div>
+                <option value="">Choisir un lot</option>
+                {lots.map((lot) => (
+                  <option key={lot.id} value={lot.id}>
+                    {lot.nom}
+                  </option>
+                ))}
+              </select>
+            </Champ>
+            <Champ label="Date">
+              <input
+                type="date"
+                value={consommationDate}
+                onChange={(event) => setConsommationDate(event.target.value)}
+                className="w-full rounded border p-2"
+              />
+            </Champ>
+            <Champ label="Type d’aliment">
+              <select
+                value={consommationType}
+                onChange={(event) => setConsommationType(event.target.value)}
+                className="w-full rounded border p-2"
+              >
+                <option value="">Choisir un aliment</option>
+                {typesAliment.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </Champ>
+            <Champ label="Quantité consommée (kg)">
+              <input
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={consommationKg}
+                onChange={(event) => setConsommationKg(event.target.value)}
+                className="w-full rounded border p-2"
+              />
+            </Champ>
           </div>
-        </div>
-      )}
+          <Champ label="Note facultative">
+            <input
+              type="text"
+              value={consommationNote}
+              onChange={(event) => setConsommationNote(event.target.value)}
+              className="w-full rounded border p-2"
+            />
+          </Champ>
+          <button
+            onClick={enregistrerConsommation}
+            disabled={saving}
+            className="w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
+          >
+            {saving ? "Enregistrement..." : "Enregistrer la consommation"}
+          </button>
+        </Formulaire>
 
-      {/* Tableau de prévision */}
-      {(selectedLotId && (selectedLotId !== "custom" || useCustomLot)) && (
-        <div className="bg-white p-4 border rounded shadow max-w-4xl mx-auto">
-          <h2 className="text-lg font-semibold mb-3">
-            Prévision sur 10 semaines {selectedLotId === "custom" ? "pour le lot type" : "pour le lot sélectionné"}
-          </h2>
+        <Formulaire title="Ajouter une livraison au stock">
+          <p className="text-sm text-gray-600">
+            Pour initialiser le suivi, saisissez ici le stock actuellement présent.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Champ label="Date">
+              <input
+                type="date"
+                value={livraisonDate}
+                onChange={(event) => setLivraisonDate(event.target.value)}
+                className="w-full rounded border p-2"
+              />
+            </Champ>
+            <Champ label="Type d’aliment">
+              <select
+                value={livraisonType}
+                onChange={(event) => setLivraisonType(event.target.value)}
+                className="w-full rounded border p-2"
+              >
+                <option value="">Choisir un aliment</option>
+                {typesAliment.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </Champ>
+            <Champ label="Quantité livrée (kg)">
+              <input
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={livraisonKg}
+                onChange={(event) => setLivraisonKg(event.target.value)}
+                className="w-full rounded border p-2"
+              />
+            </Champ>
+            <Champ label="Fournisseur">
+              <input
+                type="text"
+                value={livraisonFournisseur}
+                onChange={(event) => setLivraisonFournisseur(event.target.value)}
+                className="w-full rounded border p-2"
+              />
+            </Champ>
+          </div>
+          <Champ label="Prix total HT facultatif (€)">
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={livraisonPrix}
+              onChange={(event) => setLivraisonPrix(event.target.value)}
+              className="w-full rounded border p-2"
+            />
+          </Champ>
+          <button
+            onClick={enregistrerLivraison}
+            disabled={saving}
+            className="w-full !bg-emerald-600 !text-white rounded p-2 disabled:opacity-60"
+          >
+            {saving ? "Enregistrement..." : "Ajouter au stock"}
+          </button>
+        </Formulaire>
+      </div>
 
-          <div className="overflow-x-auto">
+      <section className="rounded-lg border bg-white p-4 shadow-sm">
+        <h2 className="text-lg font-semibold">Stock par aliment</h2>
+        {stock.length === 0 ? (
+          <EtatVide texte="Aucun mouvement de stock enregistré." />
+        ) : (
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {stock.map((item) => (
+              <article
+                key={item.feedType}
+                className={`rounded border p-4 ${
+                  item.stock < 0 ? "border-red-300 bg-red-50" : "bg-white"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-semibold">{item.feedType}</h3>
+                  <span className="text-xl font-bold">{item.stock.toFixed(1)} kg</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <Valeur label="Livré" value={`${item.entrees.toFixed(1)} kg`} />
+                  <Valeur
+                    label="Consommé"
+                    value={`${item.consommations.toFixed(1)} kg`}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border bg-white p-4 shadow-sm">
+        <h2 className="text-lg font-semibold">Prévision de commande à 15 jours</h2>
+        <p className="text-sm text-gray-600">
+          Calculée avec les lots actifs, leur âge, les sujets restants et le stock.
+        </p>
+        {joursSansReference > 0 && (
+          <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {joursSansReference} journée(s) de lot ne disposent pas d’une référence
+            de consommation. La prévision peut être sous-estimée.
+          </div>
+        )}
+        {prevision.length === 0 ? (
+          <EtatVide texte="Aucun besoin prévisionnel disponible." />
+        ) : (
+          <div className="mt-3 overflow-x-auto">
             <table className="min-w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border px-4 py-2 text-left">Semaine</th>
-                  <th className="border px-4 py-2 text-left">Type d'aliment</th>
-                  <th className="border px-4 py-2 text-right">Quantité (kg)</th>
-                  <th className="border px-4 py-2 text-right">Quantité (sacs)</th>
-                  <th className="border px-4 py-2 text-right">Coût (€)</th>
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-3 py-2 text-left">Aliment</th>
+                  <th className="border px-3 py-2 text-right">Besoin 15 j</th>
+                  <th className="border px-3 py-2 text-right">Stock</th>
+                  <th className="border px-3 py-2 text-right">À commander</th>
+                  <th className="border px-3 py-2 text-right">Sacs de 20 kg</th>
                 </tr>
               </thead>
               <tbody>
-                {forecastRows.map((r, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="border px-4 py-2">{r.weekLabel}</td>
-                    <td className="border px-4 py-2">{r.feedType}</td>
-                    <td className="border px-4 py-2 text-right">{r.kg.toFixed(2)}</td>
-                    <td className="border px-4 py-2 text-right">{r.sacs}</td>
-                    <td className="border px-4 py-2 text-right">{r.cost.toFixed(2)}</td>
+                {prevision.map((item) => (
+                  <tr key={item.feedType} className="odd:bg-white even:bg-gray-50">
+                    <td className="border px-3 py-2">{item.feedType}</td>
+                    <td className="border px-3 py-2 text-right">
+                      {item.besoinKg.toFixed(1)} kg
+                    </td>
+                    <td className="border px-3 py-2 text-right">
+                      {item.stockKg.toFixed(1)} kg
+                    </td>
+                    <td className="border px-3 py-2 text-right font-semibold">
+                      {item.aCommanderKg.toFixed(1)} kg
+                    </td>
+                    <td className="border px-3 py-2 text-right">{item.sacs}</td>
                   </tr>
                 ))}
-
-                <tr className="border-t font-semibold bg-gray-50">
-                  <td className="border px-4 py-2">TOTAL</td>
-                  <td className="border px-4 py-2">—</td>
-                  <td className="border px-4 py-2 text-right">{totalKg.toFixed(2)}</td>
-                  <td className="border px-4 py-2 text-right">{totalSacs}</td>
-                  <td className="border px-4 py-2 text-right">{totalCost.toFixed(2)}</td>
-                </tr>
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </section>
 
-      {!selectedLotId && <p className="text-black text-gray-600">Sélectionnez un lot pour voir la prévision.</p>}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Historique
+          title="Dernières consommations"
+          vide="Aucune consommation enregistrée."
+        >
+          {consommations.slice(0, 15).map((item) => (
+            <Mouvement
+              key={item.id}
+              titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`}
+              sousTitre={formatDate(item.date)}
+              valeur={`-${item.quantite_kg.toFixed(1)} kg`}
+              onDelete={() => supprimerConsommation(item)}
+              saving={saving}
+            />
+          ))}
+        </Historique>
+
+        <Historique
+          title="Dernières livraisons de stock"
+          vide="Aucune livraison enregistrée."
+        >
+          {livraisons.slice(0, 15).map((item) => (
+            <Mouvement
+              key={item.id}
+              titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`}
+              sousTitre={formatDate(item.date)}
+              valeur={`+${item.quantite_kg.toFixed(1)} kg`}
+              onDelete={() => supprimerLivraison(item)}
+              saving={saving}
+            />
+          ))}
+        </Historique>
+      </div>
     </div>
-  )
+  );
+}
+
+function Indicateur({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-white p-4 shadow-sm">
+      <div className="text-xs uppercase text-gray-500">{label}</div>
+      <div className="mt-1 text-xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function Formulaire({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border bg-white p-4 shadow-sm">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Champ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block text-sm font-medium text-gray-700">
+      {label}
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+
+function Valeur({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border p-2">
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className="font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function Historique({
+  title,
+  vide,
+  children,
+}: {
+  title: string;
+  vide: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border bg-white p-4 shadow-sm">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="mt-3 space-y-2">
+        {Children.count(children) > 0 ? children : <EtatVide texte={vide} />}
+      </div>
+    </section>
+  );
+}
+
+function Mouvement({
+  titre,
+  sousTitre,
+  valeur,
+  onDelete,
+  saving,
+}: {
+  titre: string;
+  sousTitre: string;
+  valeur: string;
+  onDelete: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded border p-3">
+      <div className="min-w-0">
+        <div className="truncate font-medium">{titre}</div>
+        <div className="text-sm text-gray-500">{sousTitre}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="font-semibold">{valeur}</span>
+        <button
+          onClick={onDelete}
+          disabled={saving}
+          className="!bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
+        >
+          Supprimer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EtatVide({ texte }: { texte: string }) {
+  return <div className="p-6 text-center text-gray-500">{texte}</div>;
 }

@@ -106,12 +106,16 @@ export default function DashboardFeed() {
   const [consommationType, setConsommationType] = useState("");
   const [consommationSacs, setConsommationSacs] = useState("");
   const [consommationNote, setConsommationNote] = useState("");
+  const [consommationEnModification, setConsommationEnModification] =
+    useState<Consommation | null>(null);
 
   const [livraisonDate, setLivraisonDate] = useState(aujourdHui());
   const [livraisonType, setLivraisonType] = useState("");
   const [livraisonSacs, setLivraisonSacs] = useState("");
   const [livraisonFournisseur, setLivraisonFournisseur] = useState("");
   const [livraisonPrix, setLivraisonPrix] = useState("");
+  const [livraisonEnModification, setLivraisonEnModification] =
+    useState<LivraisonStock | null>(null);
 
   const chargerDonnees = async () => {
     const [lotsResult, refsResult, consommationsResult, livraisonsResult] =
@@ -234,10 +238,10 @@ export default function DashboardFeed() {
   }, [lotConsommationSelectionne, consommationDate, references]);
 
   useEffect(() => {
-    if (suggestionConsommation) {
+    if (suggestionConsommation && !consommationEnModification) {
       setConsommationType(suggestionConsommation.reference.feed_type);
     }
-  }, [suggestionConsommation]);
+  }, [suggestionConsommation, consommationEnModification]);
 
   const stock = useMemo<StockRow[]>(
     () =>
@@ -341,29 +345,47 @@ export default function DashboardFeed() {
     }
 
     setSaving(true);
-    const { data, error } = await supabase
-      .from("consommations_aliment")
-      .insert({
-        lot_id: consommationLotId,
-        date: consommationDate,
-        feed_type: consommationType,
-        quantite_kg: nombreSacs * POIDS_SAC_KG,
-        note: consommationNote.trim() || null,
-      })
-      .select("id, lot_id, date, feed_type, quantite_kg, note")
-      .single();
+    const valeurs = {
+      lot_id: consommationLotId,
+      date: consommationDate,
+      feed_type: consommationType,
+      quantite_kg: nombreSacs * POIDS_SAC_KG,
+      note: consommationNote.trim() || null,
+    };
+    const resultat = consommationEnModification
+      ? await supabase
+          .from("consommations_aliment")
+          .update(valeurs)
+          .eq("id", consommationEnModification.id)
+          .select("id, lot_id, date, feed_type, quantite_kg, note")
+          .single()
+      : await supabase
+          .from("consommations_aliment")
+          .insert(valeurs)
+          .select("id, lot_id, date, feed_type, quantite_kg, note")
+          .single();
+    const { data, error } = resultat;
 
     if (error) {
       console.error("Erreur consommation aliment:", error);
       toast.error("La consommation n'a pas pu être enregistrée.");
     } else if (data) {
+      const consommation = {
+        ...data,
+        quantite_kg: Number(data.quantite_kg) || 0,
+      } as Consommation;
       setConsommations((items) => [
-        { ...data, quantite_kg: Number(data.quantite_kg) || 0 } as Consommation,
-        ...items,
+        consommation,
+        ...items.filter((item) => item.id !== consommation.id),
       ]);
       setConsommationSacs("");
       setConsommationNote("");
-      toast.success("Consommation enregistrée.");
+      setConsommationEnModification(null);
+      toast.success(
+        consommationEnModification
+          ? "Consommation modifiée."
+          : "Consommation enregistrée."
+      );
     }
     setSaving(false);
   };
@@ -384,39 +406,94 @@ export default function DashboardFeed() {
     }
 
     setSaving(true);
-    const { data, error } = await supabase
-      .from("livraisons_aliment")
-      .insert({
-        date: livraisonDate,
-        feed_type: livraisonType,
-        quantite_kg: nombreSacs * POIDS_SAC_KG,
-        fournisseur: livraisonFournisseur.trim() || null,
-        prix_total_ht: prix,
-      })
-      .select(
-        "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
-      )
-      .single();
+    const valeurs = {
+      date: livraisonDate,
+      feed_type: livraisonType,
+      quantite_kg: nombreSacs * POIDS_SAC_KG,
+      fournisseur: livraisonFournisseur.trim() || null,
+      prix_total_ht: prix,
+    };
+    const resultat = livraisonEnModification
+      ? await supabase
+          .from("livraisons_aliment")
+          .update(valeurs)
+          .eq("id", livraisonEnModification.id)
+          .select(
+            "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
+          )
+          .single()
+      : await supabase
+          .from("livraisons_aliment")
+          .insert(valeurs)
+          .select(
+            "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
+          )
+          .single();
+    const { data, error } = resultat;
 
     if (error) {
       console.error("Erreur livraison aliment:", error);
       toast.error("La livraison n'a pas pu être enregistrée.");
     } else if (data) {
+      const livraison = {
+        ...data,
+        quantite_kg: Number(data.quantite_kg) || 0,
+        prix_total_ht:
+          data.prix_total_ht == null ? null : Number(data.prix_total_ht) || 0,
+      } as LivraisonStock;
       setLivraisons((items) => [
-        {
-          ...data,
-          quantite_kg: Number(data.quantite_kg) || 0,
-          prix_total_ht:
-            data.prix_total_ht == null ? null : Number(data.prix_total_ht) || 0,
-        } as LivraisonStock,
-        ...items,
+        livraison,
+        ...items.filter((item) => item.id !== livraison.id),
       ]);
       setLivraisonSacs("");
       setLivraisonFournisseur("");
       setLivraisonPrix("");
-      toast.success("Livraison ajoutée au stock.");
+      setLivraisonEnModification(null);
+      toast.success(
+        livraisonEnModification
+          ? "Livraison modifiée."
+          : "Livraison ajoutée au stock."
+      );
     }
     setSaving(false);
+  };
+
+  const modifierConsommation = (item: Consommation) => {
+    setConsommationEnModification(item);
+    setConsommationLotId(item.lot_id);
+    setConsommationDate(item.date);
+    setConsommationType(item.feed_type);
+    setConsommationSacs(enSacs(item.quantite_kg).toFixed(2));
+    setConsommationNote(item.note || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const annulerModificationConsommation = () => {
+    setConsommationEnModification(null);
+    setConsommationLotId("");
+    setConsommationDate(aujourdHui());
+    setConsommationSacs("");
+    setConsommationNote("");
+  };
+
+  const modifierLivraison = (item: LivraisonStock) => {
+    setLivraisonEnModification(item);
+    setLivraisonDate(item.date);
+    setLivraisonType(item.feed_type);
+    setLivraisonSacs(enSacs(item.quantite_kg).toFixed(2));
+    setLivraisonFournisseur(item.fournisseur || "");
+    setLivraisonPrix(
+      item.prix_total_ht == null ? "" : String(item.prix_total_ht)
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const annulerModificationLivraison = () => {
+    setLivraisonEnModification(null);
+    setLivraisonDate(aujourdHui());
+    setLivraisonSacs("");
+    setLivraisonFournisseur("");
+    setLivraisonPrix("");
   };
 
   const supprimerConsommation = async (item: Consommation) => {
@@ -430,6 +507,9 @@ export default function DashboardFeed() {
       toast.error("La consommation n'a pas pu être supprimée.");
     } else {
       setConsommations((items) => items.filter((ligne) => ligne.id !== item.id));
+      if (consommationEnModification?.id === item.id) {
+        annulerModificationConsommation();
+      }
       toast.success("Consommation supprimée.");
     }
     setSaving(false);
@@ -446,6 +526,9 @@ export default function DashboardFeed() {
       toast.error("La livraison n'a pas pu être supprimée.");
     } else {
       setLivraisons((items) => items.filter((ligne) => ligne.id !== item.id));
+      if (livraisonEnModification?.id === item.id) {
+        annulerModificationLivraison();
+      }
       toast.success("Livraison supprimée.");
     }
     setSaving(false);
@@ -622,7 +705,26 @@ export default function DashboardFeed() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Formulaire title="Saisir une consommation">
+        <Formulaire
+          title={
+            consommationEnModification
+              ? "Modifier la consommation"
+              : "Saisir une consommation"
+          }
+        >
+          {consommationEnModification && (
+            <div className="flex items-center justify-between gap-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+              <span>La consommation sélectionnée est en cours de modification.</span>
+              <button
+                type="button"
+                onClick={annulerModificationConsommation}
+                disabled={saving}
+                className="shrink-0 rounded !bg-gray-200 px-3 py-2 !text-gray-900 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
           <div className="grid gap-3 md:grid-cols-2">
             <Champ label="Lot">
               <select
@@ -713,11 +815,34 @@ export default function DashboardFeed() {
             disabled={saving}
             className="w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
           >
-            {saving ? "Enregistrement..." : "Enregistrer la consommation"}
+            {saving
+              ? "Enregistrement..."
+              : consommationEnModification
+                ? "Enregistrer les modifications"
+                : "Enregistrer la consommation"}
           </button>
         </Formulaire>
 
-        <Formulaire title="Ajouter une livraison au stock">
+        <Formulaire
+          title={
+            livraisonEnModification
+              ? "Modifier la livraison"
+              : "Ajouter une livraison au stock"
+          }
+        >
+          {livraisonEnModification && (
+            <div className="flex items-center justify-between gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+              <span>La livraison sélectionnée est en cours de modification.</span>
+              <button
+                type="button"
+                onClick={annulerModificationLivraison}
+                disabled={saving}
+                className="shrink-0 rounded !bg-gray-200 px-3 py-2 !text-gray-900 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
           <p className="text-sm text-gray-600">
             Pour initialiser le suivi, saisissez ici le stock actuellement présent.
           </p>
@@ -778,7 +903,11 @@ export default function DashboardFeed() {
             disabled={saving}
             className="w-full !bg-emerald-600 !text-white rounded p-2 disabled:opacity-60"
           >
-            {saving ? "Enregistrement..." : "Ajouter au stock"}
+            {saving
+              ? "Enregistrement..."
+              : livraisonEnModification
+                ? "Enregistrer les modifications"
+                : "Ajouter au stock"}
           </button>
         </Formulaire>
       </div>
@@ -960,6 +1089,7 @@ export default function DashboardFeed() {
               titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`}
               sousTitre={formatDate(item.date)}
               valeur={`-${enSacs(item.quantite_kg).toFixed(2)} sacs`}
+              onEdit={() => modifierConsommation(item)}
               onDelete={() => supprimerConsommation(item)}
               saving={saving}
             />
@@ -976,6 +1106,7 @@ export default function DashboardFeed() {
               titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`}
               sousTitre={formatDate(item.date)}
               valeur={`+${enSacs(item.quantite_kg).toFixed(2)} sacs`}
+              onEdit={() => modifierLivraison(item)}
               onDelete={() => supprimerLivraison(item)}
               saving={saving}
             />
@@ -1168,23 +1299,32 @@ function Mouvement({
   titre,
   sousTitre,
   valeur,
+  onEdit,
   onDelete,
   saving,
 }: {
   titre: string;
   sousTitre: string;
   valeur: string;
+  onEdit: () => void;
   onDelete: () => void;
   saving: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded border p-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded border p-3">
       <div className="min-w-0">
         <div className="truncate font-medium">{titre}</div>
         <div className="text-sm text-gray-500">{sousTitre}</div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="font-semibold">{valeur}</span>
+      <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <span className="mr-auto font-semibold sm:mr-0">{valeur}</span>
+        <button
+          onClick={onEdit}
+          disabled={saving}
+          className="rounded !bg-slate-700 px-2 py-1 text-xs !text-white disabled:opacity-60"
+        >
+          Modifier
+        </button>
         <button
           onClick={onDelete}
           disabled={saving}

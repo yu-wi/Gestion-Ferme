@@ -41,20 +41,21 @@ export default function AuthGate({ children }: AuthGateProps) {
     setMessage('');
 
     const valeurIdentifiant = identifiant.trim();
-    const domaine = import.meta.env.VITE_AUTH_EMAIL_DOMAIN?.trim();
-    if (!valeurIdentifiant.includes('@') && !domaine) {
-      setMessage("Le domaine de connexion n'est pas configuré.");
+    const identifiantAutorise = import.meta.env.VITE_AUTH_USERNAME?.trim();
+    const emailCompte = import.meta.env.VITE_AUTH_EMAIL?.trim();
+    if (!identifiantAutorise || !emailCompte) {
+      setMessage("La connexion par identifiant n'est pas configurée.");
       setSubmitting(false);
       return;
     }
-    const email = valeurIdentifiant.includes('@')
-      ? valeurIdentifiant
-      : domaine
-        ? `${valeurIdentifiant}@${domaine}`
-        : valeurIdentifiant;
+    if (valeurIdentifiant.toLowerCase() !== identifiantAutorise.toLowerCase()) {
+      setMessage('Connexion impossible. Vérifiez votre identifiant et votre mot de passe.');
+      setSubmitting(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: emailCompte,
       password,
     });
 

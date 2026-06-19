@@ -789,7 +789,7 @@ return (
      <div className="flex flex-wrap gap-2">
        <button className="!bg-emerald-600 !text-white px-4 py-2 rounded" onClick={() => setShowAutoconsommationModal(true)}>Autoconsommation</button>
        <button className="!bg-slate-700 !text-white px-4 py-2 rounded" onClick={() => exportToExcel(filteredLots)}>
-         Exporter en Excel
+         Export Excel détaillé
        </button>
      </div>
    </div>

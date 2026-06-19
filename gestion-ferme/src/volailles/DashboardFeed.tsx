@@ -12,6 +12,7 @@ type Lot = {
 };
 
 type FeedReference = {
+  id: string;
   feed_type: string;
   daily_consumption_g: number;
   age_min_days: number;
@@ -81,6 +82,14 @@ export default function DashboardFeed() {
   const [livraisons, setLivraisons] = useState<LivraisonStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [referenceModalOpen, setReferenceModalOpen] = useState(false);
+  const [referenceEnModification, setReferenceEnModification] =
+    useState<FeedReference | null>(null);
+  const [referenceType, setReferenceType] = useState("");
+  const [referenceAgeMin, setReferenceAgeMin] = useState("0");
+  const [referenceAgeMax, setReferenceAgeMax] = useState("");
+  const [referenceConso, setReferenceConso] = useState("");
+  const [referencePrix, setReferencePrix] = useState("");
 
   const [consommationLotId, setConsommationLotId] = useState("");
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
@@ -105,7 +114,7 @@ export default function DashboardFeed() {
         supabase
           .from("feed_reference")
           .select(
-            "feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht"
+            "id, feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht"
           )
           .order("age_min_days"),
         supabase
@@ -395,6 +404,133 @@ export default function DashboardFeed() {
     setSaving(false);
   };
 
+  const ouvrirNouvelleReference = () => {
+    setReferenceEnModification(null);
+    setReferenceType("");
+    setReferenceAgeMin("0");
+    setReferenceAgeMax("");
+    setReferenceConso("");
+    setReferencePrix("");
+    setReferenceModalOpen(true);
+  };
+
+  const ouvrirModificationReference = (reference: FeedReference) => {
+    setReferenceEnModification(reference);
+    setReferenceType(reference.feed_type);
+    setReferenceAgeMin(String(reference.age_min_days));
+    setReferenceAgeMax(String(reference.age_max_days));
+    setReferenceConso(String(reference.daily_consumption_g));
+    setReferencePrix(String(reference.feed_price_ht || 0));
+    setReferenceModalOpen(true);
+  };
+
+  const enregistrerReference = async () => {
+    const ageMin = Number(referenceAgeMin);
+    const ageMax = Number(referenceAgeMax);
+    const consommation = Number(referenceConso);
+    const prix = Number(referencePrix);
+    if (
+      saving ||
+      !referenceType.trim() ||
+      !Number.isInteger(ageMin) ||
+      !Number.isInteger(ageMax) ||
+      ageMin < 0 ||
+      ageMax < ageMin ||
+      !Number.isFinite(consommation) ||
+      consommation <= 0 ||
+      !Number.isFinite(prix) ||
+      prix < 0
+    ) {
+      toast.error("Vérifiez le type, les âges, la consommation et le prix.");
+      return;
+    }
+
+    const chevauchement = references.some(
+      (item) =>
+        item.id !== referenceEnModification?.id &&
+        ageMin <= item.age_max_days &&
+        ageMax >= item.age_min_days
+    );
+    if (chevauchement) {
+      toast.error("Cette tranche d’âge chevauche une référence existante.");
+      return;
+    }
+
+    setSaving(true);
+    const valeurs = {
+      feed_type: referenceType.trim(),
+      age_min_days: ageMin,
+      age_max_days: ageMax,
+      daily_consumption_g: consommation,
+      feed_price_ht: prix,
+    };
+    const resultat = referenceEnModification
+      ? await supabase
+          .from("feed_reference")
+          .update(valeurs)
+          .eq("id", referenceEnModification.id)
+          .select(
+            "id, feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht"
+          )
+          .single()
+      : await supabase
+          .from("feed_reference")
+          .insert(valeurs)
+          .select(
+            "id, feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht"
+          )
+          .single();
+    const { data, error } = resultat;
+
+    if (error) {
+      console.error("Erreur référence alimentaire:", error);
+      toast.error("La référence n'a pas pu être enregistrée.");
+    } else if (data) {
+      const reference = {
+        ...data,
+        daily_consumption_g: Number(data.daily_consumption_g) || 0,
+        age_min_days: Number(data.age_min_days) || 0,
+        age_max_days: Number(data.age_max_days) || 0,
+        feed_price_ht: Number(data.feed_price_ht) || 0,
+      } as FeedReference;
+      setReferences((items) =>
+        [...items.filter((item) => item.id !== reference.id), reference].sort(
+          (a, b) => a.age_min_days - b.age_min_days
+        )
+      );
+      setReferenceModalOpen(false);
+      toast.success(
+        referenceEnModification ? "Référence modifiée." : "Référence ajoutée."
+      );
+    }
+    setSaving(false);
+  };
+
+  const supprimerReference = async (reference: FeedReference) => {
+    if (
+      saving ||
+      !window.confirm(
+        "Supprimer cette référence ? Les anciennes saisies de stock resteront conservées."
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("feed_reference")
+      .delete()
+      .eq("id", reference.id);
+    if (error) {
+      toast.error("La référence n'a pas pu être supprimée.");
+    } else {
+      setReferences((items) =>
+        items.filter((item) => item.id !== reference.id)
+      );
+      toast.success("Référence supprimée.");
+    }
+    setSaving(false);
+  };
+
   const consommationDuJour = consommations
     .filter((item) => item.date === aujourdHui())
     .reduce((total, item) => total + item.quantite_kg, 0);
@@ -651,6 +787,92 @@ export default function DashboardFeed() {
         )}
       </section>
 
+      <section className="rounded-lg border bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Références alimentaires</h2>
+            <p className="text-sm text-gray-600">
+              Ces valeurs servent à calculer la consommation prévisionnelle selon
+              l’âge des lots.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={ouvrirNouvelleReference}
+            className="rounded !bg-blue-600 px-4 py-2 !text-white"
+          >
+            Ajouter une référence
+          </button>
+        </div>
+
+        {references.length === 0 ? (
+          <EtatVide texte="Aucune référence alimentaire enregistrée." />
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border-collapse text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-3 py-2 text-left">Aliment</th>
+                  <th className="border px-3 py-2 text-right">Âge minimum</th>
+                  <th className="border px-3 py-2 text-right">Âge maximum</th>
+                  <th className="border px-3 py-2 text-right">
+                    Consommation / sujet / jour
+                  </th>
+                  <th className="border px-3 py-2 text-right">
+                    Prix du sac HT
+                  </th>
+                  <th className="border px-3 py-2 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {references.map((reference) => (
+                  <tr
+                    key={reference.id}
+                    className="odd:bg-white even:bg-gray-50"
+                  >
+                    <td className="border px-3 py-2 font-medium">
+                      {reference.feed_type}
+                    </td>
+                    <td className="border px-3 py-2 text-right">
+                      {reference.age_min_days} jours
+                    </td>
+                    <td className="border px-3 py-2 text-right">
+                      {reference.age_max_days} jours
+                    </td>
+                    <td className="border px-3 py-2 text-right">
+                      {reference.daily_consumption_g} g
+                    </td>
+                    <td className="border px-3 py-2 text-right">
+                      {(reference.feed_price_ht || 0).toFixed(2)} €
+                    </td>
+                    <td className="border px-3 py-2">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => ouvrirModificationReference(reference)}
+                          disabled={saving}
+                          className="rounded !bg-slate-700 px-3 py-2 !text-white disabled:opacity-60"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => supprimerReference(reference)}
+                          disabled={saving}
+                          className="rounded !bg-red-600 px-3 py-2 !text-white disabled:opacity-60"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Historique
           title="Dernières consommations"
@@ -684,6 +906,117 @@ export default function DashboardFeed() {
           ))}
         </Historique>
       </div>
+
+      {referenceModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reference-alimentaire-titre"
+        >
+          <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2
+                  id="reference-alimentaire-titre"
+                  className="text-xl font-semibold"
+                >
+                  {referenceEnModification
+                    ? "Modifier la référence"
+                    : "Ajouter une référence"}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Les tranches d’âge ne doivent pas se chevaucher.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReferenceModalOpen(false)}
+                className="rounded !bg-gray-200 px-3 py-2 !text-gray-900"
+                aria-label="Fermer"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <Champ label="Type d’aliment">
+                <input
+                  type="text"
+                  value={referenceType}
+                  onChange={(event) => setReferenceType(event.target.value)}
+                  className="w-full rounded border p-2"
+                  placeholder="Ex. Démarrage"
+                />
+              </Champ>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Champ label="Âge minimum (jours)">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={referenceAgeMin}
+                    onChange={(event) => setReferenceAgeMin(event.target.value)}
+                    className="w-full rounded border p-2"
+                  />
+                </Champ>
+                <Champ label="Âge maximum (jours)">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={referenceAgeMax}
+                    onChange={(event) => setReferenceAgeMax(event.target.value)}
+                    className="w-full rounded border p-2"
+                  />
+                </Champ>
+              </div>
+
+              <Champ label="Consommation par sujet et par jour (g)">
+                <input
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  value={referenceConso}
+                  onChange={(event) => setReferenceConso(event.target.value)}
+                  className="w-full rounded border p-2"
+                />
+              </Champ>
+
+              <Champ label="Prix HT d’un sac de 25 kg (€)">
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={referencePrix}
+                  onChange={(event) => setReferencePrix(event.target.value)}
+                  className="w-full rounded border p-2"
+                />
+              </Champ>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setReferenceModalOpen(false)}
+                disabled={saving}
+                className="rounded !bg-gray-200 px-4 py-2 !text-gray-900 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={enregistrerReference}
+                disabled={saving}
+                className="rounded !bg-blue-600 px-4 py-2 !text-white disabled:opacity-60"
+              >
+                {saving ? "Enregistrement..." : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

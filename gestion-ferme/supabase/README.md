@@ -49,3 +49,9 @@ automatisation et ne supprime aucune donnee.
 L'interface utilise des sacs de 25 kg. Les quantites restent stockees en
 kilogrammes dans Supabase pour conserver la precision et la compatibilite des
 donnees. Le stock est calcule avec les livraisons moins les consommations.
+
+Pour gerer les references depuis l'interface :
+
+1. Executer `feed-reference-management.sql`.
+2. Executer `check-feed-reference-management.sql`.
+3. Verifier que le statut affiche `OK`.

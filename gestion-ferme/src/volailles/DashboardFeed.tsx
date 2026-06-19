@@ -1,4 +1,4 @@
-import { Children, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
@@ -93,6 +93,9 @@ export default function DashboardFeed() {
   const [livraisons, setLivraisons] = useState<LivraisonStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [consommationModalOpen, setConsommationModalOpen] = useState(false);
+  const [livraisonModalOpen, setLivraisonModalOpen] = useState(false);
+  const [referencesInfoOpen, setReferencesInfoOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [referenceEnModification, setReferenceEnModification] =
     useState<FeedReference | null>(null);
@@ -382,6 +385,7 @@ export default function DashboardFeed() {
       setConsommationSacs("");
       setConsommationNote("");
       setConsommationEnModification(null);
+      setConsommationModalOpen(false);
       toast.success(
         consommationEnModification
           ? "Consommation modifiée."
@@ -450,6 +454,7 @@ export default function DashboardFeed() {
       setLivraisonFournisseur("");
       setLivraisonPrix("");
       setLivraisonEnModification(null);
+      setLivraisonModalOpen(false);
       toast.success(
         livraisonEnModification
           ? "Livraison modifiée."
@@ -466,7 +471,7 @@ export default function DashboardFeed() {
     setConsommationType(item.feed_type);
     setConsommationSacs(enSacs(item.quantite_kg).toFixed(2));
     setConsommationNote(item.note || "");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setConsommationModalOpen(true);
   };
 
   const annulerModificationConsommation = () => {
@@ -486,7 +491,7 @@ export default function DashboardFeed() {
     setLivraisonPrix(
       item.prix_total_ht == null ? "" : String(item.prix_total_ht)
     );
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setLivraisonModalOpen(true);
   };
 
   const annulerModificationLivraison = () => {
@@ -675,621 +680,78 @@ export default function DashboardFeed() {
     0
   );
 
-  if (loading) return <div className="p-4">Chargement...</div>;
+  if (loading) return <div className="feed-loading">Chargement...</div>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Suivi de l’alimentation</h1>
-        <p className="text-sm text-gray-600">
-          Consommations quotidiennes, stock disponible et besoins sur 15 jours.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Indicateur
-          label="Stock total"
-          value={`${enSacs(stockTotal).toFixed(2)} sacs`}
-        />
-        <Indicateur
-          label="Consommé aujourd’hui"
-          value={`${enSacs(consommationDuJour).toFixed(2)} sacs`}
-        />
-        <Indicateur
-          label="Besoin sur 15 jours"
-          value={`${besoinTotalSacs.toFixed(2)} sacs`}
-        />
-        <Indicateur
-          label="À commander"
-          value={`${commandeTotaleSacs} sacs`}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Formulaire
-          title={
-            consommationEnModification
-              ? "Modifier la consommation"
-              : "Saisir une consommation"
-          }
-        >
-          {consommationEnModification && (
-            <div className="flex items-center justify-between gap-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-              <span>La consommation sélectionnée est en cours de modification.</span>
-              <button
-                type="button"
-                onClick={annulerModificationConsommation}
-                disabled={saving}
-                className="shrink-0 rounded !bg-gray-200 px-3 py-2 !text-gray-900 disabled:opacity-60"
-              >
-                Annuler
-              </button>
-            </div>
-          )}
-          <div className="grid gap-3 md:grid-cols-2">
-            <Champ label="Lot">
-              <select
-                value={consommationLotId}
-                onChange={(event) => setConsommationLotId(event.target.value)}
-                className="w-full rounded border p-2"
-              >
-                <option value="">Choisir un lot</option>
-                {lots.map((lot) => (
-                  <option key={lot.id} value={lot.id}>
-                    {lot.nom}
-                  </option>
-                ))}
-              </select>
-            </Champ>
-            <Champ label="Date">
-              <input
-                type="date"
-                value={consommationDate}
-                onChange={(event) => setConsommationDate(event.target.value)}
-                className="w-full rounded border p-2"
-              />
-            </Champ>
-            <Champ label="Type d’aliment">
-              <select
-                value={consommationType}
-                onChange={(event) => setConsommationType(event.target.value)}
-                className="w-full rounded border p-2"
-              >
-                <option value="">Choisir un aliment</option>
-                {typesAliment.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </Champ>
-            <Champ label="Nombre de sacs consommés (25 kg)">
-              <input
-                type="number"
-                min={0.01}
-                step="0.01"
-                value={consommationSacs}
-                onChange={(event) => setConsommationSacs(event.target.value)}
-                className="w-full rounded border p-2"
-              />
-            </Champ>
-          </div>
-          {lotConsommationSelectionne && suggestionConsommation && (
-            <div className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-              <div className="font-semibold">
-                Suggestion : {suggestionConsommation.sacs.toFixed(2)} sacs de{" "}
-                {suggestionConsommation.reference.feed_type}
-              </div>
-              <div className="mt-1 text-blue-800">
-                Lot âgé de {suggestionConsommation.age} jours, calculé pour{" "}
-                {suggestionConsommation.sujets} sujet(s).
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setConsommationSacs(suggestionConsommation.sacs.toFixed(2))
-                }
-                className="mt-3 rounded !bg-blue-600 px-3 py-2 !text-white"
-              >
-                Utiliser cette quantité
-              </button>
-            </div>
-          )}
-          {lotConsommationSelectionne &&
-            consommationDate &&
-            !suggestionConsommation && (
-              <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Aucune référence alimentaire ne correspond à l’âge de ce lot à
-                cette date. La quantité peut être saisie manuellement.
-              </div>
-            )}
-          <Champ label="Note facultative">
-            <input
-              type="text"
-              value={consommationNote}
-              onChange={(event) => setConsommationNote(event.target.value)}
-              className="w-full rounded border p-2"
-            />
-          </Champ>
-          <button
-            onClick={enregistrerConsommation}
-            disabled={saving}
-            className="w-full !bg-blue-600 !text-white rounded p-2 disabled:opacity-60"
-          >
-            {saving
-              ? "Enregistrement..."
-              : consommationEnModification
-                ? "Enregistrer les modifications"
-                : "Enregistrer la consommation"}
-          </button>
-        </Formulaire>
-
-        <Formulaire
-          title={
-            livraisonEnModification
-              ? "Modifier la livraison"
-              : "Ajouter une livraison au stock"
-          }
-        >
-          {livraisonEnModification && (
-            <div className="flex items-center justify-between gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-              <span>La livraison sélectionnée est en cours de modification.</span>
-              <button
-                type="button"
-                onClick={annulerModificationLivraison}
-                disabled={saving}
-                className="shrink-0 rounded !bg-gray-200 px-3 py-2 !text-gray-900 disabled:opacity-60"
-              >
-                Annuler
-              </button>
-            </div>
-          )}
-          <p className="text-sm text-gray-600">
-            Pour initialiser le suivi, saisissez ici le stock actuellement présent.
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Champ label="Date">
-              <input
-                type="date"
-                value={livraisonDate}
-                onChange={(event) => setLivraisonDate(event.target.value)}
-                className="w-full rounded border p-2"
-              />
-            </Champ>
-            <Champ label="Type d’aliment">
-              <select
-                value={livraisonType}
-                onChange={(event) => setLivraisonType(event.target.value)}
-                className="w-full rounded border p-2"
-              >
-                <option value="">Choisir un aliment</option>
-                {typesAliment.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </Champ>
-            <Champ label="Nombre de sacs livrés (25 kg)">
-              <input
-                type="number"
-                min={0.01}
-                step="0.01"
-                value={livraisonSacs}
-                onChange={(event) => setLivraisonSacs(event.target.value)}
-                className="w-full rounded border p-2"
-              />
-            </Champ>
-            <Champ label="Fournisseur">
-              <input
-                type="text"
-                value={livraisonFournisseur}
-                onChange={(event) => setLivraisonFournisseur(event.target.value)}
-                className="w-full rounded border p-2"
-              />
-            </Champ>
-          </div>
-          <Champ label="Prix total HT facultatif (€)">
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={livraisonPrix}
-              onChange={(event) => setLivraisonPrix(event.target.value)}
-              className="w-full rounded border p-2"
-            />
-          </Champ>
-          <button
-            onClick={enregistrerLivraison}
-            disabled={saving}
-            className="w-full !bg-emerald-600 !text-white rounded p-2 disabled:opacity-60"
-          >
-            {saving
-              ? "Enregistrement..."
-              : livraisonEnModification
-                ? "Enregistrer les modifications"
-                : "Ajouter au stock"}
-          </button>
-        </Formulaire>
-      </div>
-
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Stock par aliment</h2>
-        {stock.length === 0 ? (
-          <EtatVide texte="Aucun mouvement de stock enregistré." />
-        ) : (
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {stock.map((item) => (
-              <article
-                key={item.feedType}
-                className={`rounded border p-4 ${
-                  item.stock < 0 ? "border-red-300 bg-red-50" : "bg-white"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-semibold">{item.feedType}</h3>
-                  <span className="text-xl font-bold">
-                    {enSacs(item.stock).toFixed(2)} sacs
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <Valeur
-                    label="Livré"
-                    value={`${enSacs(item.entrees).toFixed(2)} sacs`}
-                  />
-                  <Valeur
-                    label="Consommé"
-                    value={`${enSacs(item.consommations).toFixed(2)} sacs`}
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Prévision de commande à 15 jours</h2>
-        <p className="text-sm text-gray-600">
-          Calculée avec les lots actifs, leur âge, les sujets restants et le stock.
-        </p>
-        {joursSansReference > 0 && (
-          <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {joursSansReference} journée(s) de lot ne disposent pas d’une référence
-            de consommation. La prévision peut être sous-estimée.
-          </div>
-        )}
-        {prevision.length === 0 ? (
-          <EtatVide texte="Aucun besoin prévisionnel disponible." />
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-3 py-2 text-left">Aliment</th>
-                  <th className="border px-3 py-2 text-right">Sacs à consommer</th>
-                  <th className="border px-3 py-2 text-right">Stock en sacs</th>
-                  <th className="border px-3 py-2 text-right">Sacs à commander</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prevision.map((item) => (
-                  <tr key={item.feedType} className="odd:bg-white even:bg-gray-50">
-                    <td className="border px-3 py-2">{item.feedType}</td>
-                    <td className="border px-3 py-2 text-right">
-                      {item.besoinSacs.toFixed(2)}
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {item.stockSacs.toFixed(2)}
-                    </td>
-                    <td className="border px-3 py-2 text-right font-semibold">
-                      {item.aCommanderSacs}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Références alimentaires</h2>
-            <p className="text-sm text-gray-600">
-              Ces valeurs servent à calculer la consommation prévisionnelle selon
-              l’âge des lots.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={ouvrirNouvelleReference}
-            className="rounded !bg-blue-600 px-4 py-2 !text-white"
-          >
-            Ajouter une référence
-          </button>
+    <div className="feed-page">
+      <header className="feed-heading">
+        <div><h1>Suivi de l’alimentation</h1><p>Consommations quotidiennes, stock disponible et besoins sur 15 jours.</p></div>
+        <div>
+          <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>▥ Saisir une consommation</button>
+          <button type="button" className="feed-primary-action" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>🚚 Ajouter une livraison</button>
+          <button type="button" className="feed-info-button" title="Références alimentaires" aria-label="Afficher les références alimentaires" onClick={() => setReferencesInfoOpen(true)}>i</button>
         </div>
+      </header>
 
-        {references.length === 0 ? (
-          <EtatVide texte="Aucune référence alimentaire enregistrée." />
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-3 py-2 text-left">Aliment</th>
-                  <th className="border px-3 py-2 text-right">Âge minimum</th>
-                  <th className="border px-3 py-2 text-right">Âge maximum</th>
-                  <th className="border px-3 py-2 text-right">
-                    Consommation / sujet / jour
-                  </th>
-                  <th className="border px-3 py-2 text-right">
-                    Prix du sac HT
-                  </th>
-                  <th className="border px-3 py-2 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {references.map((reference) => (
-                  <tr
-                    key={reference.id}
-                    className="odd:bg-white even:bg-gray-50"
-                  >
-                    <td className="border px-3 py-2 font-medium">
-                      {reference.feed_type}
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {reference.age_min_days} jours
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {reference.age_max_days} jours
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {reference.daily_consumption_g} g
-                    </td>
-                    <td className="border px-3 py-2 text-right">
-                      {(reference.feed_price_ht || 0).toFixed(2)} €
-                    </td>
-                    <td className="border px-3 py-2">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => ouvrirModificationReference(reference)}
-                          disabled={saving}
-                          className="rounded !bg-slate-700 px-3 py-2 !text-white disabled:opacity-60"
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => supprimerReference(reference)}
-                          disabled={saving}
-                          className="rounded !bg-red-600 px-3 py-2 !text-white disabled:opacity-60"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <section className="feed-kpis">
+        <FeedKpi tone="green" icon="▣" label="Stock total" value={`${enSacs(stockTotal).toFixed(2)} sacs`} note="Disponible en stock" />
+        <FeedKpi tone="blue" icon="▥" label="Consommé aujourd’hui" value={`${enSacs(consommationDuJour).toFixed(2)} sacs`} note="Toutes références" />
+        <FeedKpi tone="violet" icon="□" label="Besoin sur 15 jours" value={`${besoinTotalSacs.toFixed(2)} sacs`} note="Prévision calculée" />
+        <FeedKpi tone="orange" icon="⌑" label="À commander" value={`${commandeTotaleSacs} sacs`} note="Recommandation" />
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Historique
-          title="Dernières consommations"
-          vide="Aucune consommation enregistrée."
-        >
-          {consommations.slice(0, 15).map((item) => (
-            <Mouvement
-              key={item.id}
-              titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`}
-              sousTitre={formatDate(item.date)}
-              valeur={`-${enSacs(item.quantite_kg).toFixed(2)} sacs`}
-              onEdit={() => modifierConsommation(item)}
-              onDelete={() => supprimerConsommation(item)}
-              saving={saving}
-            />
+      <section className="feed-panel">
+        <div className="feed-panel-heading"><div><h2>Stock par aliment</h2><p>Situation actuelle calculée à partir des livraisons et consommations.</p></div></div>
+        <div className="feed-stock-grid">
+          {stock.map((item, index) => (
+            <article key={item.feedType} className={item.stock < 0 ? "feed-stock-alert" : ""}>
+              <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{enSacs(item.stock).toFixed(2)} sacs</b></div>
+              <div><span>Livré <b>{enSacs(item.entrees).toFixed(2)} sacs</b></span><span>Consommé <b>{enSacs(item.consommations).toFixed(2)} sacs</b></span></div>
+            </article>
           ))}
-        </Historique>
-
-        <Historique
-          title="Dernières livraisons de stock"
-          vide="Aucune livraison enregistrée."
-        >
-          {livraisons.slice(0, 15).map((item) => (
-            <Mouvement
-              key={item.id}
-              titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`}
-              sousTitre={formatDate(item.date)}
-              valeur={`+${enSacs(item.quantite_kg).toFixed(2)} sacs`}
-              onEdit={() => modifierLivraison(item)}
-              onDelete={() => supprimerLivraison(item)}
-              saving={saving}
-            />
-          ))}
-        </Historique>
-      </div>
-
-      {referenceModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="reference-alimentaire-titre"
-        >
-          <div className="relative w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
-            <ModalCloseButton
-              onClick={() => setReferenceModalOpen(false)}
-              disabled={saving}
-            />
-            <div className="flex items-start justify-between gap-3">
-              <div className="pr-12">
-                <h2
-                  id="reference-alimentaire-titre"
-                  className="text-xl font-semibold"
-                >
-                  {referenceEnModification
-                    ? "Modifier la référence"
-                    : "Ajouter une référence"}
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Les tranches d’âge ne doivent pas se chevaucher.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              <Champ label="Type d’aliment">
-                <input
-                  type="text"
-                  value={referenceType}
-                  onChange={(event) => setReferenceType(event.target.value)}
-                  className="w-full rounded border p-2"
-                  placeholder="Ex. Démarrage"
-                />
-              </Champ>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Champ label="Âge minimum (jours)">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={referenceAgeMin}
-                    onChange={(event) => setReferenceAgeMin(event.target.value)}
-                    className="w-full rounded border p-2"
-                  />
-                </Champ>
-                <Champ label="Âge maximum (jours)">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={referenceAgeMax}
-                    onChange={(event) => setReferenceAgeMax(event.target.value)}
-                    className="w-full rounded border p-2"
-                  />
-                </Champ>
-              </div>
-
-              <Champ label="Consommation par sujet et par jour (g)">
-                <input
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  value={referenceConso}
-                  onChange={(event) => setReferenceConso(event.target.value)}
-                  className="w-full rounded border p-2"
-                />
-              </Champ>
-
-              <Champ label="Prix HT d’un sac de 25 kg (€)">
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={referencePrix}
-                  onChange={(event) => setReferencePrix(event.target.value)}
-                  className="w-full rounded border p-2"
-                />
-              </Champ>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setReferenceModalOpen(false)}
-                disabled={saving}
-                className="rounded !bg-gray-200 px-4 py-2 !text-gray-900 disabled:opacity-60"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={enregistrerReference}
-                disabled={saving}
-                className="rounded !bg-blue-600 px-4 py-2 !text-white disabled:opacity-60"
-              >
-                {saving ? "Enregistrement..." : "Enregistrer"}
-              </button>
-            </div>
-          </div>
+          {!stock.length && <div className="feed-empty">Aucun mouvement de stock enregistré.</div>}
         </div>
-      )}
+      </section>
+
+      <section className="feed-panel feed-forecast">
+        <div className="feed-panel-heading"><div><h2>Prévision de commande à 15 jours</h2><p>Calculée avec les lots actifs, leur âge, les sujets restants et le stock.</p></div></div>
+        {joursSansReference > 0 && <div className="feed-warning">ⓘ {joursSansReference} journée(s) de lot ne disposent pas d’une référence. La prévision peut être sous-estimée.</div>}
+        <div className="feed-table-wrap">
+          <table className="feed-table">
+            <thead><tr><th>Aliment</th><th>Sacs à consommer</th><th>Stock en sacs</th><th>Sacs à commander</th></tr></thead>
+            <tbody>{prevision.map((item, index) => <tr key={item.feedType}><td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{item.feedType}</td><td>{item.besoinSacs.toFixed(2)}</td><td>{item.stockSacs.toFixed(2)}</td><td className={item.aCommanderSacs > 0 ? "feed-order-needed" : "feed-order-ok"}>{item.aCommanderSacs}</td></tr>)}</tbody>
+            {!!prevision.length && <tfoot><tr><td>Total</td><td>{besoinTotalSacs.toFixed(2)}</td><td>{enSacs(stockTotal).toFixed(2)}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
+          </table>
+        </div>
+      </section>
+
+      <section className="feed-history-grid">
+        <FeedHistory title="Dernières consommations" empty="Aucune consommation enregistrée.">
+          {consommations.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`} sousTitre={formatDate(item.date)} valeur={`-${enSacs(item.quantite_kg).toFixed(2)} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />)}
+        </FeedHistory>
+        <FeedHistory title="Dernières livraisons de stock" empty="Aucune livraison enregistrée.">
+          {livraisons.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${enSacs(item.quantite_kg).toFixed(2)} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
+        </FeedHistory>
+      </section>
+
+      {consommationModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2><p>Enregistrer les sacs consommés par un lot.</p></div></div><div className="poultry-form-grid"><label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}><option value="">Choisir un lot</option>{lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}</select></label><label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label><label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs consommés (25 kg)<input type="number" min={0.01} step="0.01" value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label></div>{suggestionConsommation && <div className="feed-suggestion"><div><strong>Suggestion : {suggestionConsommation.sacs.toFixed(2)} sacs de {suggestionConsommation.reference.feed_type}</strong><span>Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span></div><button type="button" onClick={() => setConsommationSacs(suggestionConsommation.sacs.toFixed(2))}>Utiliser</button></div>}<div className="poultry-form-stack feed-note-field"><label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button></div></div></div>}
+
+      {livraisonModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2><p>Enregistrer une entrée de sacs de 25 kg.</p></div></div><div className="poultry-form-grid"><label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label><label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs livrés (25 kg)<input type="number" min={0.01} step="0.01" value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label><label>Fournisseur<input type="text" value={livraisonFournisseur} onChange={(event) => setLivraisonFournisseur(event.target.value)} /></label></div><div className="poultry-form-stack feed-note-field"><label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button></div></div></div>}
+
+      {referencesInfoOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-large feed-reference-modal"><ModalCloseButton onClick={() => setReferencesInfoOpen(false)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">i</span><div><h2>Références alimentaires</h2><p>Valeurs utilisées pour calculer la consommation prévisionnelle selon l’âge des lots.</p></div></div><div className="feed-reference-heading"><span>{references.length} référence(s)</span><button type="button" onClick={ouvrirNouvelleReference}>＋ Ajouter une référence</button></div><div className="feed-table-wrap"><table className="feed-table feed-reference-table"><thead><tr><th>Aliment</th><th>Âge minimum</th><th>Âge maximum</th><th>Consommation / sujet / jour</th><th>Prix du sac HT</th><th>Actions</th></tr></thead><tbody>{references.map((reference, index) => <tr key={reference.id}><td><span className={`feed-type-icon feed-type-${index % 3}`}>⌁</span>{reference.feed_type}</td><td>{reference.age_min_days} jours</td><td>{reference.age_max_days} jours</td><td>{reference.daily_consumption_g} g</td><td>{(reference.feed_price_ht || 0).toFixed(2)} €</td><td><div className="feed-row-actions"><button type="button" title="Modifier" onClick={() => ouvrirModificationReference(reference)}>✎</button><button type="button" title="Supprimer" onClick={() => supprimerReference(reference)}>🗑</button></div></td></tr>)}</tbody></table></div></div></div>}
+
+      {referenceModalOpen && <div className="poultry-modal-backdrop poultry-modal-backdrop-front"><div className="poultry-modal poultry-modal-small"><ModalCloseButton onClick={() => setReferenceModalOpen(false)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">⌁</span><div><h2>{referenceEnModification ? "Modifier la référence" : "Ajouter une référence"}</h2><p>Les tranches d’âge ne doivent pas se chevaucher.</p></div></div><div className="poultry-form-stack"><label>Type d’aliment<input type="text" value={referenceType} onChange={(event) => setReferenceType(event.target.value)} placeholder="Ex. Démarrage" /></label><label>Âge minimum (jours)<input type="number" min={0} step={1} value={referenceAgeMin} onChange={(event) => setReferenceAgeMin(event.target.value)} /></label><label>Âge maximum (jours)<input type="number" min={0} step={1} value={referenceAgeMax} onChange={(event) => setReferenceAgeMax(event.target.value)} /></label><label>Consommation par sujet et par jour (g)<input type="number" min={0.01} step="0.01" value={referenceConso} onChange={(event) => setReferenceConso(event.target.value)} /></label><label>Prix HT d’un sac de 25 kg (€)<input type="number" min={0} step="0.01" value={referencePrix} onChange={(event) => setReferencePrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerReference} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button><button type="button" className="poultry-modal-secondary" onClick={() => setReferenceModalOpen(false)}>Annuler</button></div></div></div>}
     </div>
   );
 }
 
-function Indicateur({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="text-xs uppercase text-gray-500">{label}</div>
-      <div className="mt-1 text-xl font-bold">{value}</div>
-    </div>
-  );
+function FeedKpi({ tone, icon, label, value, note }: { tone: string; icon: string; label: string; value: string; note: string }) {
+  return <article className="feed-kpi"><span className={`feed-kpi-icon feed-kpi-${tone}`}>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div></article>;
 }
 
-function Formulaire({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-lg border bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Champ({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
-      <div className="mt-1">{children}</div>
-    </label>
-  );
-}
-
-function Valeur({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded border p-2">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function Historique({
-  title,
-  vide,
-  children,
-}: {
-  title: string;
-  vide: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="mt-3 space-y-2">
-        {Children.count(children) > 0 ? children : <EtatVide texte={vide} />}
-      </div>
-    </section>
-  );
+function FeedHistory({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
+  const items = Array.isArray(children) ? children : [children];
+  return <section className="feed-panel feed-history"><h2>{title}</h2><div>{items.length && items[0] ? children : <div className="feed-empty">{empty}</div>}</div></section>;
 }
 
 function Mouvement({
@@ -1308,32 +770,16 @@ function Mouvement({
   saving: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded border p-3">
-      <div className="min-w-0">
-        <div className="truncate font-medium">{titre}</div>
-        <div className="text-sm text-gray-500">{sousTitre}</div>
+    <div className="feed-movement">
+      <div>
+        <strong>{titre}</strong>
+        <small>{sousTitre}</small>
       </div>
-      <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-        <span className="mr-auto font-semibold sm:mr-0">{valeur}</span>
-        <button
-          onClick={onEdit}
-          disabled={saving}
-          className="rounded !bg-slate-700 px-2 py-1 text-xs !text-white disabled:opacity-60"
-        >
-          Modifier
-        </button>
-        <button
-          onClick={onDelete}
-          disabled={saving}
-          className="!bg-red-600 !text-white rounded px-2 py-1 text-xs disabled:opacity-60"
-        >
-          Supprimer
-        </button>
+      <b>{valeur}</b>
+      <div className="feed-row-actions">
+        <button type="button" title="Modifier" onClick={onEdit} disabled={saving}>✎</button>
+        <button type="button" title="Supprimer" onClick={onDelete} disabled={saving}>🗑</button>
       </div>
     </div>
   );
-}
-
-function EtatVide({ texte }: { texte: string }) {
-  return <div className="p-6 text-center text-gray-500">{texte}</div>;
 }

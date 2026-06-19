@@ -6,9 +6,11 @@ import fishLogo from "../assets/fish.svg";
 import plantsLogo from "../assets/plants.svg";
 import sheepLogo from "../assets/sheep.svg";
 import { supabase } from "../supabaseClient";
+import type { UserRole } from "../auth/userProfile";
 
 type HeaderProps = {
   userEmail: string;
+  userRole?: UserRole;
 };
 
 type NavigationItem = {
@@ -33,7 +35,7 @@ const estDansProductionVolailles = (pathname: string) =>
   pathname.startsWith("/volailles/alimentation") ||
   pathname.startsWith("/volailles/historique");
 
-const Header: FC<HeaderProps> = ({ userEmail }) => {
+const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [volaillesOpen, setVolaillesOpen] = useState(
@@ -197,7 +199,7 @@ const Header: FC<HeaderProps> = ({ userEmail }) => {
           </div>
           <div className="app-user-copy">
             <strong>{userEmail || "Utilisateur"}</strong>
-            <span>Administrateur</span>
+            <span>{userRole === "admin" ? "Administrateur" : "Utilisateur"}</span>
           </div>
           <button
             type="button"

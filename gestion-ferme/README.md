@@ -5,18 +5,20 @@ Interface React/Vite pour suivre les ateliers de l'exploitation agricole, avec u
 ## Configuration locale
 
 1. Copier le fichier `.env.example` vers `.env`.
-2. Renseigner les variables Supabase et la correspondance de connexion :
+2. Renseigner les variables Supabase :
 
 ```env
 VITE_SUPABASE_URL=https://votre-projet.supabase.co
 VITE_SUPABASE_ANON_KEY=votre-cle-anon-supabase
+
+# Secours temporaire pendant l'installation de la connexion multi-utilisateurs
 VITE_AUTH_USERNAME=mon-identifiant
 VITE_AUTH_EMAIL=compte-supabase@exemple.com
 ```
 
-`VITE_AUTH_USERNAME` peut contenir l'identifiant librement choisi.
-`VITE_AUTH_EMAIL` doit contenir l'adresse du compte créé dans Supabase.
-L'adresse n'est jamais demandée dans l'écran de connexion.
+La connexion principale utilise maintenant les profils Supabase et la fonction
+Edge `username-login`. Les variables `VITE_AUTH_USERNAME` et
+`VITE_AUTH_EMAIL` servent uniquement de secours pendant la migration.
 
 3. Installer les dependances :
 
@@ -37,8 +39,7 @@ npm run dev
 3. Ajouter les variables d'environnement dans Vercel :
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_AUTH_USERNAME`
-   - `VITE_AUTH_EMAIL`
+   - temporairement : `VITE_AUTH_USERNAME` et `VITE_AUTH_EMAIL`
 4. Vercel publiera automatiquement l'interface a chaque mise a jour du depot.
 
 ## Notes de securite
@@ -53,15 +54,17 @@ npm run dev
 - Le fichier `vercel.json` redirige les routes React vers `index.html`.
 - La configuration Vite separe les principales bibliotheques en plusieurs fichiers pour limiter les alertes de taille au build.
 
-## Authentification
+## Authentification multi-utilisateurs
 
-L'application affiche maintenant un ecran de connexion avant les pages de gestion.
+L'installation detaillee se trouve dans `supabase/README.md`.
 
-Avant de deployer cette version, verifier dans Supabase :
+Chaque utilisateur possede :
 
-1. Aller dans `Authentication > Providers`.
-2. Activer `Email`.
-3. Creer le ou les comptes autorises dans `Authentication > Users`.
-4. Utiliser ces identifiants sur l'ecran de connexion de l'application.
+- un compte Supabase Auth avec son adresse et son mot de passe ;
+- un identifiant libre stocke dans `app_profiles` ;
+- un nom affiche ;
+- un role `admin` ou `user`.
 
-Cette version ne propose pas d'inscription publique depuis l'interface.
+La table des profils n'est pas accessible aux visiteurs non connectes. La
+correspondance entre identifiant et adresse est realisee dans une fonction Edge
+cote Supabase.

@@ -20,34 +20,44 @@ import AnalyseLot from './volailles/AnalyseLot';
 
 
 function App() {
-  const configuredUserName = import.meta.env.VITE_AUTH_USERNAME?.trim();
-
   return (
     <AuthGate>
-      {(session) => (
-        <div className="app-shell">
-          <Header userEmail={configuredUserName || (session.user.email ?? '').split('@')[0]} />
-          <Toaster position="top-right" reverseOrder={false} />
-          <div className="app-content">
-            <main className="app-main">
-              <Routes>
-                <Route index element={<Accueil userName={configuredUserName || (session.user.email ?? '').split('@')[0]} />} />
-                <Route path="volailles" element={<Volailles />} />
-                <Route path="aquaponie" element={<Aquaponie />} />
-                <Route path="cultures" element={<Cultures />} />
-                <Route path="ovins" element={<Ovins />} />
-                <Route path="/volailles/alimentation" element={<AlimentationPage />} />
-                <Route path="/volailles/historique" element={<Historique />} />
-                <Route path="/volailles/historique/:lotId/analyse" element={<AnalyseLot />} />
-                <Route path="/volailles/analyse" element={<Analyse />} />
-                <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
-                <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />
-              </Routes>
-            </main>
-            <Footer />
+      {(session, profile) => {
+        const legacyUserName = import.meta.env.VITE_AUTH_USERNAME?.trim();
+        const userName =
+          profile?.display_name ||
+          profile?.username ||
+          legacyUserName ||
+          (session.user.email ?? '').split('@')[0];
+
+        return (
+          <div className="app-shell">
+            <Header
+              userEmail={userName}
+              userRole={profile?.role || (legacyUserName ? "admin" : undefined)}
+            />
+            <Toaster position="top-right" reverseOrder={false} />
+            <div className="app-content">
+              <main className="app-main">
+                <Routes>
+                  <Route index element={<Accueil userName={userName} />} />
+                  <Route path="volailles" element={<Volailles />} />
+                  <Route path="aquaponie" element={<Aquaponie />} />
+                  <Route path="cultures" element={<Cultures />} />
+                  <Route path="ovins" element={<Ovins />} />
+                  <Route path="/volailles/alimentation" element={<AlimentationPage />} />
+                  <Route path="/volailles/historique" element={<Historique />} />
+                  <Route path="/volailles/historique/:lotId/analyse" element={<AnalyseLot />} />
+                  <Route path="/volailles/analyse" element={<Analyse />} />
+                  <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
+                  <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     </AuthGate>
   );
 }

@@ -2,11 +2,53 @@
 
 Ce dossier contient des notes de securite pour preparer la base de donnees.
 
-## Important
+## Connexion par identifiant et profils
 
-Ne pas activer les politiques RLS sans verifier le mode d'acces souhaite.
+La connexion multi-utilisateurs utilise :
 
-Aujourd'hui, l'application utilise la cle `anon` Supabase cote navigateur et ne contient pas encore d'ecran de connexion. Si les tables sont bloquees aux seuls utilisateurs authentifies, l'interface ne pourra plus lire ni enregistrer les donnees tant que l'authentification n'est pas ajoutee.
+- `app_profiles` pour associer un identifiant libre a un compte Supabase ;
+- la fonction Edge `username-login` pour resoudre cet identifiant sans exposer
+  l'adresse courriel dans le navigateur ;
+- Supabase Auth pour verifier le mot de passe et creer la session.
+
+Ordre d'installation :
+
+1. Executer `user-profiles.sql` dans le SQL Editor.
+2. Creer le compte dans `Authentication > Users`.
+3. Associer son identifiant depuis le SQL Editor :
+
+```sql
+select public.set_app_user_profile(
+  'adresse-du-compte@exemple.com',
+  'identifiant',
+  'Nom affiche',
+  'admin'
+);
+```
+
+4. Deployer la fonction :
+
+```bash
+supabase functions deploy username-login --no-verify-jwt
+```
+
+5. Executer `check-user-profiles.sql`.
+6. Tester la connexion par identifiant avant de supprimer les anciennes
+   variables `VITE_AUTH_USERNAME` et `VITE_AUTH_EMAIL` de Vercel.
+7. Apres validation, executer `rls-app-users.sql` pour limiter les donnees aux
+   profils actifs.
+
+Pour ajouter un autre utilisateur, creer son compte dans Authentication puis
+executer de nouveau `set_app_user_profile` avec un identifiant different et le
+role `user` ou `admin`.
+
+Pour desactiver un compte sans supprimer son historique :
+
+```sql
+update public.app_profiles
+set is_active = false, updated_at = now()
+where username = 'identifiant';
+```
 
 ## Ordre conseille
 

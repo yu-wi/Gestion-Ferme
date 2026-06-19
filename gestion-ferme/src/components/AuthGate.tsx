@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
+import {
+  chargerProfilUtilisateur,
+  type UserProfile,
+} from '../auth/userProfile';
 
 type AuthGateProps = {
-  children: (session: Session) => ReactNode;
+  children: (session: Session, profile: UserProfile | null) => ReactNode;
 };
 
 export default function AuthGate({ children }: AuthGateProps) {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,32 +40,76 @@ export default function AuthGate({ children }: AuthGateProps) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    if (!session?.user.id) {
+      setProfile(null);
+      return;
+    }
+
+    chargerProfilUtilisateur(session.user.id).then((nextProfile) => {
+      if (active) setProfile(nextProfile);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [session?.user.id]);
+
   const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setMessage('');
 
-    const valeurIdentifiant = identifiant.trim();
-    const identifiantAutorise = import.meta.env.VITE_AUTH_USERNAME?.trim();
-    const emailCompte = import.meta.env.VITE_AUTH_EMAIL?.trim();
-    if (!identifiantAutorise || !emailCompte) {
-      setMessage("La connexion par identifiant n'est pas configurée.");
-      setSubmitting(false);
-      return;
-    }
-    if (valeurIdentifiant.toLowerCase() !== identifiantAutorise.toLowerCase()) {
-      setMessage('Connexion impossible. Vérifiez votre identifiant et votre mot de passe.');
-      setSubmitting(false);
-      return;
+    const valeurIdentifiant = identifiant.trim().toLowerCase();
+    let connected = false;
+
+    try {
+      const { data, error: functionError } =
+        await supabase.functions.invoke<{
+          access_token?: string;
+          refresh_token?: string;
+        }>('username-login', {
+          body: { username: valeurIdentifiant, password },
+        });
+
+      if (!functionError && data?.access_token && data.refresh_token) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        connected = !sessionError;
+      }
+    } catch (error) {
+      console.warn(
+        "Connexion par profil Supabase temporairement indisponible :",
+        error
+      );
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: emailCompte,
-      password,
-    });
+    if (!connected) {
+      const legacyUsername = import.meta.env.VITE_AUTH_USERNAME?.trim();
+      const legacyEmail = import.meta.env.VITE_AUTH_EMAIL?.trim();
 
-    if (error) {
-      setMessage('Connexion impossible. Vérifiez votre identifiant et votre mot de passe.');
+      if (
+        legacyUsername &&
+        legacyEmail &&
+        valeurIdentifiant === legacyUsername.toLowerCase()
+      ) {
+        const { error: legacyError } =
+          await supabase.auth.signInWithPassword({
+            email: legacyEmail,
+            password,
+          });
+        connected = !legacyError;
+      }
+    }
+
+    if (!connected) {
+      setMessage(
+        'Connexion impossible. Vérifiez votre identifiant et votre mot de passe.'
+      );
     }
 
     setSubmitting(false);
@@ -124,5 +173,5 @@ export default function AuthGate({ children }: AuthGateProps) {
     );
   }
 
-  return <>{children(session)}</>;
+  return <>{children(session, profile)}</>;
 }

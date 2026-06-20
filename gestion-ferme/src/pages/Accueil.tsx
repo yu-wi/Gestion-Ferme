@@ -45,7 +45,27 @@ type FeedMovement = {
   date?: string;
 };
 
+type MeteoJour = {
+  date: string;
+  code: number;
+  temperatureMax: number;
+  temperatureMin: number;
+  pluie: number;
+  vent: number;
+};
+
+type MeteoSainteLuce = {
+  temperature: number;
+  ressenti: number;
+  code: number;
+  vent: number;
+  pluie: number;
+  jours: MeteoJour[];
+};
+
 const POIDS_SAC_KG = 25;
+const METEO_URL =
+  "https://api.open-meteo.com/v1/forecast?latitude=14.4685&longitude=-60.9214&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=America%2FMartinique&forecast_days=4";
 const formatNombre = (value: number, decimals = 0) =>
   value.toLocaleString("fr-FR", {
     minimumFractionDigits: decimals,
@@ -62,6 +82,17 @@ const dateDuJour = () =>
     year: "numeric",
   });
 
+const meteoCode = (code: number) => {
+  if (code === 0) return { icon: "☀", label: "Ensoleillé" };
+  if ([1, 2].includes(code)) return { icon: "🌤", label: "Éclaircies" };
+  if (code === 3) return { icon: "☁", label: "Couvert" };
+  if ([45, 48].includes(code)) return { icon: "≋", label: "Brume" };
+  if ([51, 53, 55, 56, 57].includes(code)) return { icon: "🌦", label: "Bruine" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: "🌧", label: "Pluie" };
+  if ([95, 96, 99].includes(code)) return { icon: "⛈", label: "Orage" };
+  return { icon: "☁", label: "Variable" };
+};
+
 export default function Accueil({ userName }: AccueilProps) {
   const [events, setEvents] = useState<DashboardEvent[]>([]);
   const [lots, setLots] = useState<LotDashboard[]>([]);
@@ -73,6 +104,9 @@ export default function Accueil({ userName }: AccueilProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
+  const [meteo, setMeteo] = useState<MeteoSainteLuce | null>(null);
+  const [meteoOpen, setMeteoOpen] = useState(false);
+  const [meteoErreur, setMeteoErreur] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     start: "",
@@ -149,6 +183,39 @@ export default function Accueil({ userName }: AccueilProps) {
     };
 
     chargerTableauDeBord();
+  }, []);
+
+  useEffect(() => {
+    const chargerMeteo = async () => {
+      try {
+        const response = await fetch(METEO_URL);
+        if (!response.ok) throw new Error(`Météo HTTP ${response.status}`);
+        const data = await response.json();
+        const jours: MeteoJour[] = (data.daily?.time || []).map(
+          (date: string, index: number) => ({
+            date,
+            code: Number(data.daily.weather_code?.[index]) || 0,
+            temperatureMax: Number(data.daily.temperature_2m_max?.[index]) || 0,
+            temperatureMin: Number(data.daily.temperature_2m_min?.[index]) || 0,
+            pluie: Number(data.daily.precipitation_probability_max?.[index]) || 0,
+            vent: Number(data.daily.wind_speed_10m_max?.[index]) || 0,
+          })
+        );
+        setMeteo({
+          temperature: Number(data.current?.temperature_2m) || 0,
+          ressenti: Number(data.current?.apparent_temperature) || 0,
+          code: Number(data.current?.weather_code) || 0,
+          vent: Number(data.current?.wind_speed_10m) || 0,
+          pluie: jours[0]?.pluie || 0,
+          jours,
+        });
+        setMeteoErreur(false);
+      } catch (error) {
+        console.error("Erreur chargement météo :", error);
+        setMeteoErreur(true);
+      }
+    };
+    chargerMeteo();
   }, []);
 
   const lotsActifs = lots.filter((lot) => lot.is_active);
@@ -302,9 +369,24 @@ export default function Accueil({ userName }: AccueilProps) {
           <h1>Bonjour {userName || "à vous"}</h1>
           <p>Voici un aperçu de votre exploitation.</p>
         </div>
-        <div className="dashboard-date">
-          <span className="dashboard-weather">☀</span>
-          <span>{dateDuJour()}</span>
+        <div className="dashboard-heading-tools">
+          <button
+            type="button"
+            className="dashboard-weather-widget"
+            onClick={() => setMeteoOpen(true)}
+            aria-label="Afficher les prévisions météo de Sainte-Luce"
+          >
+            <span className="dashboard-weather-icon">
+              {meteo ? meteoCode(meteo.code).icon : meteoErreur ? "!" : "◌"}
+            </span>
+            <span>
+              <strong>{meteo ? `${Math.round(meteo.temperature)} °C` : meteoErreur ? "Indisponible" : "Chargement"}</strong>
+              <small>{meteo ? `Pluie ${Math.round(meteo.pluie)} % · Vent ${Math.round(meteo.vent)} km/h` : "Sainte-Luce"}</small>
+            </span>
+          </button>
+          <div className="dashboard-date">
+            <span>{dateDuJour()}</span>
+          </div>
         </div>
       </header>
 
@@ -448,6 +530,40 @@ export default function Accueil({ userName }: AccueilProps) {
         onDelete={handleDeleteEvent}
         saving={saving}
       />
+
+      {meteoOpen && (
+        <div className="poultry-modal-backdrop" onClick={() => setMeteoOpen(false)}>
+          <div className="weather-modal" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="weather-modal-close" onClick={() => setMeteoOpen(false)} aria-label="Fermer">×</button>
+            <div className="weather-modal-heading">
+              <span>{meteo ? meteoCode(meteo.code).icon : "☁"}</span>
+              <div>
+                <h2>Météo à Sainte-Luce</h2>
+                <p>{meteo ? `${meteoCode(meteo.code).label} · Ressenti ${Math.round(meteo.ressenti)} °C` : "Prévisions temporairement indisponibles."}</p>
+              </div>
+            </div>
+            {meteo && (
+              <>
+                <div className="weather-current">
+                  <strong>{Math.round(meteo.temperature)} °C</strong>
+                  <span>Pluie {Math.round(meteo.pluie)} %</span>
+                  <span>Vent {Math.round(meteo.vent)} km/h</span>
+                </div>
+                <div className="weather-forecast">
+                  {meteo.jours.slice(0, 3).map((jour) => (
+                    <article key={jour.date}>
+                      <strong>{new Date(`${jour.date}T00:00:00`).toLocaleDateString("fr-FR", { weekday: "short" })}</strong>
+                      <span className="weather-forecast-icon">{meteoCode(jour.code).icon}</span>
+                      <b>{Math.round(jour.temperatureMax)}° / {Math.round(jour.temperatureMin)}°</b>
+                      <small>Pluie {Math.round(jour.pluie)} % · Vent {Math.round(jour.vent)} km/h</small>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

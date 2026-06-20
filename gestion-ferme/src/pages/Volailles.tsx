@@ -98,9 +98,7 @@ useEffect(() => {
 
 // Filtre les lots par nom et bâtiment
 const filteredLots = lots.filter(lot => {
- const sujetsRestants = calculerSujetsRestants(lot);
- const ratio = lot.quantite > 0 ? sujetsRestants / lot.quantite : 0;
- if (showOnlyAlertLots && ratio >= 0.5) return false;
+ if (showOnlyAlertLots && calculerVigilanceLot(lot).tone === 'normal') return false;
  return (
    lot.nom.toLowerCase().includes(searchNom.toLowerCase()) &&
    lot.batiment.toLowerCase().includes(searchBatiment.toLowerCase())
@@ -502,6 +500,65 @@ function calculerAgeLot(lot: LotVolaille) {
     0,
     Math.floor((Date.now() - dateArriveeLot.getTime()) / 86400000)
   );
+}
+
+type VigilanceLot = {
+  label: string;
+  tone: 'normal' | 'warning' | 'danger' | 'info';
+};
+
+function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
+  const age = calculerAgeLot(lot);
+  const mortalites = lot.mortalites.reduce(
+    (total, mortalite) => total + (mortalite.nombre ?? 0),
+    0
+  );
+  const tauxMortalite = lot.quantite > 0
+    ? (mortalites / lot.quantite) * 100
+    : 0;
+
+  if (tauxMortalite >= 3) {
+    return { label: 'Lot à surveiller', tone: 'danger' };
+  }
+
+  if (age >= 68 && lot.livraisons.length === 0) {
+    return {
+      label: age < 70 ? `Livraison dans ${70 - age} j` : 'Livraison à planifier',
+      tone: age < 70 ? 'info' : 'danger',
+    };
+  }
+
+  const evenements = [
+    { jour: 15, label: 'Vaccin' },
+    { jour: 25, label: 'Rappel vaccin' },
+    { jour: 47, label: 'Analyse' },
+  ];
+  const prochainEvenement = evenements.find(({ jour }) => {
+    const joursRestants = jour - age;
+    return joursRestants >= -1 && joursRestants <= 3;
+  });
+
+  if (prochainEvenement) {
+    const joursRestants = prochainEvenement.jour - age;
+    if (joursRestants > 0) {
+      return {
+        label: `${prochainEvenement.label} dans ${joursRestants} j`,
+        tone: 'warning',
+      };
+    }
+    if (joursRestants === 0) {
+      return {
+        label: `${prochainEvenement.label} aujourd’hui`,
+        tone: 'warning',
+      };
+    }
+    return {
+      label: `${prochainEvenement.label} à vérifier`,
+      tone: 'warning',
+    };
+  }
+
+  return { label: 'Suivi normal', tone: 'normal' };
 }
 
 
@@ -985,16 +1042,16 @@ return (
            const mortalitesLot = lot.mortalites.reduce((sum, mort) => sum + mort.nombre, 0);
            const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
            const age = calculerAgeLot(lot);
+           const vigilance = calculerVigilanceLot(lot);
            return (
              <article key={lot.id} className="poultry-mobile-card">
                <div className="poultry-mobile-card-heading">
                  <div><strong>{lot.nom}</strong><span>{lot.batiment} · {age} jours</span></div>
-                 <span className="poultry-status">En cours</span>
+                 <span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span>
                </div>
-               <div className="poultry-mobile-values">
+               <div className="poultry-mobile-values poultry-mobile-values-compact">
                  <span>Effectif <b>{sujetsRestants}</b></span>
                  <span>Mortalité <b className={taux >= 3 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
-                 <span>Poids <b>{lot.livraisons.reduce((sum, livraison) => sum + livraison.poids, 0).toFixed(1)} kg</b></span>
                </div>
                <div className="poultry-card-actions">
                  <button type="button" onClick={() => setDetailLot(lot)}><span aria-hidden="true">👁</span> Fiche</button>
@@ -1018,33 +1075,29 @@ return (
                <th onClick={() => handleSort('nom')}>N° lot</th>
                <th onClick={() => handleSort('batiment')}>Bâtiment</th>
                <th onClick={() => handleSort('dateArrivee')}>Date début</th>
-               <th>Âge</th>
-               <th>Effectif</th>
-               <th>Poids total</th>
-               <th>Mortalité</th>
-               <th>Résultat brut</th>
-               <th>Statut</th>
-               <th>Actions</th>
+	               <th>Âge</th>
+	               <th>Effectif</th>
+	               <th>Mortalité</th>
+	               <th>Vigilance</th>
+	               <th>Actions</th>
              </tr>
            </thead>
            <tbody>
              {sortedLots.map((lot) => {
                const sujetsRestants = calculerSujetsRestants(lot);
-               const mortalitesLot = lot.mortalites.reduce((sum, mort) => sum + mort.nombre, 0);
-               const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
-               const age = calculerAgeLot(lot);
-               const poids = lot.livraisons.reduce((sum, livraison) => sum + livraison.poids, 0);
+	               const mortalitesLot = lot.mortalites.reduce((sum, mort) => sum + mort.nombre, 0);
+	               const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
+	               const age = calculerAgeLot(lot);
+	               const vigilance = calculerVigilanceLot(lot);
                return (
                  <tr key={lot.id}>
                    <td><button type="button" className="poultry-lot-link" onClick={() => setDetailLot(lot)}>{lot.nom}</button></td>
                    <td>{lot.batiment}</td>
                    <td>{new Date(`${lot.dateArrivee}T00:00:00`).toLocaleDateString("fr-FR")}</td>
-                   <td>{age} jours</td>
-                   <td>{sujetsRestants}</td>
-                   <td>{poids.toFixed(2)} kg</td>
-                   <td className={taux >= 3 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
-                   <td>{(Number(lot.resultat_brut) || 0).toFixed(2)} €</td>
-                   <td><span className="poultry-status">En cours</span></td>
+	                   <td>{age} jours</td>
+	                   <td>{sujetsRestants}</td>
+	                   <td className={taux >= 3 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
+	                   <td><span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span></td>
                    <td>
                      <div className="poultry-row-actions">
                        <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.nom}`} onClick={() => setDetailLot(lot)}>👁</button>
@@ -1063,7 +1116,7 @@ return (
                );
              })}
              {!sortedLots.length && (
-               <tr><td colSpan={10}><div className="poultry-empty">Aucun lot actif à afficher.</div></td></tr>
+	               <tr><td colSpan={8}><div className="poultry-empty">Aucun lot actif à afficher.</div></td></tr>
              )}
            </tbody>
          </table>

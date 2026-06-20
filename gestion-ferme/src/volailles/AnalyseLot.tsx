@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import {
@@ -95,11 +86,7 @@ export default function AnalyseLot() {
       acc.fin = fin;
       return acc;
     }, { segments: [] as string[], fin: 0 }).segments;
-    const evolutionPoids = [...lot.livraisons].sort((a, b) => a.date.localeCompare(b.date)).map((livraison, index) => ({
-      label: livraison.date ? new Date(`${livraison.date}T00:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : `Liv. ${index + 1}`,
-      poids: livraison.quantite > 0 ? livraison.poids / livraison.quantite : 0,
-    }));
-    return { quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments, evolutionPoids };
+    return { quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
   }, [lot, charges]);
 
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
@@ -120,32 +107,16 @@ export default function AnalyseLot() {
         <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${donnees.tauxMortalite.toFixed(1)} %`} note={`${lot.nb_morts || 0} sujets perdus`} />
       </section>
 
-      <section className="lot-analysis-top-grid">
-        <article className="history-panel lot-analysis-performance">
-          <h2>Performances de production</h2>
-          <dl>
-            <div><dt>Âge à la livraison</dt><dd>{lot.age || 0} jours</dd></div>
-            <div><dt>Poids moyen à la livraison</dt><dd>{donnees.poidsMoyen.toFixed(2)} kg</dd></div>
-            <div><dt>Taux de mortalité</dt><dd>{donnees.tauxMortalite.toFixed(1)} %</dd></div>
-            <div><dt>Quantité retenue</dt><dd>{lot.quantite_retenue || 0}</dd></div>
-            <div><dt>Autoconsommation</dt><dd>{lot.autoconsommation || 0}</dd></div>
-            <div><dt>Sujets restants</dt><dd>{lot.sujets_restants || 0}</dd></div>
-          </dl>
-        </article>
-        <article className="history-panel lot-analysis-chart">
-          <h2>Poids moyen par livraison (kg)</h2>
-          {donnees.evolutionPoids.length ? (
-            <ResponsiveContainer width="100%" height={245}>
-              <LineChart data={donnees.evolutionPoids} margin={{ top: 20, right: 25, left: 0, bottom: 5 }}>
-                <CartesianGrid stroke="#e5ebe8" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} kg`, "Poids moyen"]} />
-                <Line type="monotone" dataKey="poids" stroke="#16853d" strokeWidth={3} dot={{ fill: "#16853d", r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : <p className="history-empty">Aucune livraison enregistrée.</p>}
-        </article>
+      <section className="history-panel lot-analysis-performance">
+        <h2>Performances de production</h2>
+        <dl>
+          <div><dt>Âge à la livraison</dt><dd>{lot.age || 0} jours</dd></div>
+          <div><dt>Poids moyen à la livraison</dt><dd>{donnees.poidsMoyen.toFixed(2)} kg</dd></div>
+          <div><dt>Taux de mortalité</dt><dd>{donnees.tauxMortalite.toFixed(1)} %</dd></div>
+          <div><dt>Quantité retenue</dt><dd>{lot.quantite_retenue || 0}</dd></div>
+          <div><dt>Autoconsommation</dt><dd>{lot.autoconsommation || 0}</dd></div>
+          <div><dt>Sujets restants</dt><dd>{lot.sujets_restants || 0}</dd></div>
+        </dl>
       </section>
 
       <section className="lot-analysis-middle-grid">

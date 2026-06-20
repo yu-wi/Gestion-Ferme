@@ -58,6 +58,11 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (profileError || !profile) {
+      console.error("username-login: profile lookup failed", {
+        hasProfile: Boolean(profile),
+        errorCode: profileError?.code || null,
+        errorMessage: profileError?.message || null,
+      });
       return jsonResponse({ error: "Invalid credentials" }, 401);
     }
 
@@ -66,6 +71,10 @@ Deno.serve(async (request) => {
     const email = userData.user?.email;
 
     if (userError || !email) {
+      console.error("username-login: auth user lookup failed", {
+        hasEmail: Boolean(email),
+        errorMessage: userError?.message || null,
+      });
       return jsonResponse({ error: "Invalid credentials" }, 401);
     }
 
@@ -76,6 +85,12 @@ Deno.serve(async (request) => {
       await authClient.auth.signInWithPassword({ email, password });
 
     if (authError || !authData.session) {
+      console.error("username-login: password sign-in failed", {
+        hasSession: Boolean(authData.session),
+        status: authError?.status || null,
+        errorCode: authError?.code || null,
+        errorMessage: authError?.message || null,
+      });
       return jsonResponse({ error: "Invalid credentials" }, 401);
     }
 

@@ -43,7 +43,6 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [chargeEnModification, setChargeEnModification] = useState<Charge | null>(null);
   const [selectedType, setSelectedType] = useState("achat_poussins");
   const [montant, setMontant] = useState<number>(0);
-  const [date, setDate] = useState("");
 
   const fetchLots = async () => {
     try {
@@ -127,8 +126,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
   const handleSave = async () => {
     if (saving || !lotSelectionne) return;
-    if (!date || montant <= 0) {
-      toast.error("Indiquez une date et un montant positif.");
+    if (montant <= 0) {
+      toast.error("Indiquez un montant positif.");
       return;
     }
 
@@ -138,7 +137,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       lot_nom: lotSelectionne.nom,
       type_charge: selectedType,
       montant,
-      date,
+      date: dateDuJour(),
     });
 
     if (error) {
@@ -148,7 +147,6 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       setModalOpen(false);
       setSelectedType("achat_poussins");
       setMontant(0);
-      setDate("");
       await fetchCharges();
       toast.success("Charge enregistrée.");
     }
@@ -157,8 +155,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
   const enregistrerModification = async () => {
     if (saving || !chargeEnModification) return;
-    if (!chargeEnModification.date || chargeEnModification.montant <= 0) {
-      toast.error("Indiquez une date et un montant positif.");
+    if (chargeEnModification.montant <= 0) {
+      toast.error("Indiquez un montant positif.");
       return;
     }
 
@@ -166,7 +164,6 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
     const { data, error } = await supabase
       .from("charges")
       .update({
-        date: chargeEnModification.date,
         type_charge: chargeEnModification.type_charge,
         montant: chargeEnModification.montant,
       })
@@ -259,7 +256,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
                 <article key={charge.id}>
                   <div className="charge-category">
                     <span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span>
-                    <div><strong>{meta.label}</strong><small>{formatDate(charge.date)}</small></div>
+                    <div><strong>{meta.label}</strong></div>
                   </div>
                   <div className="charge-mobile-values"><b>{charge.montant.toFixed(2)} €</b><span>{pourcentage.toFixed(1)} %</span></div>
                   <div className="charge-actions">
@@ -273,7 +270,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
           <div className="charge-manager-table-wrap">
             <table className="charge-manager-table">
-              <thead><tr><th>Catégorie</th><th>Montant (€)</th><th>% du total</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Catégorie</th><th>Montant (€)</th><th>% du total</th><th>Actions</th></tr></thead>
               <tbody>
                 {chargesDuLot.map((charge) => {
                   const meta = chargeMeta[charge.type_charge] || chargeMeta.divers;
@@ -284,14 +281,13 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
                       <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{meta.label}</strong></div></td>
                       <td>{charge.montant.toFixed(2)} €</td>
                       <td>{pourcentage.toFixed(1)} %</td>
-                      <td>{formatDate(charge.date)}</td>
                       <td><div className="charge-actions"><button type="button" title="Modifier la charge" onClick={() => setChargeEnModification({ ...charge })}>✎</button><button type="button" title="Supprimer la charge" onClick={() => supprimerCharge(charge)} disabled={saving}>🗑</button></div></td>
                     </tr>
                   );
                 })}
-                {!chargesDuLot.length && <tr><td colSpan={5} className="charge-manager-empty">Aucune charge enregistrée pour ce lot.</td></tr>}
+                {!chargesDuLot.length && <tr><td colSpan={4} className="charge-manager-empty">Aucune charge enregistrée pour ce lot.</td></tr>}
               </tbody>
-              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{totalCharges.toFixed(2)} €</td><td>100 %</td><td>—</td><td>—</td></tr></tfoot>}
+              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{totalCharges.toFixed(2)} €</td><td>100 %</td><td>—</td></tr></tfoot>}
             </table>
           </div>
         </>
@@ -303,10 +299,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
         lotName={lotSelectionne?.nom || ""}
         type={selectedType}
         montant={montant}
-        date={date}
         onTypeChange={setSelectedType}
         onMontantChange={setMontant}
-        onDateChange={setDate}
         onSave={handleSave}
         onClose={() => setModalOpen(false)}
         saving={saving}
@@ -320,10 +314,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
           lotName={chargeEnModification.lot_nom}
           type={chargeEnModification.type_charge}
           montant={chargeEnModification.montant}
-          date={chargeEnModification.date}
           onTypeChange={(type) => setChargeEnModification({ ...chargeEnModification, type_charge: type })}
           onMontantChange={(nouveauMontant) => setChargeEnModification({ ...chargeEnModification, montant: nouveauMontant })}
-          onDateChange={(nouvelleDate) => setChargeEnModification({ ...chargeEnModification, date: nouvelleDate })}
           onSave={enregistrerModification}
           onClose={() => setChargeEnModification(null)}
           saving={saving}
@@ -340,10 +332,8 @@ function ChargeFormModal({
   lotName,
   type,
   montant,
-  date,
   onTypeChange,
   onMontantChange,
-  onDateChange,
   onSave,
   onClose,
   saving,
@@ -354,10 +344,8 @@ function ChargeFormModal({
   lotName: string;
   type: string;
   montant: number;
-  date: string;
   onTypeChange: (value: string) => void;
   onMontantChange: (value: number) => void;
-  onDateChange: (value: string) => void;
   onSave: () => void;
   onClose: () => void;
   saving: boolean;
@@ -375,7 +363,6 @@ function ChargeFormModal({
         <div className="poultry-form-stack">
           <label>Catégorie<select value={type} onChange={(event) => onTypeChange(event.target.value)}><option value="achat_poussins">Achat poussins</option><option value="aliment">Aliment</option><option value="ramassage">Ramassage</option><option value="livraison">Livraison</option><option value="divers">Divers</option></select></label>
           <label>Montant (€)<input type="number" min={0.01} step="0.01" value={montant} onChange={(event) => onMontantChange(Number(event.target.value))} /></label>
-          <label>Date<input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} /></label>
         </div>
         <div className="poultry-modal-actions">
           <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>
@@ -389,6 +376,15 @@ function ChargeFormModal({
 function formatDate(date: string) {
   if (!date) return "—";
   return new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR");
+}
+
+function dateDuJour() {
+  const date = new Date();
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 export default Charges;

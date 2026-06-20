@@ -15,7 +15,7 @@ export type EvenementVolaille = {
 export const REGLES_SUIVI_VOLAILLES: RegleSuiviVolaille[] = [
   { key: "vaccin", title: "Vaccin", jour: 15, icon: "✚", tone: "warning" },
   { key: "rappel", title: "Rappel vaccin", jour: 25, icon: "↻", tone: "warning" },
-  { key: "analyse", title: "Analyse", jour: 47, icon: "⌕", tone: "warning" },
+  { key: "analyse", title: "Analyse", jour: 46, icon: "⌕", tone: "warning" },
   { key: "livraison", title: "Livraison", jour: 70, icon: "🚚", tone: "info" },
 ];
 

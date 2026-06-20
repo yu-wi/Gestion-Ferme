@@ -298,6 +298,13 @@ export default function Historique() {
         <button type="button" onClick={() => window.print()}>▤ Exporter PDF</button>
       </header>
 
+      <nav className="poultry-tabs" aria-label="Sections volailles">
+        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles/alimentation">Alimentation</Link>
+        <Link to="/volailles/historique" className="poultry-tab-active">Lots terminés</Link>
+        <Link to="/volailles/analyse">Performances</Link>
+      </nav>
+
       <section className="history-kpis">
         <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={formatNombre(lotsAffiches.length)} note="Lots affichés" />
         <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />

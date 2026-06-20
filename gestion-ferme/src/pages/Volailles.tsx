@@ -941,7 +941,7 @@ return (
 
    <nav className="poultry-tabs" aria-label="Sections volailles">
      <a href="#vue-ensemble" className="poultry-tab-active">Vue d’ensemble</a>
-     <a href="#lots-en-cours">Lots en cours</a>
+     <Link to="/volailles/alimentation">Alimentation</Link>
      <Link to="/volailles/historique">Lots terminés</Link>
      <Link to="/volailles/analyse">Performances</Link>
    </nav>

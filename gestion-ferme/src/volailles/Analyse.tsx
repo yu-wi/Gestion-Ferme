@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
@@ -51,19 +38,13 @@ type LigneAnalyse = LotAnalyse & {
   quantiteLivree: number;
   tauxMortalite: number;
   poidsMoyen: number;
-  chargePoussins: number;
   chargeAliments: number;
-  chargeRamassage: number;
-  chargeLivraison: number;
-  chargeDivers: number;
   totalCharges: number;
   resultatCalcule: number;
   margeParKg: number;
   tauxCharges: number;
   tauxLivraison: number;
 };
-
-const couleursCharges = ["#209447", "#f5b000", "#3b78d8", "#8b6bd9", "#9aa6b2"];
 
 export default function Analyse() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -74,7 +55,6 @@ export default function Analyse() {
   );
   const [recherche, setRecherche] = useState("");
   const [lotFiltreId, setLotFiltreId] = useState("");
-  const [lotSelectionneId, setLotSelectionneId] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,21 +91,8 @@ export default function Analyse() {
         const poidsLivre = Number(lot.total_poids_livre) || 0;
         const chiffreAffaires = Number(lot.resultat_brut) || 0;
         const chargesLot = charges.filter((charge) => charge.lot_id === lot.id);
-        const totalType = (type: string) =>
-          chargesLot
-            .filter((charge) => charge.type_charge === type)
-            .reduce((total, charge) => total + charge.montant, 0);
-        const chargePoussins = totalType("achat_poussins");
-        const chargeAliments = totalType("aliment");
-        const chargeRamassage = totalType("ramassage");
-        const chargeLivraison = totalType("livraison");
-        const chargeDivers = chargesLot
-          .filter(
-            (charge) =>
-              !["achat_poussins", "aliment", "ramassage", "livraison"].includes(
-                charge.type_charge
-              )
-          )
+        const chargeAliments = chargesLot
+          .filter((charge) => charge.type_charge === "aliment")
           .reduce((total, charge) => total + charge.montant, 0);
         const totalCharges = chargesLot.reduce(
           (total, charge) => total + charge.montant,
@@ -144,11 +111,7 @@ export default function Analyse() {
               ? ((Number(lot.nb_morts) || 0) / lot.quantite) * 100
               : 0,
           poidsMoyen: quantiteLivree > 0 ? poidsLivre / quantiteLivree : 0,
-          chargePoussins,
           chargeAliments,
-          chargeRamassage,
-          chargeLivraison,
-          chargeDivers,
           totalCharges,
           resultatCalcule,
           margeParKg: poidsLivre > 0 ? resultatCalcule / poidsLivre : 0,
@@ -170,19 +133,6 @@ export default function Analyse() {
         lot.batiment.toLowerCase().includes(terme))
   );
 
-  useEffect(() => {
-    if (
-      lignesAffichees.length > 0 &&
-      !lignesAffichees.some((lot) => lot.id === lotSelectionneId)
-    ) {
-      setLotSelectionneId(lignesAffichees[0].id);
-    }
-  }, [lignesAffichees, lotSelectionneId]);
-
-  const lotSelectionne =
-    lignesAffichees.find((lot) => lot.id === lotSelectionneId) ||
-    lignesAffichees[0];
-
   if (loading) return <div className="analysis-loading">Chargement de l’analyse...</div>;
 
   return (
@@ -192,15 +142,20 @@ export default function Analyse() {
         <p>Comparez les performances de production et les résultats économiques des lots archivés.</p>
       </header>
 
+      <nav className="poultry-tabs" aria-label="Sections volailles">
+        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles/alimentation">Alimentation</Link>
+        <Link to="/volailles/historique">Lots terminés</Link>
+        <Link to="/volailles/analyse" className="poultry-tab-active">Performances</Link>
+      </nav>
+
       <section className="analysis-toolbar">
         <div className="analysis-tabs">
           <button type="button" className={onglet === "production" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("production"); setSearchParams({}); }}>▥ Production</button>
           <button type="button" className={onglet === "economie" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("economie"); setSearchParams({ onglet: "economie" }); }}>€ Économie</button>
         </div>
         <select value={lotFiltreId} onChange={(event) => {
-          const id = event.target.value;
-          setLotFiltreId(id);
-          if (id) setLotSelectionneId(id);
+          setLotFiltreId(event.target.value);
         }}>
           <option value="">Tous les lots</option>
           {lignes.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}
@@ -211,21 +166,15 @@ export default function Analyse() {
       {!lignesAffichees.length ? (
         <div className="analysis-empty">Aucun lot ne correspond à cette recherche.</div>
       ) : onglet === "production" ? (
-        <AnalyseProduction lignes={lignesAffichees} lotSelectionne={lotSelectionne} />
+        <AnalyseProduction lignes={lignesAffichees} />
       ) : (
-        <AnalyseEconomie lignes={lignesAffichees} lotSelectionne={lotSelectionne} onSelection={setLotSelectionneId} />
+        <AnalyseEconomie lignes={lignesAffichees} />
       )}
     </div>
   );
 }
 
-function AnalyseProduction({
-  lignes,
-  lotSelectionne,
-}: {
-  lignes: LigneAnalyse[];
-  lotSelectionne?: LigneAnalyse;
-}) {
+function AnalyseProduction({ lignes }: { lignes: LigneAnalyse[] }) {
   const totalInitial = somme(lignes, "quantite");
   const totalMorts = somme(lignes, "nb_morts");
   const totalLivres = somme(lignes, "quantiteLivree");
@@ -253,24 +202,6 @@ function AnalyseProduction({
         <AnalysisKpi tone="orange" icon="▣" label="Quantité retenue" value={formatNombre(quantiteRetenue)} note="Sujets conservés" />
       </section>
 
-      <section className="analysis-panel analysis-chart-panel">
-        <div className="analysis-panel-heading"><h2>Comparaison technique par lot</h2><span>Sujets livrés et mortalités</span></div>
-        <div className="analysis-chart">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={lignes} margin={{ top: 24, right: 25, left: 0, bottom: 18 }}>
-              <CartesianGrid stroke="#e5ebe8" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="nom" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend />
-              <Bar yAxisId="left" dataKey="quantiteLivree" fill="#2563eb" name="Sujets livrés" radius={[5, 5, 0, 0]} />
-              <Bar yAxisId="right" dataKey="nb_morts" fill="#ef1018" name="Mortalités" radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
       <TableauLots lignes={lignes} mode="production" />
 
       <section className="analysis-panel">
@@ -283,22 +214,12 @@ function AnalyseProduction({
         </div>
       </section>
 
-      {lotSelectionne && (
-        <Insight lot={lotSelectionne} />
-      )}
+      <InsightGlobal lignes={lignes} mode="production" />
     </>
   );
 }
 
-function AnalyseEconomie({
-  lignes,
-  lotSelectionne,
-  onSelection,
-}: {
-  lignes: LigneAnalyse[];
-  lotSelectionne?: LigneAnalyse;
-  onSelection: (id: string) => void;
-}) {
+function AnalyseEconomie({ lignes }: { lignes: LigneAnalyse[] }) {
   const chiffreAffaires = somme(lignes, "resultat_brut");
   const totalCharges = somme(lignes, "totalCharges");
   const resultat = somme(lignes, "resultatCalcule");
@@ -307,16 +228,6 @@ function AnalyseEconomie({
     somme(lignes, "total_poids_livre") > 0
       ? resultat / somme(lignes, "total_poids_livre")
       : 0;
-  const pieData = lotSelectionne
-    ? [
-        { name: "Poussins", value: lotSelectionne.chargePoussins },
-        { name: "Aliment", value: lotSelectionne.chargeAliments },
-        { name: "Ramassage", value: lotSelectionne.chargeRamassage },
-        { name: "Livraison", value: lotSelectionne.chargeLivraison },
-        { name: "Divers", value: lotSelectionne.chargeDivers },
-      ].filter((charge) => charge.value > 0)
-    : [];
-
   return (
     <>
       <section className="analysis-kpis">
@@ -324,27 +235,6 @@ function AnalyseEconomie({
         <AnalysisKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Charges cumulées" />
         <AnalysisKpi tone="green" icon="€" label="Résultat net" value={formatMontant(resultat)} note={`${formatNombre(tauxMarge, 1)} % de marge`} />
         <AnalysisKpi tone="violet" icon="◔" label="Marge par kg" value={`${margeParKg.toFixed(2)} €`} note="Sur le poids livré" />
-      </section>
-
-      <section className="analysis-economic-grid">
-        <article className="analysis-panel">
-          <div className="analysis-panel-heading"><h2>Répartition des charges</h2><select value={lotSelectionne?.id || ""} onChange={(event) => onSelection(event.target.value)}>{lignes.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}</select></div>
-          <div className="analysis-pie">
-            {pieData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={55} outerRadius={95}>{pieData.map((charge, index) => <Cell key={charge.name} fill={couleursCharges[index % couleursCharges.length]} />)}</Pie><Legend /><Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} /></PieChart>
-              </ResponsiveContainer>
-            ) : <div className="analysis-empty">Aucune charge enregistrée pour ce lot.</div>}
-          </div>
-        </article>
-        <article className="analysis-panel">
-          <div className="analysis-panel-heading"><h2>Rentabilité par lot</h2><span>CA, charges et résultat</span></div>
-          <div className="analysis-pie">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={lignes} margin={{ top: 20, right: 15, left: 0, bottom: 18 }}><CartesianGrid stroke="#e5ebe8" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="nom" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} /><Legend /><Bar dataKey="resultat_brut" fill="#2563eb" name="Chiffre d’affaires" radius={[4, 4, 0, 0]} /><Bar dataKey="totalCharges" fill="#f5b000" name="Charges" radius={[4, 4, 0, 0]} /><Bar dataKey="resultatCalcule" fill="#16853d" name="Résultat" radius={[4, 4, 0, 0]} /></BarChart>
-            </ResponsiveContainer>
-          </div>
-        </article>
       </section>
 
       <TableauLots lignes={lignes} mode="economie" />
@@ -359,7 +249,7 @@ function AnalyseEconomie({
         </div>
       </section>
 
-      {lotSelectionne && <Insight lot={lotSelectionne} />}
+      <InsightGlobal lignes={lignes} mode="economie" />
     </>
   );
 }
@@ -390,18 +280,45 @@ function PerformanceCard({ tone, icon, label, value, status }: { tone: string; i
   return <article className={`analysis-performance-card analysis-card-${tone}`}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><b>{status}</b></div></article>;
 }
 
-function Insight({ lot }: { lot: LigneAnalyse }) {
-  const message =
-    lot.resultatCalcule >= 0 && lot.tauxMortalite <= 15
-      ? `Le lot ${lot.nom} présente de bonnes performances globales.`
-      : lot.tauxMortalite > 15
-        ? `Le lot ${lot.nom} nécessite une attention particulière sur la mortalité.`
-        : `Le résultat économique du lot ${lot.nom} peut être amélioré.`;
-  const conseil =
-    lot.chargeAliments > lot.totalCharges * 0.5
-      ? "Les charges alimentaires représentent plus de la moitié des charges : surveillez la conversion alimentaire."
-      : "La structure des charges reste équilibrée. Continuez à suivre le poids moyen et les pertes.";
-  return <section className="analysis-insight"><span>✓</span><div><strong>Insights et recommandations</strong><p>{message} {conseil}</p></div></section>;
+function InsightGlobal({
+  lignes,
+  mode,
+}: {
+  lignes: LigneAnalyse[];
+  mode: OngletAnalyse;
+}) {
+  const totalInitial = somme(lignes, "quantite");
+  const totalLivres = somme(lignes, "quantiteLivree");
+  const totalMorts = somme(lignes, "nb_morts");
+  const totalPoids = somme(lignes, "total_poids_livre");
+  const tauxLivraison = totalInitial > 0 ? (totalLivres / totalInitial) * 100 : 0;
+  const tauxMortalite = totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
+  const poidsMoyen = totalLivres > 0 ? totalPoids / totalLivres : 0;
+  const chiffreAffaires = somme(lignes, "resultat_brut");
+  const totalCharges = somme(lignes, "totalCharges");
+  const resultat = somme(lignes, "resultatCalcule");
+  const tauxMarge = chiffreAffaires > 0 ? (resultat / chiffreAffaires) * 100 : 0;
+  const chargesAliment = somme(lignes, "chargeAliments");
+  const partAliment = totalCharges > 0 ? (chargesAliment / totalCharges) * 100 : 0;
+  const lotsDeficitaires = lignes.filter((lot) => lot.resultatCalcule < 0).length;
+
+  const message = mode === "production"
+    ? `${formatNombre(lignes.length)} lot(s) affiché(s) : ${formatNombre(tauxLivraison, 1)} % des sujets ont été livrés, avec ${formatNombre(tauxMortalite, 1)} % de mortalité et un poids moyen de ${formatPoids(poidsMoyen)}.`
+    : `${formatNombre(lignes.length)} lot(s) affiché(s) dégagent un résultat cumulé de ${formatMontant(resultat)}, soit ${formatNombre(tauxMarge, 1)} % de marge. ${formatNombre(lotsDeficitaires)} lot(s) présentent un résultat négatif.`;
+
+  const conseil = mode === "production"
+    ? tauxMortalite > 10
+      ? "Priorité recommandée : renforcer le suivi sanitaire et identifier les périodes où les pertes se concentrent."
+      : tauxLivraison < 80
+        ? "Priorité recommandée : analyser les sorties non livrées et les écarts d’effectif."
+        : "Les indicateurs de production sont globalement stables. Maintenez le suivi régulier des pertes et du poids final."
+    : partAliment > 50
+      ? `L’aliment représente ${formatNombre(partAliment, 1)} % des charges. C’est le premier levier à surveiller pour améliorer la marge globale.`
+      : tauxMarge < 20
+        ? "La marge globale reste limitée. Comparez les prix de vente et les principaux postes de charges entre les lots."
+        : "La rentabilité globale est satisfaisante. Surveillez toutefois les lots déficitaires pour éviter qu’ils ne réduisent la marge d’ensemble.";
+
+  return <section className="analysis-insight"><span>✓</span><div><strong>Synthèse et recommandations globales</strong><p>{message} {conseil}</p></div></section>;
 }
 
 function somme<T extends keyof LigneAnalyse>(lignes: LigneAnalyse[], cle: T) {

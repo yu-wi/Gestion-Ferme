@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
@@ -692,6 +693,13 @@ export default function DashboardFeed() {
           <button type="button" className="feed-info-button" title="Références alimentaires" aria-label="Afficher les références alimentaires" onClick={() => setReferencesInfoOpen(true)}>i</button>
         </div>
       </header>
+
+      <nav className="poultry-tabs" aria-label="Sections volailles">
+        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles/alimentation" className="poultry-tab-active">Alimentation</Link>
+        <Link to="/volailles/historique">Lots terminés</Link>
+        <Link to="/volailles/analyse">Performances</Link>
+      </nav>
 
       <section className="feed-kpis">
         <FeedKpi tone="green" icon="▣" label="Stock total" value={`${enSacs(stockTotal).toFixed(2)} sacs`} note="Disponible en stock" />

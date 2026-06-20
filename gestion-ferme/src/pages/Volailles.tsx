@@ -13,6 +13,13 @@ import {
 
 type Mortalite = MortaliteVolaille;
 interface Evenement { title: string; date: Date; }
+type RegleEvenementLot = {
+  key: 'vaccin' | 'rappel' | 'analyse' | 'livraison';
+  title: string;
+  jour: number;
+  icon: string;
+  tone: 'warning' | 'info';
+};
 interface LotVolaille {
 id: string; nom: string; quantite: number; dateArrivee: string;
 batiment: string; mortalites: Mortalite[]; evenements: Evenement[];
@@ -23,6 +30,30 @@ facture_date?: string;
 resultat_brut?: number;
 nb_morts?: number;
 sujets_restants?: number;
+}
+
+const REGLES_EVENEMENTS_LOT: RegleEvenementLot[] = [
+  { key: 'vaccin', title: 'Vaccin', jour: 15, icon: '✚', tone: 'warning' },
+  { key: 'rappel', title: 'Rappel vaccin', jour: 25, icon: '↻', tone: 'warning' },
+  { key: 'analyse', title: 'Analyse', jour: 47, icon: '⌕', tone: 'warning' },
+  { key: 'livraison', title: 'Livraison', jour: 70, icon: '🚚', tone: 'info' },
+];
+
+function dateDepuisArrivee(dateArrivee: string, jours: number) {
+  const date = new Date(`${dateArrivee}T00:00:00`);
+  date.setDate(date.getDate() + jours);
+  return date;
+}
+
+function genererEvenementsLot(dateArrivee: string): Evenement[] {
+  return [
+    { title: 'Réception', date: dateDepuisArrivee(dateArrivee, 0) },
+    { title: 'Ouverture poussinière', date: dateDepuisArrivee(dateArrivee, 15) },
+    ...REGLES_EVENEMENTS_LOT.map((regle) => ({
+      title: regle.title,
+      date: dateDepuisArrivee(dateArrivee, regle.jour),
+    })),
+  ];
 }
 
 
@@ -71,10 +102,7 @@ useEffect(() => {
      const data = await chargerLotsAvecMouvements(true);
      const lotsTransformés = data.map((lot: any) => ({
        ...lot,
-       evenements: (lot.evenements || []).map((e: any) => ({
-         ...e,
-         date: new Date(e.date),
-       })),
+       evenements: genererEvenementsLot(lot.date_arrivee),
        dateArrivee: lot.date_arrivee,
      }));
      setLots(lotsTransformés as LotVolaille[]);
@@ -138,24 +166,7 @@ const ajouterLot = async () => {
   const sujetsRestants = quantite; // Aucun mort au début
 
 
- const evenementDates = {
-   reception: new Date(dateArriveeDate.getTime()),  // J+0
-   ouverturePoussiniere: new Date(dateArriveeDate.getTime() + 15 * 86400000),  // J+15
-   vaccin: new Date(dateArriveeDate.getTime() + 15 * 86400000),               // J+15
-   rappelVaccin: new Date(dateArriveeDate.getTime() + 25 * 86400000),         // J+25
-   dateAnalyse: new Date(dateArriveeDate.getTime() + 47 * 86400000),          // J+47
-   livraison: new Date(dateArriveeDate.getTime() + 70 * 86400000),            // J+70
- };
-
-
- const nouveauxEvenements: Evenement[] = [
-   { title: "Réception", date: evenementDates.reception },
-   { title: "Ouverture poussinière", date: evenementDates.ouverturePoussiniere },
-   { title: "Vaccin", date: evenementDates.vaccin },
-   { title: "Rappel vaccin", date: evenementDates.rappelVaccin },
-   { title: "Date analyse", date: evenementDates.dateAnalyse },
-   { title: "Livraison", date: evenementDates.livraison },
- ];
+ const nouveauxEvenements = genererEvenementsLot(dateArrivee);
 
 
  const nouveauLot: LotVolaille = {
@@ -521,39 +532,42 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     return { label: 'Lot à surveiller', tone: 'danger' };
   }
 
-  if (age >= 68 && lot.livraisons.length === 0) {
+  const regleLivraison = REGLES_EVENEMENTS_LOT.find(
+    (regle) => regle.key === 'livraison'
+  );
+
+  if (regleLivraison && age >= regleLivraison.jour - 2 && lot.livraisons.length === 0) {
     return {
-      label: age < 70 ? `Livraison dans ${70 - age} j` : 'Livraison à planifier',
-      tone: age < 70 ? 'info' : 'danger',
+      label: age < regleLivraison.jour
+        ? `Livraison dans ${regleLivraison.jour - age} j`
+        : 'Livraison à planifier',
+      tone: age < regleLivraison.jour ? 'info' : 'danger',
     };
   }
 
-  const evenements = [
-    { jour: 15, label: 'Vaccin' },
-    { jour: 25, label: 'Rappel vaccin' },
-    { jour: 47, label: 'Analyse' },
-  ];
-  const prochainEvenement = evenements.find(({ jour }) => {
-    const joursRestants = jour - age;
-    return joursRestants >= -1 && joursRestants <= 3;
-  });
+  const prochainEvenement = REGLES_EVENEMENTS_LOT
+    .filter((regle) => regle.key !== 'livraison')
+    .find((regle) => {
+      const joursRestants = regle.jour - age;
+      return joursRestants >= -1 && joursRestants <= 3;
+    });
 
   if (prochainEvenement) {
     const joursRestants = prochainEvenement.jour - age;
     if (joursRestants > 0) {
       return {
-        label: `${prochainEvenement.label} dans ${joursRestants} j`,
+        label: `${prochainEvenement.title} dans ${joursRestants} j`,
         tone: 'warning',
       };
     }
     if (joursRestants === 0) {
       return {
-        label: `${prochainEvenement.label} aujourd’hui`,
+        label: `${prochainEvenement.title} aujourd’hui`,
         tone: 'warning',
       };
     }
     return {
-      label: `${prochainEvenement.label} à vérifier`,
+      label: `${prochainEvenement.title} à vérifier`,
       tone: 'warning',
     };
   }
@@ -899,14 +913,21 @@ const lotsFaibles = lots.filter(
   (lot) =>
     lot.quantite > 0 && calculerSujetsRestants(lot) / lot.quantite < 0.5
 );
-const prochaineLivraison = lots
-  .map((lot) => {
-    const date = new Date(`${lot.dateArrivee}T00:00:00`);
-    date.setDate(date.getDate() + 70);
-    return { lot, date };
-  })
-  .filter((item) => item.date.getTime() >= new Date().setHours(0, 0, 0, 0))
-  .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+const debutAujourdhui = new Date().setHours(0, 0, 0, 0);
+const echeancesProches = lots
+  .flatMap((lot) =>
+    REGLES_EVENEMENTS_LOT.map((regle) => {
+      const date = dateDepuisArrivee(lot.dateArrivee, regle.jour);
+      const joursRestants = Math.round(
+        (date.getTime() - debutAujourdhui) / 86400000
+      );
+      return { lot, regle, date, joursRestants };
+    })
+  )
+  .filter(({ joursRestants }) => joursRestants >= 0 && joursRestants <= 3)
+  .sort((a, b) => a.date.getTime() - b.date.getTime());
+const nombreAlertes =
+  lotsAlerteMortalite.length + lotsFaibles.length + echeancesProches.length;
 
 
 return (
@@ -936,7 +957,7 @@ return (
      <a href="#lots-en-cours">Lots en cours</a>
      <Link to="/volailles/historique">Lots terminés</Link>
      <a href="#batiments">Bâtiments</a>
-     <a href="#alertes">Mortalité</a>
+     <a href="#alertes">Alertes</a>
      <Link to="/volailles/analyse">Performances</Link>
    </nav>
 
@@ -979,7 +1000,7 @@ return (
      <article id="alertes" className="poultry-panel poultry-alerts">
        <div className="poultry-panel-heading">
          <h2>Alertes</h2>
-         <span>{lotsAlerteMortalite.length + lotsFaibles.length + (prochaineLivraison ? 1 : 0)}</span>
+         <span>{nombreAlertes}</span>
        </div>
        <div className="poultry-alert-list">
          {lotsAlerteMortalite.slice(0, 1).map(({ lot, taux }) => (
@@ -992,16 +1013,29 @@ return (
              <span>◫</span><div><strong>Effectif faible</strong><small>{lot.nom} · {calculerSujetsRestants(lot)} restants</small></div>
            </button>
          ))}
-         {prochaineLivraison && (
-           <button type="button" className="poultry-alert poultry-alert-success" onClick={() => {
-             setSelectedLot(prochaineLivraison.lot);
-             setLivraisons([{ date: '', quantite: '', poids: '' }]);
-             setShowLivraisonModal(true);
-           }}>
-             <span aria-hidden="true">🚚</span><div><strong>Livraison prévue</strong><small>{prochaineLivraison.lot.nom} · {prochaineLivraison.date.toLocaleDateString("fr-FR")}</small></div>
+         {echeancesProches.slice(0, 2).map(({ lot, regle, date, joursRestants }) => (
+           <button
+             key={`${lot.id}-${regle.key}`}
+             type="button"
+             className={`poultry-alert poultry-alert-${regle.tone}`}
+             onClick={() => {
+               if (regle.key === 'livraison') {
+                 setSelectedLot(lot);
+                 setLivraisons([{ date: '', quantite: '', poids: '' }]);
+                 setShowLivraisonModal(true);
+               } else {
+                 setDetailLot(lot);
+               }
+             }}
+           >
+             <span aria-hidden="true">{regle.icon}</span>
+             <div>
+               <strong>{regle.title}{joursRestants === 0 ? ' aujourd’hui' : ` dans ${joursRestants} j`}</strong>
+               <small>{lot.nom} · {date.toLocaleDateString("fr-FR")}</small>
+             </div>
            </button>
-         )}
-         {!lotsAlerteMortalite.length && !lotsFaibles.length && !prochaineLivraison && (
+         ))}
+         {!nombreAlertes && (
            <div className="poultry-empty">Aucune alerte actuellement.</div>
          )}
        </div>

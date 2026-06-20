@@ -1039,6 +1039,8 @@
 .poultry-alert-warning > span { color: #dc8d00; background: #ffedc4; }
 .poultry-alert-success { background: #eff8f1; }
 .poultry-alert-success > span { color: #16853d; background: #daf0df; }
+.poultry-alert-info { background: #edf5fc; }
+.poultry-alert-info > span { color: #2d70c4; background: #dcecf9; }
 
 .poultry-main-grid {
   display: grid;

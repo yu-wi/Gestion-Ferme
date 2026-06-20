@@ -12,7 +12,9 @@ import { supabase } from "../supabaseClient";
 import AddEventModal from "../outils/AddEventModal";
 import {
   CLES_EVENEMENTS_VOLAILLES,
+  dateDepuisArrivee,
   genererEvenementsVolailles,
+  REGLES_SUIVI_VOLAILLES,
 } from "../outils/evenementsVolailles";
 
 type AccueilProps = {
@@ -61,6 +63,16 @@ type MeteoSainteLuce = {
   vent: number;
   pluie: number;
   jours: MeteoJour[];
+};
+
+type DashboardAlert = {
+  id: string;
+  title: string;
+  detail: string;
+  icon: string;
+  tone: "danger" | "warning" | "info";
+  priority: number;
+  to: string;
 };
 
 const POIDS_SAC_KG = 25;
@@ -218,8 +230,14 @@ export default function Accueil({ userName }: AccueilProps) {
     chargerMeteo();
   }, []);
 
-  const lotsActifs = lots.filter((lot) => lot.is_active);
-  const lotsArchives = lots.filter((lot) => !lot.is_active);
+  const lotsActifs = useMemo(
+    () => lots.filter((lot) => lot.is_active),
+    [lots]
+  );
+  const lotsArchives = useMemo(
+    () => lots.filter((lot) => !lot.is_active),
+    [lots]
+  );
   const sujetsInitiaux = lotsActifs.reduce(
     (total, lot) => total + (Number(lot.quantite) || 0),
     0
@@ -246,6 +264,95 @@ export default function Accueil({ userName }: AccueilProps) {
   const consommationDuJourKg = consommations
     .filter((item) => item.date === new Date().toISOString().split("T")[0])
     .reduce((total, item) => total + item.quantite_kg, 0);
+
+  const alertesPrioritaires = useMemo(() => {
+    const alertes: DashboardAlert[] = [];
+    const aujourdHui = new Date();
+    aujourdHui.setHours(0, 0, 0, 0);
+
+    lotsActifs.forEach((lot) => {
+      const tauxMortalite =
+        lot.quantite > 0
+          ? ((Number(lot.nb_morts) || 0) / lot.quantite) * 100
+          : 0;
+      if (tauxMortalite >= 3) {
+        alertes.push({
+          id: `mortalite-${lot.id}`,
+          title: `Mortalité à surveiller · ${lot.nom}`,
+          detail: `${formatNombre(tauxMortalite, 1)} % du lot`,
+          icon: "†",
+          tone: "danger",
+          priority: 0,
+          to: "/volailles",
+        });
+      }
+
+      REGLES_SUIVI_VOLAILLES.forEach((regle) => {
+        const date = dateDepuisArrivee(lot.date_arrivee, regle.jour);
+        const joursRestants = Math.round(
+          (date.getTime() - aujourdHui.getTime()) / 86400000
+        );
+        if (joursRestants < 0 || joursRestants > 3) return;
+        alertes.push({
+          id: `${regle.key}-${lot.id}`,
+          title: `${regle.title} ${joursRestants === 0 ? "aujourd’hui" : `dans ${joursRestants} j`}`,
+          detail: `Lot ${lot.nom} · ${date.toLocaleDateString("fr-FR")}`,
+          icon: regle.icon,
+          tone: regle.tone,
+          priority: joursRestants === 0 ? 1 : 2,
+          to: "/volailles",
+        });
+      });
+    });
+
+    const debutSuivi = new Date(aujourdHui);
+    debutSuivi.setDate(debutSuivi.getDate() - 6);
+    const debutIso = [
+      debutSuivi.getFullYear(),
+      String(debutSuivi.getMonth() + 1).padStart(2, "0"),
+      String(debutSuivi.getDate()).padStart(2, "0"),
+    ].join("-");
+    const consommationSeptJours = consommations
+      .filter((item) => item.date && item.date >= debutIso)
+      .reduce((total, item) => total + item.quantite_kg, 0);
+    const consommationMoyenne = consommationSeptJours / 7;
+    const autonomieJours =
+      consommationMoyenne > 0
+        ? Math.max(0, stockKg) / consommationMoyenne
+        : Number.POSITIVE_INFINITY;
+
+    if (autonomieJours <= 7) {
+      alertes.push({
+        id: "stock-aliment",
+        title: "Commande d’aliment à anticiper",
+        detail: `Stock estimé pour ${Math.max(0, Math.floor(autonomieJours))} jour(s)`,
+        icon: "▣",
+        tone: autonomieJours <= 3 ? "danger" : "warning",
+        priority: autonomieJours <= 3 ? 0 : 2,
+        to: "/volailles/alimentation",
+      });
+    }
+
+    const meteoDuJour = meteo?.jours[0];
+    if (meteoDuJour && (meteoDuJour.pluie >= 70 || meteoDuJour.vent >= 50)) {
+      alertes.push({
+        id: "meteo-vigilance",
+        title: "Météo à surveiller aujourd’hui",
+        detail:
+          meteoDuJour.pluie >= 70
+            ? `${Math.round(meteoDuJour.pluie)} % de risque de pluie`
+            : `Rafales jusqu’à ${Math.round(meteoDuJour.vent)} km/h`,
+        icon: meteoCode(meteoDuJour.code).icon,
+        tone: "info",
+        priority: 3,
+        to: "/",
+      });
+    }
+
+    return alertes
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 4);
+  }, [consommations, lotsActifs, meteo, stockKg]);
 
   const repartition = useMemo(() => {
     const total = Math.max(1, sujetsInitiaux);
@@ -512,10 +619,43 @@ export default function Accueil({ userName }: AccueilProps) {
             <Link to="/volailles/alimentation">Gérer l’alimentation →</Link>
           </article>
           <article className="dashboard-panel dashboard-reminders">
-            <PanelTitle icon="!" title="Repères rapides" />
-            <Link to="/volailles">{lotsActifs.length} lots actuellement actifs</Link>
-            <Link to="/volailles/historique">{lotsArchives.length} lots archivés</Link>
-            <Link to="/volailles/analyse">{mortalites} mortalités sur les lots actifs</Link>
+            <div className="panel-title-row">
+              <PanelTitle icon="!" title="Alertes et rappels" />
+              <span className="dashboard-alert-count">{alertesPrioritaires.length}</span>
+            </div>
+            <div className="dashboard-alert-list">
+              {alertesPrioritaires.map((alerte) => (
+                <Link
+                  key={alerte.id}
+                  className={`dashboard-alert dashboard-alert-${alerte.tone}`}
+                  to={alerte.to}
+                  onClick={
+                    alerte.id === "meteo-vigilance"
+                      ? (event) => {
+                          event.preventDefault();
+                          setMeteoOpen(true);
+                        }
+                      : undefined
+                  }
+                >
+                  <span aria-hidden="true">{alerte.icon}</span>
+                  <div>
+                    <strong>{alerte.title}</strong>
+                    <small>{alerte.detail}</small>
+                  </div>
+                  <b aria-hidden="true">›</b>
+                </Link>
+              ))}
+              {alertesPrioritaires.length === 0 && (
+                <div className="dashboard-alert-empty">
+                  <span>✓</span>
+                  <div>
+                    <strong>Rien à signaler</strong>
+                    <small>Aucune échéance prioritaire actuellement.</small>
+                  </div>
+                </div>
+              )}
+            </div>
           </article>
         </aside>
       </section>

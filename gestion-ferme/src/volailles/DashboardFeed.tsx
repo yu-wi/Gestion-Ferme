@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
+import { formatDateCourte } from "../outils/formatNombre";
 
 type Lot = {
   id: string;
@@ -56,8 +57,12 @@ type PrevisionRow = {
 };
 
 const POIDS_SAC_KG = 25;
-const PREVISION_JOURS = 15;
+const PREVISION_JOURS = 7;
+const HORIZON_AUTONOMIE_JOURS = 180;
+const DELAI_COMMANDE_JOURS = 3;
 const enSacs = (quantiteKg: number) => quantiteKg / POIDS_SAC_KG;
+const sacsEntiers = (quantiteSacs: number) =>
+  Math.max(0, Math.round(quantiteSacs));
 const aujourdHui = () => {
   const date = new Date();
   const annee = date.getFullYear();
@@ -313,6 +318,62 @@ export default function DashboardFeed() {
       .sort((a, b) => b.aCommanderSacs - a.aCommanderSacs);
   }, [lots, references, stock, typesAliment]);
 
+  const autonomieStock = useMemo(() => {
+    const stockRestant = new Map(
+      stock.map((item) => [item.feedType, Math.max(0, item.stock)])
+    );
+    let consommationTrouvee = false;
+
+    for (let jour = 0; jour <= HORIZON_AUTONOMIE_JOURS; jour += 1) {
+      const besoinsDuJour = new Map<string, number>();
+
+      lots.forEach((lot) => {
+        const sujets =
+          lot.sujets_restants == null
+            ? Number(lot.quantite) || 0
+            : Number(lot.sujets_restants) || 0;
+        if (sujets <= 0) return;
+
+        const age = ageAuJour(lot.date_arrivee, jour);
+        const reference = references.find(
+          (item) => age >= item.age_min_days && age <= item.age_max_days
+        );
+        if (!reference) return;
+
+        consommationTrouvee = true;
+        const besoinKg = (reference.daily_consumption_g * sujets) / 1000;
+        besoinsDuJour.set(
+          reference.feed_type,
+          (besoinsDuJour.get(reference.feed_type) || 0) + besoinKg
+        );
+      });
+
+      for (const [feedType, besoinKg] of besoinsDuJour) {
+        const disponibleKg = stockRestant.get(feedType) || 0;
+        if (disponibleKg < besoinKg) {
+          const dateRupture = new Date();
+          dateRupture.setHours(0, 0, 0, 0);
+          dateRupture.setDate(dateRupture.getDate() + jour);
+          const dateFinStock = new Date(dateRupture);
+          if (jour > 0) dateFinStock.setDate(dateFinStock.getDate() - 1);
+
+          const dateCommande = new Date(dateRupture);
+          dateCommande.setDate(dateCommande.getDate() - DELAI_COMMANDE_JOURS);
+          const maintenant = new Date();
+          maintenant.setHours(0, 0, 0, 0);
+          if (dateCommande < maintenant) dateCommande.setTime(maintenant.getTime());
+
+          return { dateRupture, dateFinStock, dateCommande, feedType };
+        }
+        stockRestant.set(feedType, disponibleKg - besoinKg);
+      }
+    }
+
+    return consommationTrouvee
+      ? { dateRupture: null, dateFinStock: null, dateCommande: null, feedType: "" }
+      : null;
+  }, [lots, references, stock]);
+
   const joursSansReference = useMemo(() => {
     let total = 0;
     lots.forEach((lot) => {
@@ -470,7 +531,7 @@ export default function DashboardFeed() {
     setConsommationLotId(item.lot_id);
     setConsommationDate(item.date);
     setConsommationType(item.feed_type);
-    setConsommationSacs(enSacs(item.quantite_kg).toFixed(2));
+    setConsommationSacs(String(sacsEntiers(enSacs(item.quantite_kg))));
     setConsommationNote(item.note || "");
     setConsommationModalOpen(true);
   };
@@ -487,7 +548,7 @@ export default function DashboardFeed() {
     setLivraisonEnModification(item);
     setLivraisonDate(item.date);
     setLivraisonType(item.feed_type);
-    setLivraisonSacs(enSacs(item.quantite_kg).toFixed(2));
+    setLivraisonSacs(String(sacsEntiers(enSacs(item.quantite_kg))));
     setLivraisonFournisseur(item.fournisseur || "");
     setLivraisonPrix(
       item.prix_total_ht == null ? "" : String(item.prix_total_ht)
@@ -686,7 +747,7 @@ export default function DashboardFeed() {
   return (
     <div className="feed-page">
       <header className="feed-heading">
-        <div><h1>Suivi de l’alimentation</h1><p>Consommations quotidiennes, stock disponible et besoins sur 15 jours.</p></div>
+        <div><h1>Suivi de l’alimentation</h1><p>Consommations quotidiennes, stock disponible et besoins sur 7 jours.</p></div>
         <div>
           <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>▥ Saisir une consommation</button>
           <button type="button" className="feed-primary-action" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>🚚 Ajouter une livraison</button>
@@ -702,10 +763,23 @@ export default function DashboardFeed() {
       </nav>
 
       <section className="feed-kpis">
-        <FeedKpi tone="green" icon="▣" label="Stock total" value={`${enSacs(stockTotal).toFixed(2)} sacs`} note="Disponible en stock" />
-        <FeedKpi tone="blue" icon="▥" label="Consommé aujourd’hui" value={`${enSacs(consommationDuJour).toFixed(2)} sacs`} note="Toutes références" />
-        <FeedKpi tone="violet" icon="□" label="Besoin sur 15 jours" value={`${besoinTotalSacs.toFixed(2)} sacs`} note="Prévision calculée" />
-        <FeedKpi tone="orange" icon="⌑" label="À commander" value={`${commandeTotaleSacs} sacs`} note="Recommandation" />
+        <FeedKpi tone="green" icon="▣" label="Stock total" value={`${sacsEntiers(enSacs(stockTotal))} sacs`} note="Disponible en stock" />
+        <FeedKpi tone="blue" icon="▥" label="Consommé aujourd’hui" value={`${sacsEntiers(enSacs(consommationDuJour))} sacs`} note="Toutes références" />
+        <FeedKpi tone="violet" icon="□" label="Besoin sur 7 jours" value={`${Math.ceil(besoinTotalSacs)} sacs`} note="Prévision calculée" />
+        <FeedKpi
+          tone="orange"
+          icon="⌛"
+          label="Stock jusqu’au"
+          value={autonomieStock?.dateFinStock ? formatDateCourte(autonomieStock.dateFinStock) : autonomieStock ? "Après 180 j" : "Non calculé"}
+          note={autonomieStock?.feedType ? `Rupture prévue : ${autonomieStock.feedType}` : "Selon les lots actifs"}
+        />
+        <FeedKpi
+          tone="green"
+          icon="⌑"
+          label="Commander le"
+          value={autonomieStock?.dateCommande ? formatDateCourte(autonomieStock.dateCommande) : autonomieStock ? "Pas nécessaire" : "À définir"}
+          note={autonomieStock?.dateCommande ? `${DELAI_COMMANDE_JOURS} jours avant la rupture` : "Aucune rupture proche"}
+        />
       </section>
 
       <section className="feed-panel">
@@ -713,8 +787,8 @@ export default function DashboardFeed() {
         <div className="feed-stock-grid">
           {stock.map((item, index) => (
             <article key={item.feedType} className={item.stock < 0 ? "feed-stock-alert" : ""}>
-              <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{enSacs(item.stock).toFixed(2)} sacs</b></div>
-              <div><span>Livré <b>{enSacs(item.entrees).toFixed(2)} sacs</b></span><span>Consommé <b>{enSacs(item.consommations).toFixed(2)} sacs</b></span></div>
+              <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{sacsEntiers(enSacs(item.stock))} sacs</b></div>
+              <div><span>Livré <b>{sacsEntiers(enSacs(item.entrees))} sacs</b></span><span>Consommé <b>{sacsEntiers(enSacs(item.consommations))} sacs</b></span></div>
             </article>
           ))}
           {!stock.length && <div className="feed-empty">Aucun mouvement de stock enregistré.</div>}
@@ -722,29 +796,29 @@ export default function DashboardFeed() {
       </section>
 
       <section className="feed-panel feed-forecast">
-        <div className="feed-panel-heading"><div><h2>Prévision de commande à 15 jours</h2><p>Calculée avec les lots actifs, leur âge, les sujets restants et le stock.</p></div></div>
+        <div className="feed-panel-heading"><div><h2>Prévision de commande à 7 jours</h2><p>Calculée avec les lots actifs, leur âge, les sujets restants et le stock.</p></div></div>
         {joursSansReference > 0 && <div className="feed-warning">ⓘ {joursSansReference} journée(s) de lot ne disposent pas d’une référence. La prévision peut être sous-estimée.</div>}
         <div className="feed-table-wrap">
           <table className="feed-table">
             <thead><tr><th>Aliment</th><th>Sacs à consommer</th><th>Stock en sacs</th><th>Sacs à commander</th></tr></thead>
-            <tbody>{prevision.map((item, index) => <tr key={item.feedType}><td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{item.feedType}</td><td>{item.besoinSacs.toFixed(2)}</td><td>{item.stockSacs.toFixed(2)}</td><td className={item.aCommanderSacs > 0 ? "feed-order-needed" : "feed-order-ok"}>{item.aCommanderSacs}</td></tr>)}</tbody>
-            {!!prevision.length && <tfoot><tr><td>Total</td><td>{besoinTotalSacs.toFixed(2)}</td><td>{enSacs(stockTotal).toFixed(2)}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
+            <tbody>{prevision.map((item, index) => <tr key={item.feedType}><td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{item.feedType}</td><td>{Math.ceil(item.besoinSacs)}</td><td>{sacsEntiers(item.stockSacs)}</td><td className={item.aCommanderSacs > 0 ? "feed-order-needed" : "feed-order-ok"}>{item.aCommanderSacs}</td></tr>)}</tbody>
+            {!!prevision.length && <tfoot><tr><td>Total</td><td>{Math.ceil(besoinTotalSacs)}</td><td>{sacsEntiers(enSacs(stockTotal))}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
           </table>
         </div>
       </section>
 
       <section className="feed-history-grid">
         <FeedHistory title="Dernières consommations" empty="Aucune consommation enregistrée.">
-          {consommations.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`} sousTitre={formatDate(item.date)} valeur={`-${enSacs(item.quantite_kg).toFixed(2)} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />)}
+          {consommations.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`} sousTitre={formatDate(item.date)} valeur={`-${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />)}
         </FeedHistory>
         <FeedHistory title="Dernières livraisons de stock" empty="Aucune livraison enregistrée.">
-          {livraisons.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${enSacs(item.quantite_kg).toFixed(2)} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
+          {livraisons.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
         </FeedHistory>
       </section>
 
-      {consommationModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2><p>Enregistrer les sacs consommés par un lot.</p></div></div><div className="poultry-form-grid"><label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}><option value="">Choisir un lot</option>{lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}</select></label><label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label><label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs consommés (25 kg)<input type="number" min={0.01} step="0.01" value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label></div>{suggestionConsommation && <div className="feed-suggestion"><div><strong>Suggestion : {suggestionConsommation.sacs.toFixed(2)} sacs de {suggestionConsommation.reference.feed_type}</strong><span>Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span></div><button type="button" onClick={() => setConsommationSacs(suggestionConsommation.sacs.toFixed(2))}>Utiliser</button></div>}<div className="poultry-form-stack feed-note-field"><label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button></div></div></div>}
+      {consommationModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2><p>Enregistrer les sacs consommés par un lot.</p></div></div><div className="poultry-form-grid"><label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}><option value="">Choisir un lot</option>{lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}</select></label><label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label><label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label></div>{suggestionConsommation && <div className="feed-suggestion"><div><strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong><span>Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span></div><button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button></div>}<div className="poultry-form-stack feed-note-field"><label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button></div></div></div>}
 
-      {livraisonModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2><p>Enregistrer une entrée de sacs de 25 kg.</p></div></div><div className="poultry-form-grid"><label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label><label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs livrés (25 kg)<input type="number" min={0.01} step="0.01" value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label><label>Fournisseur<input type="text" value={livraisonFournisseur} onChange={(event) => setLivraisonFournisseur(event.target.value)} /></label></div><div className="poultry-form-stack feed-note-field"><label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button></div></div></div>}
+      {livraisonModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2><p>Enregistrer une entrée de sacs de 25 kg.</p></div></div><div className="poultry-form-grid"><label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label><label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label><label>Fournisseur<input type="text" value={livraisonFournisseur} onChange={(event) => setLivraisonFournisseur(event.target.value)} /></label></div><div className="poultry-form-stack feed-note-field"><label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button></div></div></div>}
 
       {referencesInfoOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-large feed-reference-modal"><ModalCloseButton onClick={() => setReferencesInfoOpen(false)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">i</span><div><h2>Références alimentaires</h2><p>Valeurs utilisées pour calculer la consommation prévisionnelle selon l’âge des lots.</p></div></div><div className="feed-reference-heading"><span>{references.length} référence(s)</span><button type="button" onClick={ouvrirNouvelleReference}>＋ Ajouter une référence</button></div><div className="feed-table-wrap"><table className="feed-table feed-reference-table"><thead><tr><th>Aliment</th><th>Âge minimum</th><th>Âge maximum</th><th>Consommation / sujet / jour</th><th>Prix du sac HT</th><th>Actions</th></tr></thead><tbody>{references.map((reference, index) => <tr key={reference.id}><td><span className={`feed-type-icon feed-type-${index % 3}`}>⌁</span>{reference.feed_type}</td><td>{reference.age_min_days} jours</td><td>{reference.age_max_days} jours</td><td>{reference.daily_consumption_g} g</td><td>{(reference.feed_price_ht || 0).toFixed(2)} €</td><td><div className="feed-row-actions"><button type="button" title="Modifier" onClick={() => ouvrirModificationReference(reference)}>✎</button><button type="button" title="Supprimer" onClick={() => supprimerReference(reference)}>🗑</button></div></td></tr>)}</tbody></table></div></div></div>}
 

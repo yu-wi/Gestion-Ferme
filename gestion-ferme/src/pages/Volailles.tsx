@@ -31,6 +31,15 @@ nb_morts?: number;
 sujets_restants?: number;
 }
 
+function dateLocaleIso() {
+  const date = new Date();
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
 function genererEvenementsLot(dateArrivee: string): Evenement[] {
   return genererEvenementsVolailles(dateArrivee).map(({ title, date }) => ({
     title,
@@ -213,7 +222,7 @@ const ajouterLot = async () => {
 
 const ouvrirMortaliteModal = (lotId: string) => {
  setMortaliteLotId(lotId);
- setMortaliteDate('');
+ setMortaliteDate(dateLocaleIso());
  setMortaliteNombre('');
  setMortaliteModalOpen(true);
 };

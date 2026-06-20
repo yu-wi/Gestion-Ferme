@@ -25,7 +25,7 @@ type LotHistorique = {
   resultat_brut: number;
   resultat_net: number | null;
   autoconsommation: number;
-  quantite_retenue: number;
+  quantite_retenue: number | null;
   total_poids_livre: number;
   livraisons: LivraisonVolaille[];
   mortalites: MortaliteVolaille[];
@@ -166,6 +166,12 @@ export default function Historique() {
     totalChiffreAffaires > 0 ? (totalResultat / totalChiffreAffaires) * 100 : 0;
   const lotAnalyse =
     lotsAffiches.find((lot) => lot.id === lotAnalyseId) || lotsAffiches[0];
+  const lotsSansResultatNet = historique.filter(
+    (lot) => lot.resultat_net == null
+  );
+  const lotsSansQuantiteRetenue = historique.filter(
+    (lot) => lot.quantite_retenue == null || Number(lot.quantite_retenue) === 0
+  );
 
   const repartitionCharges = Object.entries(
     charges
@@ -335,8 +341,8 @@ export default function Historique() {
         <div className="history-panel-heading">
           <h2>Liste des lots terminés</h2>
           <div>
-            <button type="button" onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
-            <button type="button" onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
+            <button type="button" disabled={!lotsSansQuantiteRetenue.length} onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
+            <button type="button" disabled={!lotsSansResultatNet.length} onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
           </div>
         </div>
 
@@ -450,7 +456,7 @@ export default function Historique() {
         open={showResultatNetModal}
         title="Saisir le résultat net"
         icon="€"
-        lots={historique}
+        lots={lotsSansResultatNet}
         selectedLot={selectedLot}
         onLotChange={setSelectedLot}
         value={resultatNetInput}
@@ -468,7 +474,7 @@ export default function Historique() {
         open={showQuantiteRetenueModal}
         title="Saisir la quantité retenue"
         icon="▣"
-        lots={historique}
+        lots={lotsSansQuantiteRetenue}
         selectedLot={selectedLot}
         onLotChange={setSelectedLot}
         value={quantiteRetenueInput}

@@ -42,6 +42,11 @@ type FeedMovement = {
 };
 
 const POIDS_SAC_KG = 25;
+const formatNombre = (value: number, decimals = 0) =>
+  value.toLocaleString("fr-FR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 
 const formatDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR");
@@ -317,10 +322,10 @@ export default function Accueil({ userName }: AccueilProps) {
       </header>
 
       <section className="dashboard-kpis">
-        <KpiCard icon="▣" tone="green" label="Stock total" value={`${(stockKg / POIDS_SAC_KG).toFixed(2)} sacs`} note="Disponible" />
-        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${(consommationDuJourKg / POIDS_SAC_KG).toFixed(2)} sacs`} note="Suivi quotidien" />
-        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${sujetsRestants} sujets restants`} />
-        <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${resultatBrut.toFixed(2)} €`} note={`${lotsArchives.length} lots archivés`} />
+        <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG, 2)} sacs`} note="Disponible" />
+        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG, 2)} sacs`} note="Suivi quotidien" />
+        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
+        <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${formatNombre(resultatBrut, 2)} €`} note={`${lotsArchives.length} lots archivés`} />
       </section>
 
       <section className="dashboard-grid">
@@ -399,13 +404,13 @@ export default function Accueil({ userName }: AccueilProps) {
 
         <article className="dashboard-panel dashboard-lots">
           <div className="panel-title-row">
-            <PanelTitle icon="▤" title="Derniers lots enregistrés" />
+            <PanelTitle icon="▤" title="Lots en cours" />
             <Link className="dashboard-primary-link" to="/volailles">
               Gérer les lots →
             </Link>
           </div>
           <div className="dashboard-lot-list">
-            {lots.slice(0, 5).map((lot) => (
+            {lotsActifs.slice(0, 5).map((lot) => (
               <div className="dashboard-lot-row" key={lot.id}>
                 <div>
                   <strong>{lot.nom}</strong>
@@ -416,16 +421,16 @@ export default function Accueil({ userName }: AccueilProps) {
                   <strong>{formatDate(lot.date_arrivee)}</strong>
                 </div>
                 <div>
-                  <span>Effectif</span>
-                  <strong>{lot.quantite}</strong>
+                  <span>Sujets restants</span>
+                  <strong>{formatNombre(lot.sujets_restants == null ? lot.quantite : lot.sujets_restants)}</strong>
                 </div>
                 <span className={`lot-status ${lot.is_active ? "lot-status-active" : "lot-status-archived"}`}>
-                  {lot.is_active ? "En cours" : "Archivé"}
+                  En cours
                 </span>
               </div>
             ))}
-            {lots.length === 0 && (
-              <div className="dashboard-empty">Aucun lot enregistré.</div>
+            {lotsActifs.length === 0 && (
+              <div className="dashboard-empty">Aucun lot en cours.</div>
             )}
           </div>
         </article>
@@ -434,7 +439,7 @@ export default function Accueil({ userName }: AccueilProps) {
           <article className="dashboard-panel dashboard-feed-card">
             <PanelTitle icon="▣" title="Alimentation" />
             <span>Stock disponible</span>
-            <strong>{(stockKg / POIDS_SAC_KG).toFixed(2)} sacs</strong>
+            <strong>{formatNombre(stockKg / POIDS_SAC_KG, 2)} sacs</strong>
             <Link to="/volailles/alimentation">Gérer l’alimentation →</Link>
           </article>
           <article className="dashboard-panel dashboard-reminders">

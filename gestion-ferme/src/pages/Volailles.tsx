@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import toast from 'react-hot-toast';
 import ModalCloseButton from '../components/ModalCloseButton';
+import { formatNombre } from '../outils/formatNombre';
 import {
   chargerLotsAvecMouvements,
   supprimerLotEtDonnees,
@@ -60,7 +61,7 @@ function genererEvenementsLot(dateArrivee: string): Evenement[] {
 function Volailles() {
 const [lots, setLots] = useState<LotVolaille[]>([]);
 const [nom, setNom] = useState('');
-const [quantite, setQuantite] = useState<number>(0);
+const [quantite, setQuantite] = useState('');
 const [dateArrivee, setDateArrivee] = useState('');
 const [batiment, setBatiment] = useState('');
 const [searchNom, setSearchNom] = useState('');
@@ -72,7 +73,7 @@ const [nouveauLotModalOpen, setNouveauLotModalOpen] = useState(false);
 const [mortaliteModalOpen, setMortaliteModalOpen] = useState(false);
 const [mortaliteLotId, setMortaliteLotId] = useState<string | null>(null);
 const [mortaliteDate, setMortaliteDate] = useState('');
-const [mortaliteNombre, setMortaliteNombre] = useState(0);
+const [mortaliteNombre, setMortaliteNombre] = useState('');
 const [mortaliteEnModification, setMortaliteEnModification] = useState<Mortalite | null>(null);
 const [livraisonEnModification, setLivraisonEnModification] = useState<LivraisonVolaille | null>(null);
 
@@ -95,17 +96,28 @@ const [saving, setSaving] = useState(false);
 const [showAutoconsommationModal, setShowAutoconsommationModal] = useState(false);
   const [quantiteAutoconsommationInput, setQuantiteAutoconsommationInput] = useState('');
 
+const transformerLots = (data: any[]) =>
+  data.map((lot: any) => ({
+    ...lot,
+    evenements: genererEvenementsLot(lot.date_arrivee),
+    dateArrivee: lot.date_arrivee,
+  })) as LotVolaille[];
+
+const rechargerLots = async () => {
+  const data = await chargerLotsAvecMouvements(true);
+  const lotsTransformes = transformerLots(data);
+  setLots(lotsTransformes);
+  setDetailLot((lotActuel) => {
+    if (!lotActuel) return null;
+    return lotsTransformes.find((lot) => lot.id === lotActuel.id) || null;
+  });
+};
+
 // Charger les lots existants
 useEffect(() => {
  const fetchLots = async () => {
    try {
-     const data = await chargerLotsAvecMouvements(true);
-     const lotsTransformés = data.map((lot: any) => ({
-       ...lot,
-       evenements: genererEvenementsLot(lot.date_arrivee),
-       dateArrivee: lot.date_arrivee,
-     }));
-     setLots(lotsTransformés as LotVolaille[]);
+     await rechargerLots();
    } catch (error) {
      console.error('Erreur chargement des lots', error);
      toast.error("Les lots n'ont pas pu être chargés.");
@@ -151,7 +163,8 @@ const sortedLots = [...filteredLots].sort((a, b) => {
 // Calcul des dates des événements
 const ajouterLot = async () => {
  if (saving) return;
- if (!nom.trim() || quantite <= 0 || !dateArrivee || !batiment.trim()) {
+ const quantiteNumerique = Number(quantite);
+ if (!nom.trim() || quantiteNumerique <= 0 || !dateArrivee || !batiment.trim()) {
    toast.error('Complétez le nom, la quantité, la date et le bâtiment.');
    return;
  }
@@ -163,7 +176,7 @@ const ajouterLot = async () => {
  const couleur = genererCouleurAleatoire();
  const now = new Date();
   const ageCalcule = Math.floor((now.getTime() - dateArriveeDate.getTime()) / (1000 * 60 * 60 * 24));
-  const sujetsRestants = quantite; // Aucun mort au début
+  const sujetsRestants = quantiteNumerique;
 
 
  const nouveauxEvenements = genererEvenementsLot(dateArrivee);
@@ -172,7 +185,7 @@ const ajouterLot = async () => {
  const nouveauLot: LotVolaille = {
    id,
    nom,
-   quantite,
+   quantite: quantiteNumerique,
    age: ageCalcule,
    dateArrivee,
    batiment,
@@ -187,7 +200,7 @@ const ajouterLot = async () => {
  const { error } = await supabase.from('lots_volailles').insert({
    id,
    nom,
-   quantite,
+   quantite: quantiteNumerique,
    age: ageCalcule,
    date_arrivee: dateArrivee,
    batiment,
@@ -205,7 +218,7 @@ const ajouterLot = async () => {
   } else {
    setLots([...lots, nouveauLot]);
    setNom('');
-   setQuantite(0);
+   setQuantite('');
    setDateArrivee('');
    setBatiment('');
    setNouveauLotModalOpen(false);
@@ -220,14 +233,15 @@ const ajouterLot = async () => {
 const ouvrirMortaliteModal = (lotId: string) => {
  setMortaliteLotId(lotId);
  setMortaliteDate('');
- setMortaliteNombre(0);
+ setMortaliteNombre('');
  setMortaliteModalOpen(true);
 };
 
 
 const enregistrerMortalite = async () => {
   if (saving) return;
-  if (!mortaliteLotId || !mortaliteDate || mortaliteNombre <= 0) {
+  const nombreMortalites = Number(mortaliteNombre);
+  if (!mortaliteLotId || !mortaliteDate || nombreMortalites <= 0) {
     toast.error('Indiquez une date et un nombre positif.');
     return;
   }
@@ -235,13 +249,13 @@ const enregistrerMortalite = async () => {
   const lot = lots.find((l) => l.id === mortaliteLotId);
   if (!lot) return;
   const sujetsDisponibles = calculerSujetsRestants(lot);
-  if (mortaliteNombre > sujetsDisponibles) {
+  if (nombreMortalites > sujetsDisponibles) {
     toast.error(`Il ne reste que ${sujetsDisponibles} sujets dans ce lot.`);
     return;
   }
   setSaving(true);
 
-  const totalMortalites = lot.mortalites.reduce((sum, m) => sum + m.nombre, 0) + mortaliteNombre;
+  const totalMortalites = lot.mortalites.reduce((sum, m) => sum + m.nombre, 0) + nombreMortalites;
   const sujetsRestants = lot.quantite - totalMortalites - (lot.autoconsommation || 0); // si autoconsommation existe
 
   const { data, error } = await supabase
@@ -249,7 +263,7 @@ const enregistrerMortalite = async () => {
     .insert({
       lot_id: mortaliteLotId,
       date: mortaliteDate,
-      nombre: mortaliteNombre,
+      nombre: nombreMortalites,
     })
     .select('id, lot_id, date, nombre')
     .single();
@@ -285,9 +299,14 @@ const enregistrerMortalite = async () => {
     });
 
     setMortaliteModalOpen(false);
-    setMortaliteNombre(0);
+    setMortaliteNombre('');
     setMortaliteDate('');
     setMortaliteLotId(null);
+    try {
+      await rechargerLots();
+    } catch (refreshError) {
+      console.error('Erreur actualisation après mortalité :', refreshError);
+    }
     toast.success('Mortalité enregistrée.');
   }
   setSaving(false);
@@ -529,7 +548,7 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     : 0;
 
   if (tauxMortalite >= 3) {
-    return { label: 'Lot à surveiller', tone: 'danger' };
+    return { label: 'Mortalité élevée', tone: 'danger' };
   }
 
   const regleLivraison = REGLES_EVENEMENTS_LOT.find(
@@ -572,7 +591,7 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     };
   }
 
-  return { label: 'Suivi normal', tone: 'normal' };
+  return { label: 'RAS', tone: 'normal' };
 }
 
 
@@ -851,19 +870,6 @@ const totalMorts = lots.reduce((sum, lot) => {
   const mortalites = Array.isArray(lot.mortalites) ? lot.mortalites : [];
   return sum + mortalites.reduce((mortSum, mort) => mortSum + (mort.nombre || 0), 0);
 }, 0);
-const totalPoidsLivre = lots.reduce(
-  (sum, lot) =>
-    sum +
-    lot.livraisons.reduce(
-      (total, livraison) => total + (Number(livraison.poids) || 0),
-      0
-    ),
-  0
-);
-const totalResultatBrut = lots.reduce(
-  (sum, lot) => sum + (Number(lot.resultat_brut) || 0),
-  0
-);
 const tauxMortaliteGlobal =
   totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
 const batiments = Array.from(
@@ -956,16 +962,12 @@ return (
      <a href="#vue-ensemble" className="poultry-tab-active">Vue d’ensemble</a>
      <a href="#lots-en-cours">Lots en cours</a>
      <Link to="/volailles/historique">Lots terminés</Link>
-     <a href="#batiments">Bâtiments</a>
-     <a href="#alertes">Alertes</a>
      <Link to="/volailles/analyse">Performances</Link>
    </nav>
 
-   <section id="vue-ensemble" className="poultry-kpis">
-     <PoultryKpi icon="▣" tone="green" label="Lots en cours" value={String(lots.length)} note={`${totalRestants} sujets`} />
-     <PoultryKpi icon="▥" tone="blue" label="Poids total livré" value={`${totalPoidsLivre.toFixed(2)} kg`} note={`${lots.reduce((total, lot) => total + lot.livraisons.length, 0)} livraisons`} />
-     <PoultryKpi icon="€" tone="orange" label="Résultat brut" value={`${totalResultatBrut.toFixed(2)} €`} note="Lots actifs" />
-     <PoultryKpi icon="♥" tone="red" label="Taux de mortalité" value={`${tauxMortaliteGlobal.toFixed(2)} %`} note={`${totalMorts} mortalités`} />
+   <section id="vue-ensemble" className="poultry-kpis poultry-kpis-compact">
+     <PoultryKpi icon="▣" tone="green" label="Lots en cours" value={formatNombre(lots.length)} note={`${formatNombre(totalRestants)} sujets`} />
+     <PoultryKpi icon="♥" tone="red" label="Taux de mortalité" value={`${formatNombre(tauxMortaliteGlobal, 2)} %`} note={`${formatNombre(totalMorts)} mortalités`} />
    </section>
 
    <section className="poultry-overview-grid">
@@ -1084,7 +1086,7 @@ return (
                  <span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span>
                </div>
                <div className="poultry-mobile-values poultry-mobile-values-compact">
-                 <span>Effectif <b>{sujetsRestants}</b></span>
+                 <span>Effectif <b>{formatNombre(sujetsRestants)}</b></span>
                  <span>Mortalité <b className={taux >= 3 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
                </div>
                <div className="poultry-card-actions">
@@ -1129,7 +1131,7 @@ return (
                    <td>{lot.batiment}</td>
                    <td>{new Date(`${lot.dateArrivee}T00:00:00`).toLocaleDateString("fr-FR")}</td>
 	                   <td>{age} jours</td>
-	                   <td>{sujetsRestants}</td>
+                   <td>{formatNombre(sujetsRestants)}</td>
 	                   <td className={taux >= 3 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
 	                   <td><span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span></td>
                    <td>
@@ -1185,7 +1187,7 @@ return (
         </label>
         <label>
           Quantité
-          <input type="number" min={1} placeholder="0" value={quantite} onChange={e => setQuantite(+e.target.value)} />
+          <input type="number" min={1} placeholder="Ex. 1 500" value={quantite} onChange={e => setQuantite(e.target.value)} />
         </label>
         <label>
           Date arrivée
@@ -1440,7 +1442,7 @@ return (
          </div>
          <div className="poultry-form-stack">
            <label>Date<input type="date" value={mortaliteDate} onChange={e => setMortaliteDate(e.target.value)} /></label>
-           <label>Nombre de sujets<input type="number" min={1} placeholder="Ex. 2" value={mortaliteNombre} onChange={e => setMortaliteNombre(+e.target.value)} /></label>
+           <label>Nombre de sujets<input type="number" min={1} placeholder="Ex. 2" value={mortaliteNombre} onChange={e => setMortaliteNombre(e.target.value)} /></label>
          </div>
          <div className="poultry-modal-actions">
            <button type="button" className="poultry-modal-primary" onClick={enregistrerMortalite} disabled={saving}>{saving ? 'Enregistrement...' : '▣ Enregistrer'}</button>

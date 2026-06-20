@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
+import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import Charges from "./Charges";
 import {
   chargerLotsAvecMouvements,
@@ -62,6 +63,7 @@ export default function Historique() {
   const [resultatNetInput, setResultatNetInput] = useState("");
   const [quantiteRetenueInput, setQuantiteRetenueInput] = useState("");
   const [showChargesManager, setShowChargesManager] = useState(false);
+  const [lotAnalyseId, setLotAnalyseId] = useState("");
 
   const fetchLots = async () => {
     try {
@@ -162,7 +164,8 @@ export default function Historique() {
   );
   const tauxMarge =
     totalChiffreAffaires > 0 ? (totalResultat / totalChiffreAffaires) * 100 : 0;
-  const lotAnalyse = lotsAffiches[0];
+  const lotAnalyse =
+    lotsAffiches.find((lot) => lot.id === lotAnalyseId) || lotsAffiches[0];
 
   const repartitionCharges = Object.entries(
     charges
@@ -289,17 +292,17 @@ export default function Historique() {
     <div className="history-page">
       <header className="history-heading">
         <div>
-          <h1><span>▣</span> Historique des lots</h1>
+          <h1><span>▣</span> Lots terminés</h1>
           <p>Lots archivés, résultats et livraisons.</p>
         </div>
         <button type="button" onClick={() => window.print()}>▤ Exporter PDF</button>
       </header>
 
       <section className="history-kpis">
-        <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={String(lotsAffiches.length)} note="Lots affichés" />
-        <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={String(totalLivres)} note="Sur la période" />
-        <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={`${totalPoids.toFixed(1)} kg`} note="Poids cumulé" />
-        <HistoryKpi tone="orange" icon="€" label="Résultat net" value={`${totalResultat.toFixed(2)} €`} note="Après charges" />
+        <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={formatNombre(lotsAffiches.length)} note="Lots affichés" />
+        <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
+        <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
+        <HistoryKpi tone="orange" icon="€" label="Résultat net" value={formatMontant(totalResultat)} note="Après charges" />
       </section>
 
       <section className="history-filters">
@@ -323,7 +326,7 @@ export default function Historique() {
 
       <section className="history-panel history-table-panel">
         <div className="history-panel-heading">
-          <h2>Historique des lots</h2>
+          <h2>Liste des lots terminés</h2>
           <div>
             <button type="button" onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
             <button type="button" onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
@@ -335,9 +338,9 @@ export default function Historique() {
             <article key={lot.id}>
               <div><strong>{lot.nom}</strong><span>{lot.batiment} · {formatDate(lot.date_arrivee)}</span></div>
               <div className="history-mobile-values">
-                <span>Livrés <b>{lot.quantiteLivree}</b></span>
-                <span>Poids <b>{lot.total_poids_livre.toFixed(1)} kg</b></span>
-                <span>Résultat <b>{lot.resultat.toFixed(2)} €</b></span>
+                <span>Livrés <b>{formatNombre(lot.quantiteLivree)}</b></span>
+                <span>Poids <b>{formatPoids(lot.total_poids_livre, 1)}</b></span>
+                <span>Résultat <b>{formatMontant(lot.resultat)}</b></span>
               </div>
               <div className="history-mobile-actions">
                 <Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse</Link>
@@ -364,13 +367,13 @@ export default function Historique() {
                   <td>{lot.nom}</td>
                   <td>{formatDate(lot.date_arrivee)}</td>
                   <td>{lot.batiment}</td>
-                  <td>{lot.sujets_restants}</td>
+                  <td>{formatNombre(lot.sujets_restants)}</td>
                   <td>{lot.livraisons.length ? lot.livraisons.map((livraison) => formatDate(livraison.date)).join(" → ") : "—"}</td>
-                  <td>{lot.quantiteLivree}</td>
-                  <td>{lot.quantite_retenue || 0}</td>
-                  <td>{lot.total_poids_livre.toFixed(2)} kg</td>
-                  <td>{lot.autoconsommation || 0}</td>
-                  <td className={lot.resultat < 0 ? "history-negative" : "history-positive"}>{lot.resultat.toFixed(2)} €</td>
+                  <td>{formatNombre(lot.quantiteLivree)}</td>
+                  <td>{formatNombre(lot.quantite_retenue || 0)}</td>
+                  <td>{formatPoids(lot.total_poids_livre)}</td>
+                  <td>{formatNombre(lot.autoconsommation || 0)}</td>
+                  <td className={lot.resultat < 0 ? "history-negative" : "history-positive"}>{formatMontant(lot.resultat)}</td>
                   <td>
                     <div className="history-row-actions">
                       <Link title="Voir l’analyse complète" to={`/volailles/historique/${lot.id}/analyse`}>👁</Link>
@@ -383,7 +386,7 @@ export default function Historique() {
               {!lotsAffiches.length && <tr><td colSpan={11} className="history-empty">Aucun lot archivé à afficher.</td></tr>}
             </tbody>
             {!!lotsAffiches.length && (
-              <tfoot><tr><td>Totaux</td><td>—</td><td>—</td><td>{lotsAffiches.reduce((total, lot) => total + lot.sujets_restants, 0)}</td><td>—</td><td>{totalLivres}</td><td>{lotsAffiches.reduce((total, lot) => total + Number(lot.quantite_retenue || 0), 0)}</td><td>{totalPoids.toFixed(2)} kg</td><td>{lotsAffiches.reduce((total, lot) => total + Number(lot.autoconsommation || 0), 0)}</td><td>{totalResultat.toFixed(2)} €</td><td>—</td></tr></tfoot>
+              <tfoot><tr><td>Totaux</td><td>—</td><td>—</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + lot.sujets_restants, 0))}</td><td>—</td><td>{formatNombre(totalLivres)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.quantite_retenue || 0), 0))}</td><td>{formatPoids(totalPoids)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.autoconsommation || 0), 0))}</td><td>{formatMontant(totalResultat)}</td><td>—</td></tr></tfoot>
             )}
           </table>
         </div>
@@ -398,11 +401,11 @@ export default function Historique() {
           {totalCharges > 0 ? (
             <div>
               <div className="history-charge-ring" style={{ background: `conic-gradient(${segmentsCharges.join(", ")})` }}>
-                <span><small>Total charges</small><strong>{totalCharges.toFixed(2)} €</strong></span>
+                <span><small>Total charges</small><strong>{formatMontant(totalCharges)}</strong></span>
               </div>
               <div className="history-charge-list">
                 {repartitionCharges.map((charge, index) => (
-                  <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{charge.montant.toFixed(2)} €</b><em>{((charge.montant / totalCharges) * 100).toFixed(0)}%</em></div>
+                  <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b><em>{formatNombre((charge.montant / totalCharges) * 100)}%</em></div>
                 ))}
               </div>
             </div>
@@ -412,9 +415,9 @@ export default function Historique() {
         <article className="history-panel history-economy">
           <h2>Résultat économique</h2>
           <div className="history-economy-kpis">
-            <span><small>Chiffre d’affaires</small><strong>{totalChiffreAffaires.toFixed(2)} €</strong></span>
-            <span><small>Total charges</small><strong>{totalCharges.toFixed(2)} €</strong></span>
-            <span><small>Marge nette</small><strong>{totalResultat.toFixed(2)} €</strong><em>{tauxMarge.toFixed(1)} %</em></span>
+            <span><small>Chiffre d’affaires</small><strong>{formatMontant(totalChiffreAffaires)}</strong></span>
+            <span><small>Total charges</small><strong>{formatMontant(totalCharges)}</strong></span>
+            <span><small>Marge nette</small><strong>{formatMontant(totalResultat)}</strong><em>{formatNombre(tauxMarge, 1)} %</em></span>
           </div>
           <p className={totalResultat >= 0 ? "history-performance-good" : "history-performance-alert"}>
             {totalResultat >= 0 ? "Performance positive sur les lots affichés." : "Les charges dépassent le chiffre d’affaires sur la sélection."}
@@ -425,7 +428,13 @@ export default function Historique() {
       {lotAnalyse && (
         <section className="history-analysis-callout">
           <span>☼</span>
-          <div><h2>Analyse du lot {lotAnalyse.nom}</h2><p>Consultez ses performances de production, ses livraisons, ses mortalités et son résultat économique.</p></div>
+          <div>
+            <h2>Analyse du lot {lotAnalyse.nom}</h2>
+            <p>Consultez ses performances de production, ses livraisons, ses mortalités et son résultat économique.</p>
+            <select value={lotAnalyse.id} onChange={(event) => setLotAnalyseId(event.target.value)}>
+              {lotsAffiches.map((lot) => <option key={lot.id} value={lot.id}>Lot {lot.nom} · {lot.batiment}</option>)}
+            </select>
+          </div>
           <Link to={`/volailles/historique/${lotAnalyse.id}/analyse`}>Voir l’analyse complète →</Link>
         </section>
       )}

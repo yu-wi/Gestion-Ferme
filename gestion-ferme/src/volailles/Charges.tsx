@@ -362,7 +362,7 @@ function ChargeFormModal({
         </div>
         <div className="poultry-form-stack">
           <label>Catégorie<select value={type} onChange={(event) => onTypeChange(event.target.value)}><option value="achat_poussins">Achat poussins</option><option value="aliment">Aliment</option><option value="ramassage">Ramassage</option><option value="livraison">Livraison</option><option value="divers">Divers</option></select></label>
-          <label>Montant (€)<input type="number" min={0.01} step="0.01" value={montant} onChange={(event) => onMontantChange(Number(event.target.value))} /></label>
+          <label>Montant (€)<input type="number" min={0.01} step="0.01" value={montant || ""} onChange={(event) => onMontantChange(Number(event.target.value))} /></label>
         </div>
         <div className="poultry-modal-actions">
           <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>

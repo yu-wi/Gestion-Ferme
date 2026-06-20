@@ -100,7 +100,7 @@ export default function DashboardFeed() {
   const [referenceEnModification, setReferenceEnModification] =
     useState<FeedReference | null>(null);
   const [referenceType, setReferenceType] = useState("");
-  const [referenceAgeMin, setReferenceAgeMin] = useState("0");
+  const [referenceAgeMin, setReferenceAgeMin] = useState("");
   const [referenceAgeMax, setReferenceAgeMax] = useState("");
   const [referenceConso, setReferenceConso] = useState("");
   const [referencePrix, setReferencePrix] = useState("");
@@ -543,7 +543,7 @@ export default function DashboardFeed() {
   const ouvrirNouvelleReference = () => {
     setReferenceEnModification(null);
     setReferenceType("");
-    setReferenceAgeMin("0");
+    setReferenceAgeMin("");
     setReferenceAgeMax("");
     setReferenceConso("");
     setReferencePrix("");

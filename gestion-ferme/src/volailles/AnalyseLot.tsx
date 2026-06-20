@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
+import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import {
   chargerLotsAvecMouvements,
   type LivraisonVolaille,
@@ -38,7 +39,9 @@ const chargeColors = ["#209447", "#f5b000", "#3b78d8", "#8b6bd9", "#a7b1bc"];
 
 export default function AnalyseLot() {
   const { lotId } = useParams();
+  const navigate = useNavigate();
   const [lot, setLot] = useState<LotAnalyse | null>(null);
+  const [lotsDisponibles, setLotsDisponibles] = useState<LotAnalyse[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +57,9 @@ export default function AnalyseLot() {
           supabase.from("charges").select("type_charge, montant").eq("lot_id", lotId),
         ]);
         if (chargesResult.error) throw chargesResult.error;
-        setLot((lots as LotAnalyse[]).find((item) => item.id === lotId) || null);
+        const lotsArchives = lots as LotAnalyse[];
+        setLotsDisponibles(lotsArchives);
+        setLot(lotsArchives.find((item) => item.id === lotId) || null);
         setCharges((chargesResult.data || []).map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
       } catch (error) {
         console.error("Erreur chargement analyse lot :", error);
@@ -94,28 +99,37 @@ export default function AnalyseLot() {
 
   return (
     <div className="lot-analysis-page">
-      <div className="lot-analysis-breadcrumb"><Link to="/volailles/historique">Historique des lots</Link><span>›</span><span>{lot.nom}</span><span>›</span><strong>Analyse complète</strong></div>
+      <div className="lot-analysis-breadcrumb"><Link to="/volailles/historique">Lots terminés</Link><span>›</span><span>{lot.nom}</span><span>›</span><strong>Analyse complète</strong></div>
       <header className="lot-analysis-heading">
-        <div><h1>Analyse complète – Lot {lot.nom} <span>Terminé</span></h1><p>Arrivé le {formatDate(lot.date_arrivee)} · Bâtiment {lot.batiment} · Période de {lot.age || 0} jours</p></div>
-        <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/historique">← Retour à l’historique</Link></div>
+        <div>
+          <h1>Analyse complète – Lot {lot.nom} <span>Terminé</span></h1>
+          <p>Arrivé le {formatDate(lot.date_arrivee)} · Bâtiment {lot.batiment} · Période de {lot.age || 0} jours</p>
+          <label className="lot-analysis-selector">
+            Lot analysé
+            <select value={lot.id} onChange={(event) => navigate(`/volailles/historique/${event.target.value}/analyse`)}>
+              {lotsDisponibles.map((item) => <option key={item.id} value={item.id}>Lot {item.nom} · {item.batiment}</option>)}
+            </select>
+          </label>
+        </div>
+        <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/historique">← Retour aux lots terminés</Link></div>
       </header>
 
       <section className="history-kpis">
-        <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={String(donnees.quantiteLivree)} note={`Sur ${lot.quantite} sujets arrivés`} />
-        <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={`${donnees.totalPoids.toFixed(2)} kg`} note={`Poids moyen : ${donnees.poidsMoyen.toFixed(2)} kg`} />
-        <HistoryMetric tone="orange" icon="€" label="Résultat net" value={`${donnees.resultat.toFixed(2)} €`} note={`Taux de marge : ${donnees.tauxMarge.toFixed(1)} %`} />
-        <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${donnees.tauxMortalite.toFixed(1)} %`} note={`${lot.nb_morts || 0} sujets perdus`} />
+        <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(donnees.quantiteLivree)} note={`Sur ${formatNombre(lot.quantite)} sujets arrivés`} />
+        <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={formatPoids(donnees.totalPoids)} note={`Poids moyen : ${formatPoids(donnees.poidsMoyen)}`} />
+        <HistoryMetric tone="orange" icon="€" label="Résultat net" value={formatMontant(donnees.resultat)} note={`Taux de marge : ${formatNombre(donnees.tauxMarge, 1)} %`} />
+        <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${formatNombre(donnees.tauxMortalite, 1)} %`} note={`${formatNombre(lot.nb_morts || 0)} sujets perdus`} />
       </section>
 
       <section className="history-panel lot-analysis-performance">
         <h2>Performances de production</h2>
         <dl>
           <div><dt>Âge à la livraison</dt><dd>{lot.age || 0} jours</dd></div>
-          <div><dt>Poids moyen à la livraison</dt><dd>{donnees.poidsMoyen.toFixed(2)} kg</dd></div>
-          <div><dt>Taux de mortalité</dt><dd>{donnees.tauxMortalite.toFixed(1)} %</dd></div>
-          <div><dt>Quantité retenue</dt><dd>{lot.quantite_retenue || 0}</dd></div>
-          <div><dt>Autoconsommation</dt><dd>{lot.autoconsommation || 0}</dd></div>
-          <div><dt>Sujets restants</dt><dd>{lot.sujets_restants || 0}</dd></div>
+          <div><dt>Poids moyen à la livraison</dt><dd>{formatPoids(donnees.poidsMoyen)}</dd></div>
+          <div><dt>Taux de mortalité</dt><dd>{formatNombre(donnees.tauxMortalite, 1)} %</dd></div>
+          <div><dt>Quantité retenue</dt><dd>{formatNombre(lot.quantite_retenue || 0)}</dd></div>
+          <div><dt>Autoconsommation</dt><dd>{formatNombre(lot.autoconsommation || 0)}</dd></div>
+          <div><dt>Sujets restants</dt><dd>{formatNombre(lot.sujets_restants || 0)}</dd></div>
         </dl>
       </section>
 

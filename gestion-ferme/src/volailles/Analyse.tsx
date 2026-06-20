@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
+import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import {
   chargerLotsAvecMouvements,
   type LivraisonVolaille,
@@ -196,7 +197,11 @@ export default function Analyse() {
           <button type="button" className={onglet === "production" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("production"); setSearchParams({}); }}>▥ Production</button>
           <button type="button" className={onglet === "economie" ? "analysis-tab-active" : ""} onClick={() => { setOnglet("economie"); setSearchParams({ onglet: "economie" }); }}>€ Économie</button>
         </div>
-        <select value={lotFiltreId} onChange={(event) => setLotFiltreId(event.target.value)}>
+        <select value={lotFiltreId} onChange={(event) => {
+          const id = event.target.value;
+          setLotFiltreId(id);
+          if (id) setLotSelectionneId(id);
+        }}>
           <option value="">Tous les lots</option>
           {lignes.map((lot) => <option key={lot.id} value={lot.id}>{lot.nom}</option>)}
         </select>
@@ -238,14 +243,14 @@ function AnalyseProduction({
   return (
     <>
       <section className="analysis-kpis analysis-kpis-eight">
-        <AnalysisKpi tone="green" icon="▣" label="Lots analysés" value={String(lignes.length)} note="Lots affichés" />
-        <AnalysisKpi tone="blue" icon="♧" label="Sujets initiaux" value={String(totalInitial)} note="Effectif cumulé" />
-        <AnalysisKpi tone="blue" icon="✓" label="Sujets livrés" value={String(totalLivres)} note={`${tauxLivraison.toFixed(1)} % des sujets`} />
-        <AnalysisKpi tone="red" icon="✝" label="Mortalités" value={String(totalMorts)} note="Sujets perdus" />
+        <AnalysisKpi tone="green" icon="▣" label="Lots analysés" value={formatNombre(lignes.length)} note="Lots affichés" />
+        <AnalysisKpi tone="blue" icon="♧" label="Sujets initiaux" value={formatNombre(totalInitial)} note="Effectif cumulé" />
+        <AnalysisKpi tone="blue" icon="✓" label="Sujets livrés" value={formatNombre(totalLivres)} note={`${formatNombre(tauxLivraison, 1)} % des sujets`} />
+        <AnalysisKpi tone="red" icon="✝" label="Mortalités" value={formatNombre(totalMorts)} note="Sujets perdus" />
         <AnalysisKpi tone="orange" icon="%" label="Taux de mortalité" value={`${tauxMortalite.toFixed(1)} %`} note="Moyenne globale" />
-        <AnalysisKpi tone="green" icon="⚖" label="Poids livré" value={`${totalPoids.toFixed(2)} kg`} note="Poids cumulé" />
+        <AnalysisKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids)} note="Poids cumulé" />
         <AnalysisKpi tone="violet" icon="◔" label="Poids moyen" value={`${poidsMoyen.toFixed(2)} kg`} note="Par sujet livré" />
-        <AnalysisKpi tone="orange" icon="▣" label="Quantité retenue" value={String(quantiteRetenue)} note="Sujets conservés" />
+        <AnalysisKpi tone="orange" icon="▣" label="Quantité retenue" value={formatNombre(quantiteRetenue)} note="Sujets conservés" />
       </section>
 
       <section className="analysis-panel analysis-chart-panel">
@@ -315,9 +320,9 @@ function AnalyseEconomie({
   return (
     <>
       <section className="analysis-kpis">
-        <AnalysisKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={`${chiffreAffaires.toFixed(2)} €`} note="Ventes enregistrées" />
-        <AnalysisKpi tone="red" icon="↘" label="Total charges" value={`${totalCharges.toFixed(2)} €`} note="Charges cumulées" />
-        <AnalysisKpi tone="green" icon="€" label="Résultat net" value={`${resultat.toFixed(2)} €`} note={`${tauxMarge.toFixed(1)} % de marge`} />
+        <AnalysisKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(chiffreAffaires)} note="Ventes enregistrées" />
+        <AnalysisKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Charges cumulées" />
+        <AnalysisKpi tone="green" icon="€" label="Résultat net" value={formatMontant(resultat)} note={`${formatNombre(tauxMarge, 1)} % de marge`} />
         <AnalysisKpi tone="violet" icon="◔" label="Marge par kg" value={`${margeParKg.toFixed(2)} €`} note="Sur le poids livré" />
       </section>
 
@@ -364,15 +369,15 @@ function TableauLots({ lignes, mode }: { lignes: LigneAnalyse[]; mode: OngletAna
     <section className="analysis-panel analysis-detail">
       <h2>Détail par lot</h2>
       <div className="analysis-mobile-list">
-        {lignes.map((lot) => <article key={lot.id}><div><strong>{lot.nom}</strong><span>{lot.batiment}</span></div><div><span>{mode === "production" ? "Livrés" : "Résultat"}<b>{mode === "production" ? lot.quantiteLivree : `${lot.resultatCalcule.toFixed(2)} €`}</b></span><span>{mode === "production" ? "Mortalité" : "Charges"}<b>{mode === "production" ? `${lot.tauxMortalite.toFixed(1)} %` : `${lot.totalCharges.toFixed(2)} €`}</b></span><span>{mode === "production" ? "Poids moyen" : "Marge / kg"}<b>{mode === "production" ? `${lot.poidsMoyen.toFixed(2)} kg` : `${lot.margeParKg.toFixed(2)} €`}</b></span></div><Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse complète →</Link></article>)}
+        {lignes.map((lot) => <article key={lot.id}><div><strong>{lot.nom}</strong><span>{lot.batiment}</span></div><div><span>{mode === "production" ? "Livrés" : "Résultat"}<b>{mode === "production" ? formatNombre(lot.quantiteLivree) : formatMontant(lot.resultatCalcule)}</b></span><span>{mode === "production" ? "Mortalité" : "Charges"}<b>{mode === "production" ? `${formatNombre(lot.tauxMortalite, 1)} %` : formatMontant(lot.totalCharges)}</b></span><span>{mode === "production" ? "Poids moyen" : "Marge / kg"}<b>{mode === "production" ? formatPoids(lot.poidsMoyen) : formatMontant(lot.margeParKg)}</b></span></div><Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse complète →</Link></article>)}
       </div>
       <div className="analysis-table-wrap">
         <table className="analysis-table">
           <thead><tr><th>Lot</th><th>Bâtiment</th>{mode === "production" ? <><th>Livrés</th><th>Mortalités</th><th>Taux de mortalité</th><th>Poids livré</th><th>Poids moyen</th></> : <><th>Chiffre d’affaires</th><th>Charges</th><th>Résultat</th><th>Marge / kg</th><th>Charges / CA</th></>}</tr></thead>
-          <tbody>{lignes.map((lot) => <tr key={lot.id}><td><Link to={`/volailles/historique/${lot.id}/analyse`}>{lot.nom}</Link></td><td>{lot.batiment}</td>{mode === "production" ? <><td className="analysis-blue">{lot.quantiteLivree}</td><td className="analysis-red">{lot.nb_morts}</td><td className="analysis-orange">{lot.tauxMortalite.toFixed(1)} %</td><td className="analysis-green">{Number(lot.total_poids_livre).toFixed(2)} kg</td><td>{lot.poidsMoyen.toFixed(2)} kg</td></> : <><td className="analysis-blue">{(Number(lot.resultat_brut) || 0).toFixed(2)} €</td><td className="analysis-orange">{lot.totalCharges.toFixed(2)} €</td><td className={lot.resultatCalcule < 0 ? "analysis-red" : "analysis-green"}>{lot.resultatCalcule.toFixed(2)} €</td><td>{lot.margeParKg.toFixed(2)} €</td><td>{lot.tauxCharges.toFixed(1)} %</td></>}</tr>)}</tbody>
+          <tbody>{lignes.map((lot) => <tr key={lot.id}><td><Link to={`/volailles/historique/${lot.id}/analyse`}>{lot.nom}</Link></td><td>{lot.batiment}</td>{mode === "production" ? <><td className="analysis-blue">{formatNombre(lot.quantiteLivree)}</td><td className="analysis-red">{formatNombre(lot.nb_morts)}</td><td className="analysis-orange">{formatNombre(lot.tauxMortalite, 1)} %</td><td className="analysis-green">{formatPoids(Number(lot.total_poids_livre))}</td><td>{formatPoids(lot.poidsMoyen)}</td></> : <><td className="analysis-blue">{formatMontant(Number(lot.resultat_brut) || 0)}</td><td className="analysis-orange">{formatMontant(lot.totalCharges)}</td><td className={lot.resultatCalcule < 0 ? "analysis-red" : "analysis-green"}>{formatMontant(lot.resultatCalcule)}</td><td>{formatMontant(lot.margeParKg)}</td><td>{formatNombre(lot.tauxCharges, 1)} %</td></>}</tr>)}</tbody>
         </table>
       </div>
-      {lignes.length === 1 && <Link className="analysis-history-link" to={`/volailles/historique/${lignes[0].id}/analyse`}>Voir l’historique complet du lot →</Link>}
+      {lignes.length === 1 && <Link className="analysis-history-link" to={`/volailles/historique/${lignes[0].id}/analyse`}>Voir la fiche complète du lot →</Link>}
     </section>
   );
 }

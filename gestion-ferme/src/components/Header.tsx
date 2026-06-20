@@ -182,7 +182,7 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   }
                 >
                   <span>•</span>
-                  Historique
+                  Lots terminés
                 </NavLink>
               </div>
             )}

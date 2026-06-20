@@ -6,6 +6,11 @@ import toast from 'react-hot-toast';
 import ModalCloseButton from '../components/ModalCloseButton';
 import { formatNombre } from '../outils/formatNombre';
 import {
+  dateDepuisArrivee,
+  genererEvenementsVolailles,
+  REGLES_SUIVI_VOLAILLES,
+} from '../outils/evenementsVolailles';
+import {
   chargerLotsAvecMouvements,
   supprimerLotEtDonnees,
   type LivraisonVolaille,
@@ -14,13 +19,6 @@ import {
 
 type Mortalite = MortaliteVolaille;
 interface Evenement { title: string; date: Date; }
-type RegleEvenementLot = {
-  key: 'vaccin' | 'rappel' | 'analyse' | 'livraison';
-  title: string;
-  jour: number;
-  icon: string;
-  tone: 'warning' | 'info';
-};
 interface LotVolaille {
 id: string; nom: string; quantite: number; dateArrivee: string;
 batiment: string; mortalites: Mortalite[]; evenements: Evenement[];
@@ -33,28 +31,11 @@ nb_morts?: number;
 sujets_restants?: number;
 }
 
-const REGLES_EVENEMENTS_LOT: RegleEvenementLot[] = [
-  { key: 'vaccin', title: 'Vaccin', jour: 15, icon: '✚', tone: 'warning' },
-  { key: 'rappel', title: 'Rappel vaccin', jour: 25, icon: '↻', tone: 'warning' },
-  { key: 'analyse', title: 'Analyse', jour: 47, icon: '⌕', tone: 'warning' },
-  { key: 'livraison', title: 'Livraison', jour: 70, icon: '🚚', tone: 'info' },
-];
-
-function dateDepuisArrivee(dateArrivee: string, jours: number) {
-  const date = new Date(`${dateArrivee}T00:00:00`);
-  date.setDate(date.getDate() + jours);
-  return date;
-}
-
 function genererEvenementsLot(dateArrivee: string): Evenement[] {
-  return [
-    { title: 'Réception', date: dateDepuisArrivee(dateArrivee, 0) },
-    { title: 'Ouverture poussinière', date: dateDepuisArrivee(dateArrivee, 15) },
-    ...REGLES_EVENEMENTS_LOT.map((regle) => ({
-      title: regle.title,
-      date: dateDepuisArrivee(dateArrivee, regle.jour),
-    })),
-  ];
+  return genererEvenementsVolailles(dateArrivee).map(({ title, date }) => ({
+    title,
+    date,
+  }));
 }
 
 
@@ -551,7 +532,7 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     return { label: 'Mortalité élevée', tone: 'danger' };
   }
 
-  const regleLivraison = REGLES_EVENEMENTS_LOT.find(
+  const regleLivraison = REGLES_SUIVI_VOLAILLES.find(
     (regle) => regle.key === 'livraison'
   );
 
@@ -564,7 +545,7 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     };
   }
 
-  const prochainEvenement = REGLES_EVENEMENTS_LOT
+  const prochainEvenement = REGLES_SUIVI_VOLAILLES
     .filter((regle) => regle.key !== 'livraison')
     .find((regle) => {
       const joursRestants = regle.jour - age;
@@ -922,7 +903,7 @@ const lotsFaibles = lots.filter(
 const debutAujourdhui = new Date().setHours(0, 0, 0, 0);
 const echeancesProches = lots
   .flatMap((lot) =>
-    REGLES_EVENEMENTS_LOT.map((regle) => {
+    REGLES_SUIVI_VOLAILLES.map((regle) => {
       const date = dateDepuisArrivee(lot.dateArrivee, regle.jour);
       const joursRestants = Math.round(
         (date.getTime() - debutAujourdhui) / 86400000

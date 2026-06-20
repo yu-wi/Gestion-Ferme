@@ -10,6 +10,10 @@ import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import AddEventModal from "../outils/AddEventModal";
+import {
+  CLES_EVENEMENTS_VOLAILLES,
+  genererEvenementsVolailles,
+} from "../outils/evenementsVolailles";
 
 type AccueilProps = {
   userName: string;
@@ -103,38 +107,21 @@ export default function Accueil({ userName }: AccueilProps) {
         console.error("Erreur livraisons d'aliment :", livraisonsRes.error);
 
       const lotsData = (lotsRes.data || []) as LotDashboard[];
-      const evenementsLots: DashboardEvent[] = lotsData.flatMap((lot) => {
-        if (!lot.date_arrivee) return [];
-        const creerDate = (decalage: number) => {
-          const date = new Date(`${lot.date_arrivee}T00:00:00`);
-          date.setDate(date.getDate() + decalage);
-          return date.toISOString().split("T")[0];
-        };
-
-        return [
-          {
-            id: `reception-${lot.id}`,
-            title: `Réception - ${lot.nom}`,
-            start: creerDate(0),
-            end: creerDate(0),
-            category: "volailles",
-          },
-          {
-            id: `vaccination-${lot.id}`,
-            title: `Vaccination - ${lot.nom}`,
-            start: creerDate(15),
-            end: creerDate(15),
-            category: "volailles",
-          },
-          {
-            id: `livraison-${lot.id}`,
-            title: `Livraison - ${lot.nom}`,
-            start: creerDate(70),
-            end: creerDate(70),
-            category: "volailles",
-          },
-        ];
-      });
+      const evenementsLots: DashboardEvent[] = lotsData
+        .filter((lot) => lot.is_active)
+        .flatMap((lot) => {
+          if (!lot.date_arrivee) return [];
+          return genererEvenementsVolailles(lot.date_arrivee).map((event) => {
+            const date = event.date.toISOString().split("T")[0];
+            return {
+              id: `${event.key}-${lot.id}`,
+              title: `${event.title} - ${lot.nom}`,
+              start: date,
+              end: date,
+              category: "volailles",
+            };
+          });
+        });
 
       const evenementsManuels = (eventRes.data || []).map((event) => ({
         id: String(event.id),
@@ -223,8 +210,8 @@ export default function Accueil({ userName }: AccueilProps) {
   const handleEventClick = (clickInfo: EventClickArg) => {
     const { id, title, start, end, extendedProps } = clickInfo.event;
     if (
-      ["reception-", "vaccination-", "livraison-"].some((prefix) =>
-        id.startsWith(prefix)
+      CLES_EVENEMENTS_VOLAILLES.some((key) =>
+        id.startsWith(`${key}-`)
       )
     ) {
       return;

@@ -60,9 +60,23 @@ const POIDS_SAC_KG = 25;
 const PREVISION_JOURS = 7;
 const HORIZON_AUTONOMIE_JOURS = 180;
 const DELAI_COMMANDE_JOURS = 3;
+const ORDRE_ALIMENTS = ["starter", "croissance", "finition"];
 const enSacs = (quantiteKg: number) => quantiteKg / POIDS_SAC_KG;
 const sacsEntiers = (quantiteSacs: number) =>
   Math.max(0, Math.round(quantiteSacs));
+const normaliserAliment = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+const comparerAliments = (a: string, b: string) => {
+  const indexA = ORDRE_ALIMENTS.indexOf(normaliserAliment(a));
+  const indexB = ORDRE_ALIMENTS.indexOf(normaliserAliment(b));
+  const rangA = indexA === -1 ? ORDRE_ALIMENTS.length : indexA;
+  const rangB = indexB === -1 ? ORDRE_ALIMENTS.length : indexB;
+  return rangA - rangB || a.localeCompare(b, "fr");
+};
 const aujourdHui = () => {
   const date = new Date();
   const annee = date.getFullYear();
@@ -203,7 +217,7 @@ export default function DashboardFeed() {
           ...consommations.map((item) => item.feed_type),
           ...livraisons.map((item) => item.feed_type),
         ])
-      ).sort((a, b) => a.localeCompare(b)),
+      ).sort(comparerAliments),
     [references, consommations, livraisons]
   );
 
@@ -315,7 +329,7 @@ export default function DashboardFeed() {
         };
       })
       .filter((item) => item.besoinSacs > 0 || item.stockSacs !== 0)
-      .sort((a, b) => b.aCommanderSacs - a.aCommanderSacs);
+      .sort((a, b) => comparerAliments(a.feedType, b.feedType));
   }, [lots, references, stock, typesAliment]);
 
   const autonomieStock = useMemo(() => {
@@ -809,10 +823,10 @@ export default function DashboardFeed() {
 
       <section className="feed-history-grid">
         <FeedHistory title="Dernières consommations" empty="Aucune consommation enregistrée.">
-          {consommations.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`} sousTitre={formatDate(item.date)} valeur={`-${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />)}
+          {consommations.slice(0, 6).map((item) => <Mouvement key={item.id} titre={`${lots.find((lot) => lot.id === item.lot_id)?.nom || "Lot"} · ${item.feed_type}`} sousTitre={formatDate(item.date)} valeur={`-${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />)}
         </FeedHistory>
         <FeedHistory title="Dernières livraisons de stock" empty="Aucune livraison enregistrée.">
-          {livraisons.slice(0, 8).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
+          {livraisons.slice(0, 6).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
         </FeedHistory>
       </section>
 

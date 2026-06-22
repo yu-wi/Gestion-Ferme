@@ -580,7 +580,7 @@ export default function Accueil({ userName }: AccueilProps) {
 
         <article className="dashboard-panel dashboard-lots">
           <div className="panel-title-row">
-            <PanelTitle icon="▤" title="Lots en cours" />
+            <PanelTitle icon="▤" title="Lots SICA Madras" />
             <Link className="dashboard-primary-link" to="/volailles">
               Gérer les lots →
             </Link>

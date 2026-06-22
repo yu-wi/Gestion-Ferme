@@ -30,6 +30,7 @@ create table if not exists public.direct_sale_customers (
 
 create table if not exists public.direct_sale_orders (
   id uuid primary key default gen_random_uuid(),
+  batch_id uuid,
   customer_id uuid not null references public.direct_sale_customers(id) on delete restrict,
   lot_id uuid references public.direct_sale_lots(id) on delete set null,
   delivery_date date not null,
@@ -47,6 +48,7 @@ create table if not exists public.direct_sale_orders (
 
 create table if not exists public.direct_sale_deliveries (
   id uuid primary key default gen_random_uuid(),
+  batch_id uuid,
   order_id uuid references public.direct_sale_orders(id) on delete set null,
   customer_id uuid not null references public.direct_sale_customers(id) on delete restrict,
   lot_id uuid not null references public.direct_sale_lots(id) on delete restrict,
@@ -64,14 +66,26 @@ create table if not exists public.direct_sale_deliveries (
   created_at timestamptz not null default now()
 );
 
+alter table public.direct_sale_orders
+add column if not exists batch_id uuid;
+
+alter table public.direct_sale_deliveries
+add column if not exists batch_id uuid;
+
 create index if not exists direct_sale_lots_status_idx
 on public.direct_sale_lots(status, arrival_date desc);
 
 create index if not exists direct_sale_orders_date_idx
 on public.direct_sale_orders(delivery_date, status);
 
+create index if not exists direct_sale_orders_batch_idx
+on public.direct_sale_orders(batch_id);
+
 create index if not exists direct_sale_deliveries_date_idx
 on public.direct_sale_deliveries(delivery_date desc);
+
+create index if not exists direct_sale_deliveries_batch_idx
+on public.direct_sale_deliveries(batch_id);
 
 alter table public.direct_sale_lots enable row level security;
 alter table public.direct_sale_customers enable row level security;

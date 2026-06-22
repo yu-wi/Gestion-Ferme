@@ -3641,6 +3641,42 @@
   font-size: 16px;
 }
 
+.direct-sale-card-actions,
+.direct-sale-row-actions,
+.direct-sale-customer-actions,
+.direct-sale-detail-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.direct-sale-card-actions {
+  margin-top: 8px;
+}
+
+.direct-sale-card-actions button,
+.direct-sale-customer-actions button,
+.direct-sale-detail-actions button {
+  border: 1px solid #d9e3de;
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: #40566a;
+  background: white;
+  font-size: 9px;
+}
+
+.direct-sale-card-actions button:first-child {
+  flex: 1;
+  color: #16853d;
+}
+
+.direct-sale-card-actions button:last-child,
+.direct-sale-customer-actions button:last-child,
+.direct-sale-detail-actions button:last-child {
+  color: #d73333;
+  border-color: #f0d0d0;
+  background: #fff5f5;
+}
+
 .direct-sale-location {
   display: block;
   margin-top: 7px;
@@ -3663,7 +3699,7 @@
 .direct-sale-order-row,
 .direct-sale-delivery-row {
   display: grid;
-  grid-template-columns: 35px minmax(0, 1fr) auto 34px;
+  grid-template-columns: 35px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 9px;
   border-bottom: 1px solid #e7ece9;
@@ -3687,8 +3723,7 @@
 .direct-sale-order-livree { color: #16853d; background: #e2f3e7; }
 .direct-sale-order-annulee { color: #758291; background: #edf0f2; }
 
-.direct-sale-order-row > button,
-.direct-sale-delivery-row > button {
+.direct-sale-row-actions button {
   display: grid;
   width: 32px;
   height: 32px;
@@ -3697,6 +3732,16 @@
   border-radius: 6px;
   color: #16853d;
   background: white;
+}
+
+.direct-sale-order-row > .direct-sale-row-actions,
+.direct-sale-delivery-row > .direct-sale-row-actions {
+  flex-direction: row;
+}
+
+.direct-sale-row-actions .direct-sale-paid {
+  width: 32px;
+  height: 32px;
 }
 
 .direct-sale-money {
@@ -3732,6 +3777,19 @@
   border: 1px solid #e1e8e4;
   border-radius: 7px;
   padding: 10px;
+}
+
+.direct-sale-customer-grid article > .direct-sale-customer-actions {
+  flex-direction: row;
+  margin-left: auto;
+}
+
+.direct-sale-customer-actions button {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  padding: 0;
 }
 
 .direct-sale-customer-grid article > span {
@@ -3797,6 +3855,97 @@
   grid-column: 1 / -1;
 }
 
+.direct-sale-product-lines {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.direct-sale-product-line {
+  border: 1px solid #dfe7e3;
+  border-radius: 7px;
+  padding: 12px;
+  background: #f9fbfa;
+}
+
+.direct-sale-product-line-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.direct-sale-product-line-heading strong {
+  font-size: 11px;
+}
+
+.direct-sale-product-line-heading button {
+  border: 0;
+  color: #d73333;
+  background: transparent;
+}
+
+.direct-sale-add-line {
+  border: 1px dashed #9bcbaa;
+  border-radius: 7px;
+  padding: 10px;
+  color: #16853d;
+  background: #f3faf5;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.direct-sale-detail-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.direct-sale-detail-kpis span {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e1e8e4;
+  border-radius: 7px;
+  padding: 11px;
+  color: #718093;
+  font-size: 9px;
+}
+
+.direct-sale-detail-kpis strong {
+  margin-top: 4px;
+  color: #16853d;
+  font-size: 18px;
+}
+
+.direct-sale-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.direct-sale-detail-grid section {
+  border: 1px solid #e1e8e4;
+  border-radius: 7px;
+  padding: 13px;
+}
+
+.direct-sale-detail-grid h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.direct-sale-detail-grid p {
+  margin: 7px 0;
+  color: #607286;
+  font-size: 10px;
+}
+
+.direct-sale-detail-actions {
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
 @media (max-width: 1100px) {
   .direct-sale-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .direct-sale-lot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3831,14 +3980,16 @@
     width: fit-content;
     text-align: left;
   }
-  .direct-sale-order-row > button,
-  .direct-sale-delivery-row > button,
-  .direct-sale-delivery-row > .direct-sale-paid {
+  .direct-sale-order-row > .direct-sale-row-actions,
+  .direct-sale-delivery-row > .direct-sale-row-actions {
     grid-column: 3;
     grid-row: 1;
+    flex-direction: column;
   }
   .direct-sale-form-grid { grid-template-columns: 1fr; }
   .direct-sale-field-wide { grid-column: auto; }
+  .direct-sale-detail-kpis,
+  .direct-sale-detail-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 760px) {

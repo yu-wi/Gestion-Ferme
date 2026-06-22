@@ -73,7 +73,9 @@ cote Supabase.
 
 Avant la premiere utilisation de la page `Volailles > Vente directe`, executer
 le fichier `supabase/vente-directe.sql` dans l'editeur SQL de Supabase.
+Ce fichier peut etre execute de nouveau apres une mise a jour : les ajouts de
+colonnes et les politiques sont prevus pour ne pas effacer les donnees saisies.
 
-Ce module conserve des tables separees pour les petits lots, les bouchers, les
+Ce module conserve des tables separees pour les petits lots, les clients, les
 commandes et les livraisons. Les donnees des lots destines a la cooperative ne
 sont pas modifiees.

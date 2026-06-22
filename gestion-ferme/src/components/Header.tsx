@@ -163,7 +163,7 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   }
                 >
                   <span>•</span>
-                  Lots en cours
+                  Lots SICA Madras
                 </NavLink>
                 <NavLink
                   to="/volailles/vente-directe"

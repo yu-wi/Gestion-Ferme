@@ -957,7 +957,7 @@ return (
    </nav>
 
    <section id="vue-ensemble" className="poultry-kpis poultry-kpis-compact">
-     <PoultryKpi icon="▣" tone="green" label="Lots en cours" value={formatNombre(lots.length)} note={`${formatNombre(totalRestants)} sujets`} />
+     <PoultryKpi icon="▣" tone="green" label="Lots SICA Madras" value={formatNombre(lots.length)} note={`${formatNombre(totalRestants)} sujets`} />
      <PoultryKpi icon="♥" tone="red" label="Taux de mortalité" value={`${formatNombre(tauxMortaliteGlobal, 2)} %`} note={`${formatNombre(totalMorts)} mortalités`} />
    </section>
 
@@ -1038,7 +1038,7 @@ return (
    <section className="poultry-main-grid">
      <article id="lots-en-cours" className="poultry-panel poultry-lots-panel">
        <div className="poultry-lots-toolbar">
-         <h2>Lots en cours</h2>
+         <h2>Lots SICA Madras</h2>
          <div>
            <input
              type="search"

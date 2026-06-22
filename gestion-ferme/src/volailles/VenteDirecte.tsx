@@ -77,13 +77,6 @@ const lotStatusLabel: Record<DirectLot["status"], string> = {
   termine: "Terminé",
 };
 
-const orderStatusLabel: Record<DirectOrder["status"], string> = {
-  a_preparer: "À préparer",
-  prete: "Prête",
-  livree: "Livrée",
-  annulee: "Annulée",
-};
-
 export default function VenteDirecte() {
   const [lots, setLots] = useState<DirectLot[]>([]);
   const [customers, setCustomers] = useState<DirectCustomer[]>([]);

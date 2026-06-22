@@ -771,6 +771,7 @@ export default function DashboardFeed() {
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
         <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles/vente-directe">Vente directe</Link>
         <Link to="/volailles/alimentation" className="poultry-tab-active">Alimentation</Link>
         <Link to="/volailles/historique">Lots terminés</Link>
         <Link to="/volailles/analyse">Performances</Link>

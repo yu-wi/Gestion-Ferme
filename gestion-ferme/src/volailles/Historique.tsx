@@ -306,6 +306,7 @@ export default function Historique() {
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
         <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles/vente-directe">Vente directe</Link>
         <Link to="/volailles/alimentation">Alimentation</Link>
         <Link to="/volailles/historique" className="poultry-tab-active">Lots terminés</Link>
         <Link to="/volailles/analyse">Performances</Link>

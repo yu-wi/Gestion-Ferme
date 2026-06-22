@@ -68,3 +68,12 @@ Chaque utilisateur possede :
 La table des profils n'est pas accessible aux visiteurs non connectes. La
 correspondance entre identifiant et adresse est realisee dans une fonction Edge
 cote Supabase.
+
+## Vente directe
+
+Avant la premiere utilisation de la page `Volailles > Vente directe`, executer
+le fichier `supabase/vente-directe.sql` dans l'editeur SQL de Supabase.
+
+Ce module conserve des tables separees pour les petits lots, les bouchers, les
+commandes et les livraisons. Les donnees des lots destines a la cooperative ne
+sont pas modifiees.

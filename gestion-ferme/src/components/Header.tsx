@@ -32,6 +32,7 @@ const gestion: NavigationItem[] = [
 
 const estDansProductionVolailles = (pathname: string) =>
   pathname === "/volailles" ||
+  pathname.startsWith("/volailles/vente-directe") ||
   pathname.startsWith("/volailles/alimentation") ||
   pathname.startsWith("/volailles/historique");
 
@@ -163,6 +164,16 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 >
                   <span>•</span>
                   Lots en cours
+                </NavLink>
+                <NavLink
+                  to="/volailles/vente-directe"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Vente directe
                 </NavLink>
                 <NavLink
                   to="/volailles/alimentation"

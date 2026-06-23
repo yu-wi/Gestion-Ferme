@@ -334,7 +334,7 @@ export default function VenteDirecte() {
       console.error("Erreur ajout lot vente directe :", error);
       toast.error("Le lot n'a pas pu être enregistré.");
     } else {
-      toast.success(editingLotId ? "Petit lot modifié." : "Petit lot enregistré.");
+      toast.success(editingLotId ? "Lot modifié." : "Lot enregistré.");
       setLotModal(false);
       setEditingLotId("");
       setLotForm({
@@ -416,7 +416,7 @@ export default function VenteDirecte() {
     const { error } = await supabase.from("direct_sale_lots").delete().eq("id", lot.id);
     if (error) toast.error("Ce lot est encore lié à une commande ou une livraison.");
     else {
-      toast.success("Petit lot supprimé.");
+      toast.success("Lot supprimé.");
       setLotDetailModal(false);
       await loadData();
     }
@@ -932,14 +932,14 @@ export default function VenteDirecte() {
       <header className="direct-sale-heading">
         <div>
           <h1><span>◎</span> Vente directe</h1>
-          <p>Petits lots, commandes clients, livraisons et règlements.</p>
+          <p>Lots, commandes clients, livraisons et règlements.</p>
         </div>
         <div>
           <button type="button" className="direct-sale-secondary" onClick={() => openCustomerForm()}>
             ＋ Client
           </button>
           <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>
-            ＋ Petit lot
+            ＋ Lot
           </button>
         </div>
       </header>
@@ -960,7 +960,7 @@ export default function VenteDirecte() {
       )}
 
       <section className="direct-sale-kpis">
-        <DirectKpi icon="◉" tone="green" label="Petits lots actifs" value={formatNombre(activeLots.length)} note={`${formatNombre(availableSubjects)} sujets disponibles`} />
+        <DirectKpi icon="◉" tone="green" label="Lots actifs" value={formatNombre(activeLots.length)} note={`${formatNombre(availableSubjects)} sujets disponibles`} />
         <DirectKpi icon="▤" tone="blue" label="Commandes à préparer" value={formatNombre(pendingOrderGroups.length)} note="À venir" />
         <DirectKpi icon="€" tone="orange" label="Chiffre d’affaires" value={formatMontant(invoicedTotal)} note="Livraisons enregistrées" />
         <DirectKpi icon="!" tone="red" label="Paiements attendus" value={formatMontant(outstandingTotal)} note="Solde restant" />
@@ -968,7 +968,7 @@ export default function VenteDirecte() {
 
       <section className="direct-sale-panel">
         <div className="direct-sale-panel-heading">
-          <div><h2>Petits lots</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
+          <div><h2>Lots</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
           <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>
         </div>
         <div className="direct-sale-lot-grid">
@@ -1000,7 +1000,7 @@ export default function VenteDirecte() {
               <small className="direct-sale-location">{lot.location || "Emplacement non renseigné"}</small>
             </article>
           ))}
-          {lots.length === 0 && <div className="direct-sale-empty">Aucun petit lot enregistré.</div>}
+          {lots.length === 0 && <div className="direct-sale-empty">Aucun lot enregistré.</div>}
         </div>
       </section>
 
@@ -1110,7 +1110,7 @@ export default function VenteDirecte() {
       </section>
 
       {lotModal && (
-        <DirectModal title={editingLotId ? "Modifier le petit lot" : "Ajouter un petit lot"} subtitle="Ce lot restera séparé des lots destinés à la coopérative." icon="♧" onClose={() => setLotModal(false)}>
+        <DirectModal title={editingLotId ? "Modifier le lot" : "Ajouter un lot"} subtitle="Ce lot restera séparé des lots destinés à la coopérative." icon="♧" onClose={() => setLotModal(false)}>
           <div className="direct-sale-form-grid">
             <label>Nom du lot<input value={lotForm.name} onChange={(event) => setLotForm({ ...lotForm, name: event.target.value })} placeholder="Ex. Pintades juillet" /></label>
             <label>Espèce<select value={lotForm.species} onChange={(event) => setLotForm({ ...lotForm, species: event.target.value as DirectLot["species"] })}><option value="poulet">Poulets</option><option value="pintade">Pintades</option></select></label>
@@ -1242,7 +1242,7 @@ export default function VenteDirecte() {
       })()}
 
       {mortalityModal && (
-        <DirectModal title="Enregistrer des mortalités" subtitle={lotById.get(selectedLotId)?.name || "Petit lot"} icon="†" onClose={() => setMortalityModal(false)}>
+        <DirectModal title="Enregistrer des mortalités" subtitle={lotById.get(selectedLotId)?.name || "Lot"} icon="†" onClose={() => setMortalityModal(false)}>
           <div className="direct-sale-form-grid">
             <label className="direct-sale-field-wide">Nombre de sujets morts<input type="number" min="1" value={mortalityCount} onChange={(event) => setMortalityCount(event.target.value)} /></label>
           </div>

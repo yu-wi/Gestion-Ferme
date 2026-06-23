@@ -76,6 +76,10 @@ le fichier `supabase/vente-directe.sql` dans l'editeur SQL de Supabase.
 Ce fichier peut etre execute de nouveau apres une mise a jour : les ajouts de
 colonnes et les politiques sont prevus pour ne pas effacer les donnees saisies.
 
-Ce module conserve des tables separees pour les petits lots, les clients, les
+Ce module conserve des tables separees pour les lots, les clients, les
 commandes et les livraisons. Les donnees des lots destines a la cooperative ne
 sont pas modifiees.
+
+Les lots actifs de vente directe sont aussi proposes dans la page Alimentation.
+Leurs consommations utilisent le stock commun et sont incluses dans les
+previsions a sept jours.

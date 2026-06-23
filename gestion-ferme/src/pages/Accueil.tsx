@@ -498,8 +498,8 @@ export default function Accueil({ userName }: AccueilProps) {
       </header>
 
       <section className="dashboard-kpis">
-        <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG, 2)} sacs`} note="Disponible" />
-        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG, 2)} sacs`} note="Suivi quotidien" />
+        <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG)} sacs`} note="Disponible" />
+        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG)} sacs`} note="Suivi quotidien" />
         <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
         <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${formatNombre(resultatBrut, 2)} €`} note={`${lotsArchives.length} lots archivés`} />
       </section>
@@ -615,7 +615,7 @@ export default function Accueil({ userName }: AccueilProps) {
           <article className="dashboard-panel dashboard-feed-card">
             <PanelTitle icon="▣" title="Alimentation" />
             <span>Stock disponible</span>
-            <strong>{formatNombre(stockKg / POIDS_SAC_KG, 2)} sacs</strong>
+            <strong>{formatNombre(stockKg / POIDS_SAC_KG)} sacs</strong>
             <Link to="/volailles/alimentation">Gérer l’alimentation →</Link>
           </article>
           <article className="dashboard-panel dashboard-reminders">

@@ -72,6 +72,22 @@ add column if not exists batch_id uuid;
 alter table public.direct_sale_deliveries
 add column if not exists batch_id uuid;
 
+-- Permettre au stock d'aliment commun d'enregistrer les consommations
+-- des lots SICA Madras et des lots de vente directe.
+alter table public.consommations_aliment
+alter column lot_id drop not null;
+
+alter table public.consommations_aliment
+add column if not exists direct_sale_lot_id uuid
+references public.direct_sale_lots(id) on delete cascade;
+
+alter table public.consommations_aliment
+add column if not exists source_type text not null default 'sica'
+check (source_type in ('sica', 'vente_directe'));
+
+create index if not exists consommations_aliment_direct_lot_date_idx
+on public.consommations_aliment(direct_sale_lot_id, date desc);
+
 create index if not exists direct_sale_lots_status_idx
 on public.direct_sale_lots(status, arrival_date desc);
 

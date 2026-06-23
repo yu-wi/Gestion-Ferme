@@ -174,7 +174,7 @@ export default function DashboardFeed() {
           .order("date", { ascending: false }),
       ]);
 
-    let consommationsResult = await supabase
+    const consommationsEtendues = await supabase
       .from("consommations_aliment")
       .select(
         "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
@@ -182,14 +182,23 @@ export default function DashboardFeed() {
       .order("date", { ascending: false });
 
     let consommationEtendueDisponible = true;
-    if (consommationsResult.error) {
+    let consommationError = consommationsEtendues.error;
+    let consommationRows = (consommationsEtendues.data || []) as unknown as Array<
+      Record<string, unknown>
+    >;
+    if (consommationsEtendues.error) {
       const ancienResultat = await supabase
         .from("consommations_aliment")
         .select("id, lot_id, date, feed_type, quantite_kg, note")
         .order("date", { ascending: false });
       if (!ancienResultat.error) {
         consommationEtendueDisponible = false;
-        consommationsResult = ancienResultat as typeof consommationsResult;
+        consommationError = null;
+        consommationRows = (ancienResultat.data || []) as unknown as Array<
+          Record<string, unknown>
+        >;
+      } else {
+        consommationError = ancienResultat.error;
       }
     }
     setDirectConsumptionReady(consommationEtendueDisponible);
@@ -198,7 +207,7 @@ export default function DashboardFeed() {
       lotsResult.error ||
       directLotsResult.error ||
       refsResult.error ||
-      consommationsResult.error ||
+      consommationError ||
       livraisonsResult.error;
 
     if (error) {
@@ -228,16 +237,21 @@ export default function DashboardFeed() {
         })) as FeedReference[]
       );
       setConsommations(
-        (consommationsResult.data || []).map((item) => ({
-          ...item,
-          lot_id: item.lot_id || null,
-          direct_sale_lot_id: item.direct_sale_lot_id || null,
+        consommationRows.map((item) => ({
+          id: String(item.id || ""),
+          lot_id: item.lot_id ? String(item.lot_id) : null,
+          direct_sale_lot_id: item.direct_sale_lot_id
+            ? String(item.direct_sale_lot_id)
+            : null,
           source_type:
             consommationEtendueDisponible &&
             item.source_type === "vente_directe"
               ? "vente_directe"
               : "sica",
+          date: String(item.date || ""),
+          feed_type: String(item.feed_type || ""),
           quantite_kg: Number(item.quantite_kg) || 0,
+          note: item.note == null ? null : String(item.note),
         })) as Consommation[]
       );
       setLivraisons(
@@ -505,20 +519,17 @@ export default function DashboardFeed() {
       lot_id: lotConsommationSelectionne?.id || null,
       ...valeursCommunes,
     };
-    const champsConsommation = directConsumptionReady
-      ? "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
-      : "id, lot_id, date, feed_type, quantite_kg, note";
     const resultat = consommationEnModification
       ? await supabase
           .from("consommations_aliment")
           .update(valeurs)
           .eq("id", consommationEnModification.id)
-          .select(champsConsommation)
+          .select("*")
           .single()
       : await supabase
           .from("consommations_aliment")
           .insert(valeurs)
-          .select(champsConsommation)
+          .select("*")
           .single();
     const { data, error } = resultat;
 
@@ -526,12 +537,19 @@ export default function DashboardFeed() {
       console.error("Erreur consommation aliment:", error);
       toast.error("La consommation n'a pas pu être enregistrée.");
     } else if (data) {
+      const ligne = data as unknown as Record<string, unknown>;
       const consommation = {
-        ...data,
-        direct_sale_lot_id: data.direct_sale_lot_id || null,
+        id: String(ligne.id || ""),
+        lot_id: ligne.lot_id ? String(ligne.lot_id) : null,
+        direct_sale_lot_id: ligne.direct_sale_lot_id
+          ? String(ligne.direct_sale_lot_id)
+          : null,
         source_type:
-          data.source_type === "vente_directe" ? "vente_directe" : "sica",
-        quantite_kg: Number(data.quantite_kg) || 0,
+          ligne.source_type === "vente_directe" ? "vente_directe" : "sica",
+        date: String(ligne.date || ""),
+        feed_type: String(ligne.feed_type || ""),
+        quantite_kg: Number(ligne.quantite_kg) || 0,
+        note: ligne.note == null ? null : String(ligne.note),
       } as Consommation;
       setConsommations((items) => [
         consommation,

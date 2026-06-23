@@ -127,11 +127,9 @@ export default function VenteDirecte() {
   const [customerModal, setCustomerModal] = useState(false);
   const [orderModal, setOrderModal] = useState(false);
   const [deliveryModal, setDeliveryModal] = useState(false);
-  const [paymentModal, setPaymentModal] = useState(false);
   const [mortalityModal, setMortalityModal] = useState(false);
   const [lotDetailModal, setLotDetailModal] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
-  const [selectedDeliveryId, setSelectedDeliveryId] = useState("");
   const [editingLotId, setEditingLotId] = useState("");
   const [editingCustomerId, setEditingCustomerId] = useState("");
   const [editingOrderBatch, setEditingOrderBatch] = useState("");
@@ -166,11 +164,6 @@ export default function VenteDirecte() {
   const [deliveryLines, setDeliveryLines] = useState<DeliveryLineForm[]>([
     emptyDeliveryLine(),
   ]);
-  const [paymentForm, setPaymentForm] = useState({
-    amount: "",
-    payment_date: todayIso(),
-    payment_method: "",
-  });
   const [mortalityCount, setMortalityCount] = useState("");
 
   const loadData = async () => {
@@ -734,17 +727,6 @@ export default function VenteDirecte() {
     setSaving(false);
   };
 
-  const openPayment = (group: { key: string; lines: DirectDelivery[] }) => {
-    const first = group.lines[0];
-    setSelectedDeliveryId(group.key);
-    setPaymentForm({
-      amount: "",
-      payment_date: todayIso(),
-      payment_method: first.payment_method || "",
-    });
-    setPaymentModal(true);
-  };
-
   const openDeliveryForm = (group: { key: string; lines: DirectDelivery[] }) => {
     const first = group.lines[0];
     setEditingDeliveryBatch(group.key);
@@ -810,50 +792,31 @@ export default function VenteDirecte() {
     }
   };
 
-  const savePayment = async () => {
-    const group = deliveryGroups.find((item) => item.key === selectedDeliveryId);
-    const amount = Number(paymentForm.amount);
-    if (!group || amount <= 0) {
-      toast.error("Indiquez un montant valide.");
-      return;
-    }
-    const outstanding = group.lines.reduce(
-      (total, line) =>
-        total + Math.max(0, line.amount_invoiced - line.amount_paid),
-      0
-    );
-    if (amount > outstanding) {
-      toast.error(`Le solde restant est de ${formatMontant(outstanding)}.`);
-      return;
-    }
+  const validatePayment = async (group: {
+    key: string;
+    lines: DirectDelivery[];
+  }) => {
+    if (saving) return;
     setSaving(true);
-    let remainingPayment = amount;
     let paymentError = false;
     for (const line of group.lines) {
-      const lineOutstanding = Math.max(
-        0,
-        line.amount_invoiced - line.amount_paid
-      );
-      const linePayment = Math.min(lineOutstanding, remainingPayment);
-      if (linePayment <= 0) continue;
+      if (line.amount_paid >= line.amount_invoiced) continue;
       const { error } = await supabase
         .from("direct_sale_deliveries")
         .update({
-          amount_paid: line.amount_paid + linePayment,
-          payment_date: paymentForm.payment_date,
-          payment_method: paymentForm.payment_method.trim() || null,
+          amount_paid: line.amount_invoiced,
+          payment_date: todayIso(),
+          payment_method: line.payment_method || "Règlement validé",
         })
         .eq("id", line.id);
       if (error) {
         paymentError = true;
         break;
       }
-      remainingPayment -= linePayment;
     }
     if (paymentError) toast.error("Le règlement n'a pas pu être enregistré.");
     else {
       toast.success("Règlement enregistré.");
-      setPaymentModal(false);
       await loadData();
     }
     setSaving(false);
@@ -1076,7 +1039,7 @@ export default function VenteDirecte() {
                   </div>
                   <div className="direct-sale-row-actions">
                     {outstanding > 0 ? (
-                      <button type="button" title="Enregistrer un règlement" onClick={() => openPayment(group)}>€</button>
+                      <button type="button" title="Marquer comme réglée" aria-label={`Marquer la livraison de ${customerById.get(first.customer_id)?.name || "ce client"} comme réglée`} onClick={() => validatePayment(group)} disabled={saving}>€</button>
                     ) : <span className="direct-sale-paid">✓</span>}
                     <button type="button" title="Modifier" onClick={() => openDeliveryForm(group)}>✎</button>
                     <button type="button" title="Supprimer" onClick={() => deleteDeliveryGroup(group)}>⌫</button>
@@ -1191,17 +1154,6 @@ export default function VenteDirecte() {
             <button type="button" className="direct-sale-add-line" onClick={() => setDeliveryLines((lines) => [...lines, emptyDeliveryLine()])}>＋ Ajouter un produit</button>
           </div>
           <ModalActions saving={saving} onCancel={() => setDeliveryModal(false)} onSave={saveDelivery} label={editingDeliveryBatch ? "Enregistrer les modifications" : "Enregistrer la livraison"} />
-        </DirectModal>
-      )}
-
-      {paymentModal && (
-        <DirectModal title="Enregistrer un règlement" subtitle="Le montant s’ajoutera aux paiements déjà reçus." icon="€" onClose={() => setPaymentModal(false)}>
-          <div className="direct-sale-form-grid">
-            <label>Montant reçu (€)<input type="number" min="0" step="0.01" value={paymentForm.amount} onChange={(event) => setPaymentForm({ ...paymentForm, amount: event.target.value })} /></label>
-            <label>Date du règlement<input type="date" value={paymentForm.payment_date} onChange={(event) => setPaymentForm({ ...paymentForm, payment_date: event.target.value })} /></label>
-            <label className="direct-sale-field-wide">Moyen de paiement<input value={paymentForm.payment_method} onChange={(event) => setPaymentForm({ ...paymentForm, payment_method: event.target.value })} placeholder="Ex. Virement, chèque, espèces" /></label>
-          </div>
-          <ModalActions saving={saving} onCancel={() => setPaymentModal(false)} onSave={savePayment} label="Valider le règlement" />
         </DirectModal>
       )}
 

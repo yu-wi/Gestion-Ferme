@@ -116,6 +116,7 @@ export default function DashboardFeed() {
   const [livraisons, setLivraisons] = useState<LivraisonStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [directConsumptionReady, setDirectConsumptionReady] = useState(true);
   const [consommationModalOpen, setConsommationModalOpen] = useState(false);
   const [livraisonModalOpen, setLivraisonModalOpen] = useState(false);
   const [referencesInfoOpen, setReferencesInfoOpen] = useState(false);
@@ -145,13 +146,7 @@ export default function DashboardFeed() {
     useState<LivraisonStock | null>(null);
 
   const chargerDonnees = async () => {
-    const [
-      lotsResult,
-      directLotsResult,
-      refsResult,
-      consommationsResult,
-      livraisonsResult,
-    ] =
+    const [lotsResult, directLotsResult, refsResult, livraisonsResult] =
       await Promise.all([
         supabase
           .from("lots_volailles")
@@ -172,18 +167,32 @@ export default function DashboardFeed() {
           )
           .order("age_min_days"),
         supabase
-          .from("consommations_aliment")
-          .select(
-            "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
-          )
-          .order("date", { ascending: false }),
-        supabase
           .from("livraisons_aliment")
           .select(
             "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
           )
           .order("date", { ascending: false }),
       ]);
+
+    let consommationsResult = await supabase
+      .from("consommations_aliment")
+      .select(
+        "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
+      )
+      .order("date", { ascending: false });
+
+    let consommationEtendueDisponible = true;
+    if (consommationsResult.error) {
+      const ancienResultat = await supabase
+        .from("consommations_aliment")
+        .select("id, lot_id, date, feed_type, quantite_kg, note")
+        .order("date", { ascending: false });
+      if (!ancienResultat.error) {
+        consommationEtendueDisponible = false;
+        consommationsResult = ancienResultat as typeof consommationsResult;
+      }
+    }
+    setDirectConsumptionReady(consommationEtendueDisponible);
 
     const error =
       lotsResult.error ||
@@ -224,6 +233,7 @@ export default function DashboardFeed() {
           lot_id: item.lot_id || null,
           direct_sale_lot_id: item.direct_sale_lot_id || null,
           source_type:
+            consommationEtendueDisponible &&
             item.source_type === "vente_directe"
               ? "vente_directe"
               : "sica",
@@ -463,9 +473,24 @@ export default function DashboardFeed() {
       toast.error("Complétez le lot, la date, l'aliment et la quantité.");
       return;
     }
+    if (
+      lotConsommationSelectionne?.source === "vente_directe" &&
+      !directConsumptionReady
+    ) {
+      toast.error(
+        "La mise à jour Supabase pour les lots Vente directe doit être appliquée."
+      );
+      return;
+    }
 
     setSaving(true);
-    const valeurs = {
+    const valeursCommunes = {
+      date: consommationDate,
+      feed_type: consommationType,
+      quantite_kg: nombreSacs * POIDS_SAC_KG,
+      note: consommationNote.trim() || null,
+    };
+    const valeurs = directConsumptionReady ? {
       lot_id:
         lotConsommationSelectionne?.source === "sica"
           ? lotConsommationSelectionne.id
@@ -475,22 +500,25 @@ export default function DashboardFeed() {
           ? lotConsommationSelectionne.id
           : null,
       source_type: lotConsommationSelectionne?.source || "sica",
-      date: consommationDate,
-      feed_type: consommationType,
-      quantite_kg: nombreSacs * POIDS_SAC_KG,
-      note: consommationNote.trim() || null,
+      ...valeursCommunes,
+    } : {
+      lot_id: lotConsommationSelectionne?.id || null,
+      ...valeursCommunes,
     };
+    const champsConsommation = directConsumptionReady
+      ? "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
+      : "id, lot_id, date, feed_type, quantite_kg, note";
     const resultat = consommationEnModification
       ? await supabase
           .from("consommations_aliment")
           .update(valeurs)
           .eq("id", consommationEnModification.id)
-          .select("id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note")
+          .select(champsConsommation)
           .single()
       : await supabase
           .from("consommations_aliment")
           .insert(valeurs)
-          .select("id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note")
+          .select(champsConsommation)
           .single();
     const { data, error } = resultat;
 
@@ -500,6 +528,9 @@ export default function DashboardFeed() {
     } else if (data) {
       const consommation = {
         ...data,
+        direct_sale_lot_id: data.direct_sale_lot_id || null,
+        source_type:
+          data.source_type === "vente_directe" ? "vente_directe" : "sica",
         quantite_kg: Number(data.quantite_kg) || 0,
       } as Consommation;
       setConsommations((items) => [
@@ -828,6 +859,14 @@ export default function DashboardFeed() {
         <Link to="/volailles/historique">Lots terminés</Link>
         <Link to="/volailles/analyse">Performances</Link>
       </nav>
+
+      {!directConsumptionReady && (
+        <div className="feed-warning">
+          ⓘ Le suivi des lots Vente directe nécessite la mise à jour
+          Supabase <code>alimentation-vente-directe.sql</code>. Les données
+          SICA Madras restent accessibles.
+        </div>
+      )}
 
       <section className="feed-kpis">
         <FeedKpi tone="green" icon="▣" label="Stock total" value={`${sacsEntiers(enSacs(stockTotal))} sacs`} note="Disponible en stock" />

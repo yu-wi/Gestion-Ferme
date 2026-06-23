@@ -88,6 +88,8 @@ check (source_type in ('sica', 'vente_directe'));
 create index if not exists consommations_aliment_direct_lot_date_idx
 on public.consommations_aliment(direct_sale_lot_id, date desc);
 
+notify pgrst, 'reload schema';
+
 create index if not exists direct_sale_lots_status_idx
 on public.direct_sale_lots(status, arrival_date desc);
 

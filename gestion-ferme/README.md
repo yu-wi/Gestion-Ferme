@@ -83,3 +83,6 @@ sont pas modifiees.
 Les lots actifs de vente directe sont aussi proposes dans la page Alimentation.
 Leurs consommations utilisent le stock commun et sont incluses dans les
 previsions a sept jours.
+
+Si le module Vente directe est deja installe, le script court
+`supabase/alimentation-vente-directe.sql` suffit pour activer cette liaison.

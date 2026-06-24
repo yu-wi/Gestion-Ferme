@@ -871,11 +871,12 @@ export default function DashboardFeed() {
       </header>
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/sica">Lots SICA Madras</Link>
+        <Link to="/volailles/sica/historique">Historique SICA</Link>
         <Link to="/volailles/vente-directe">Vente directe</Link>
+        <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
         <Link to="/volailles/alimentation" className="poultry-tab-active">Alimentation</Link>
-        <Link to="/volailles/historique">Lots terminés</Link>
-        <Link to="/volailles/analyse">Performances</Link>
       </nav>
 
       {!directConsumptionReady && (

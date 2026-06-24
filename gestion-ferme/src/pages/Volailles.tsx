@@ -931,8 +931,8 @@ return (
  <div className="poultry-page">
    <header className="poultry-heading">
      <div>
-       <h1>Volailles <span>♧</span></h1>
-       <p>Suivi des lots, performances et production.</p>
+       <h1>Lots SICA Madras <span>♧</span></h1>
+       <p>Suivi des lots coopérative, performances et production.</p>
      </div>
      <div className="poultry-heading-actions">
        <button type="button" onClick={() => exportToExcel(filteredLots)}>
@@ -949,11 +949,12 @@ return (
    </header>
 
    <nav className="poultry-tabs" aria-label="Sections volailles">
-     <a href="#vue-ensemble" className="poultry-tab-active">Vue d’ensemble</a>
+     <Link to="/volailles">Résumé</Link>
+     <a href="#vue-ensemble" className="poultry-tab-active">Lots SICA Madras</a>
+     <Link to="/volailles/sica/historique">Historique SICA</Link>
      <Link to="/volailles/vente-directe">Vente directe</Link>
+     <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
      <Link to="/volailles/alimentation">Alimentation</Link>
-     <Link to="/volailles/historique">Lots terminés</Link>
-     <Link to="/volailles/analyse">Performances</Link>
    </nav>
 
    <section id="vue-ensemble" className="poultry-kpis poultry-kpis-compact">
@@ -1155,7 +1156,7 @@ return (
        <button type="button" onClick={() => setNouveauLotModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
        <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
        <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
-       <Link to="/volailles/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique</small></div></Link>
+       <Link to="/volailles/sica/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique SICA</small></div></Link>
      </aside>
    </section>
  </div>

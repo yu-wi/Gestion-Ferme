@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre } from "../outils/formatNombre";
@@ -116,6 +116,8 @@ const lotStatusLabel: Record<DirectLot["status"], string> = {
 };
 
 export default function VenteDirecte() {
+  const location = useLocation();
+  const historiqueMode = location.pathname.includes("/historique");
   const [lots, setLots] = useState<DirectLot[]>([]);
   const [customers, setCustomers] = useState<DirectCustomer[]>([]);
   const [orders, setOrders] = useState<DirectOrder[]>([]);
@@ -238,6 +240,8 @@ export default function VenteDirecte() {
   }, []);
 
   const activeLots = lots.filter((lot) => lot.status !== "termine");
+  const archivedLots = lots.filter((lot) => lot.status === "termine");
+  const visibleLots = historiqueMode ? archivedLots : activeLots;
   const availableSubjects = activeLots.reduce(
     (total, lot) => total + Number(lot.remaining_quantity || 0),
     0
@@ -894,25 +898,26 @@ export default function VenteDirecte() {
     <div className="direct-sale-page">
       <header className="direct-sale-heading">
         <div>
-          <h1><span>◎</span> Vente directe</h1>
-          <p>Lots, commandes clients, livraisons et règlements.</p>
+          <h1><span>◎</span> {historiqueMode ? "Historique vente directe" : "Vente directe"}</h1>
+          <p>{historiqueMode ? "Lots clôturés, livraisons clients et règlements." : "Lots, commandes clients, livraisons et règlements."}</p>
         </div>
-        <div>
+        {!historiqueMode && <div>
           <button type="button" className="direct-sale-secondary" onClick={() => openCustomerForm()}>
             ＋ Client
           </button>
           <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>
             ＋ Lot
           </button>
-        </div>
+        </div>}
       </header>
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Vue d’ensemble</Link>
-        <Link to="/volailles/vente-directe" className="poultry-tab-active">Vente directe</Link>
+        <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/sica">Lots SICA Madras</Link>
+        <Link to="/volailles/sica/historique">Historique SICA</Link>
+        <Link to="/volailles/vente-directe" className={!historiqueMode ? "poultry-tab-active" : undefined}>Vente directe</Link>
+        <Link to="/volailles/vente-directe/historique" className={historiqueMode ? "poultry-tab-active" : undefined}>Historique vente directe</Link>
         <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/historique">Lots terminés</Link>
-        <Link to="/volailles/analyse">Performances</Link>
       </nav>
 
       {databaseMissing && (
@@ -923,7 +928,7 @@ export default function VenteDirecte() {
       )}
 
       <section className="direct-sale-kpis">
-        <DirectKpi icon="◉" tone="green" label="Lots actifs" value={formatNombre(activeLots.length)} note={`${formatNombre(availableSubjects)} sujets disponibles`} />
+        <DirectKpi icon="◉" tone="green" label={historiqueMode ? "Lots clôturés" : "Lots actifs"} value={formatNombre(visibleLots.length)} note={historiqueMode ? "Historique production" : `${formatNombre(availableSubjects)} sujets disponibles`} />
         <DirectKpi icon="▤" tone="blue" label="Commandes à préparer" value={formatNombre(pendingOrderGroups.length)} note="À venir" />
         <DirectKpi icon="€" tone="orange" label="Chiffre d’affaires" value={formatMontant(invoicedTotal)} note="Livraisons enregistrées" />
         <DirectKpi icon="!" tone="red" label="Paiements attendus" value={formatMontant(outstandingTotal)} note="Solde restant" />
@@ -931,11 +936,11 @@ export default function VenteDirecte() {
 
       <section className="direct-sale-panel">
         <div className="direct-sale-panel-heading">
-          <div><h2>Lots</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
-          <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>
+          <div><h2>{historiqueMode ? "Lots clôturés" : "Lots actifs"}</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
+          {!historiqueMode && <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>}
         </div>
         <div className="direct-sale-lot-grid">
-          {lots.map((lot) => (
+          {visibleLots.map((lot) => (
             <article key={lot.id} className="direct-sale-lot-card">
               <div className="direct-sale-lot-title">
                 <span>{lot.species === "pintade" ? "◇" : "♧"}</span>
@@ -963,7 +968,7 @@ export default function VenteDirecte() {
               <small className="direct-sale-location">{lot.location || "Emplacement non renseigné"}</small>
             </article>
           ))}
-          {lots.length === 0 && <div className="direct-sale-empty">Aucun lot enregistré.</div>}
+          {visibleLots.length === 0 && <div className="direct-sale-empty">{historiqueMode ? "Aucun lot clôturé." : "Aucun lot actif."}</div>}
         </div>
       </section>
 

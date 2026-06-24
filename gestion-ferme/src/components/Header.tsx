@@ -26,12 +26,9 @@ const production: NavigationItem[] = [
   { to: "/ovins", label: "Ovins", icon: <img src={sheepLogo} alt="" /> },
 ];
 
-const gestion: NavigationItem[] = [
-  { to: "/volailles/analyse", label: "Analyse", icon: "◔" },
-];
-
 const estDansProductionVolailles = (pathname: string) =>
   pathname === "/volailles" ||
+  pathname.startsWith("/volailles/sica") ||
   pathname.startsWith("/volailles/vente-directe") ||
   pathname.startsWith("/volailles/alimentation") ||
   pathname.startsWith("/volailles/historique");
@@ -117,6 +114,17 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
             <span>Accueil</span>
           </NavLink>
 
+          <NavLink
+            to="/planning"
+            onClick={fermerMenu}
+            className={({ isActive }) =>
+              `app-nav-link${isActive ? " app-nav-link-active" : ""}`
+            }
+          >
+            <span className="app-nav-icon">□</span>
+            <span>Planning</span>
+          </NavLink>
+
           <div className="app-nav-section">Production</div>
           <div className="app-nav-group">
             <div
@@ -163,7 +171,27 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   }
                 >
                   <span>•</span>
+                  Résumé
+                </NavLink>
+                <NavLink
+                  to="/volailles/sica"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
                   Lots SICA Madras
+                </NavLink>
+                <NavLink
+                  to="/volailles/sica/historique"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Historique SICA
                 </NavLink>
                 <NavLink
                   to="/volailles/vente-directe"
@@ -176,6 +204,16 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   Vente directe
                 </NavLink>
                 <NavLink
+                  to="/volailles/vente-directe/historique"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Historique vente directe
+                </NavLink>
+                <NavLink
                   to="/volailles/alimentation"
                   onClick={fermerMenu}
                   className={({ isActive }) =>
@@ -185,23 +223,10 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   <span>•</span>
                   Alimentation
                 </NavLink>
-                <NavLink
-                  to="/volailles/historique"
-                  onClick={fermerMenu}
-                  className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
-                  }
-                >
-                  <span>•</span>
-                  Lots terminés
-                </NavLink>
               </div>
             )}
           </div>
           {liens(production)}
-
-          <div className="app-nav-section">Gestion</div>
-          {liens(gestion)}
         </nav>
 
         <div className="app-user-panel">

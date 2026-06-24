@@ -143,10 +143,12 @@ export default function Analyse() {
       </header>
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/sica">Lots SICA Madras</Link>
+        <Link to="/volailles/sica/historique">Historique SICA</Link>
         <Link to="/volailles/vente-directe">Vente directe</Link>
+        <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
         <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/historique">Lots terminés</Link>
         <Link to="/volailles/analyse" className="poultry-tab-active">Performances</Link>
       </nav>
 
@@ -260,15 +262,15 @@ function TableauLots({ lignes, mode }: { lignes: LigneAnalyse[]; mode: OngletAna
     <section className="analysis-panel analysis-detail">
       <h2>Détail par lot</h2>
       <div className="analysis-mobile-list">
-        {lignes.map((lot) => <article key={lot.id}><div><strong>{lot.nom}</strong><span>{lot.batiment}</span></div><div><span>{mode === "production" ? "Livrés" : "Résultat"}<b>{mode === "production" ? formatNombre(lot.quantiteLivree) : formatMontant(lot.resultatCalcule)}</b></span><span>{mode === "production" ? "Mortalité" : "Charges"}<b>{mode === "production" ? `${formatNombre(lot.tauxMortalite, 1)} %` : formatMontant(lot.totalCharges)}</b></span><span>{mode === "production" ? "Poids moyen" : "Marge / kg"}<b>{mode === "production" ? formatPoids(lot.poidsMoyen) : formatMontant(lot.margeParKg)}</b></span></div><Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse complète →</Link></article>)}
+        {lignes.map((lot) => <article key={lot.id}><div><strong>{lot.nom}</strong><span>{lot.batiment}</span></div><div><span>{mode === "production" ? "Livrés" : "Résultat"}<b>{mode === "production" ? formatNombre(lot.quantiteLivree) : formatMontant(lot.resultatCalcule)}</b></span><span>{mode === "production" ? "Mortalité" : "Charges"}<b>{mode === "production" ? `${formatNombre(lot.tauxMortalite, 1)} %` : formatMontant(lot.totalCharges)}</b></span><span>{mode === "production" ? "Poids moyen" : "Marge / kg"}<b>{mode === "production" ? formatPoids(lot.poidsMoyen) : formatMontant(lot.margeParKg)}</b></span></div><Link to={`/volailles/sica/historique/${lot.id}/analyse`}>Voir l’analyse complète →</Link></article>)}
       </div>
       <div className="analysis-table-wrap">
         <table className="analysis-table">
           <thead><tr><th>Lot</th><th>Bâtiment</th>{mode === "production" ? <><th>Livrés</th><th>Mortalités</th><th>Taux de mortalité</th><th>Poids livré</th><th>Poids moyen</th></> : <><th>Chiffre d’affaires</th><th>Charges</th><th>Résultat</th><th>Marge / kg</th><th>Charges / CA</th></>}</tr></thead>
-          <tbody>{lignes.map((lot) => <tr key={lot.id}><td><Link to={`/volailles/historique/${lot.id}/analyse`}>{lot.nom}</Link></td><td>{lot.batiment}</td>{mode === "production" ? <><td className="analysis-blue">{formatNombre(lot.quantiteLivree)}</td><td className="analysis-red">{formatNombre(lot.nb_morts)}</td><td className="analysis-orange">{formatNombre(lot.tauxMortalite, 1)} %</td><td className="analysis-green">{formatPoids(Number(lot.total_poids_livre))}</td><td>{formatPoids(lot.poidsMoyen)}</td></> : <><td className="analysis-blue">{formatMontant(Number(lot.resultat_brut) || 0)}</td><td className="analysis-orange">{formatMontant(lot.totalCharges)}</td><td className={lot.resultatCalcule < 0 ? "analysis-red" : "analysis-green"}>{formatMontant(lot.resultatCalcule)}</td><td>{formatMontant(lot.margeParKg)}</td><td>{formatNombre(lot.tauxCharges, 1)} %</td></>}</tr>)}</tbody>
+          <tbody>{lignes.map((lot) => <tr key={lot.id}><td><Link to={`/volailles/sica/historique/${lot.id}/analyse`}>{lot.nom}</Link></td><td>{lot.batiment}</td>{mode === "production" ? <><td className="analysis-blue">{formatNombre(lot.quantiteLivree)}</td><td className="analysis-red">{formatNombre(lot.nb_morts)}</td><td className="analysis-orange">{formatNombre(lot.tauxMortalite, 1)} %</td><td className="analysis-green">{formatPoids(Number(lot.total_poids_livre))}</td><td>{formatPoids(lot.poidsMoyen)}</td></> : <><td className="analysis-blue">{formatMontant(Number(lot.resultat_brut) || 0)}</td><td className="analysis-orange">{formatMontant(lot.totalCharges)}</td><td className={lot.resultatCalcule < 0 ? "analysis-red" : "analysis-green"}>{formatMontant(lot.resultatCalcule)}</td><td>{formatMontant(lot.margeParKg)}</td><td>{formatNombre(lot.tauxCharges, 1)} %</td></>}</tr>)}</tbody>
         </table>
       </div>
-      {lignes.length === 1 && <Link className="analysis-history-link" to={`/volailles/historique/${lignes[0].id}/analyse`}>Voir la fiche complète du lot →</Link>}
+      {lignes.length === 1 && <Link className="analysis-history-link" to={`/volailles/sica/historique/${lignes[0].id}/analyse`}>Voir la fiche complète du lot →</Link>}
     </section>
   );
 }

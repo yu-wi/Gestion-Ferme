@@ -298,18 +298,19 @@ export default function Historique() {
     <div className="history-page">
       <header className="history-heading">
         <div>
-          <h1><span>▣</span> Lots terminés</h1>
+          <h1><span>▣</span> Historique SICA Madras</h1>
           <p>Lots archivés, résultats et livraisons.</p>
         </div>
         <button type="button" onClick={() => window.print()}>▤ Exporter PDF</button>
       </header>
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Vue d’ensemble</Link>
+        <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/sica">Lots SICA Madras</Link>
+        <Link to="/volailles/sica/historique" className="poultry-tab-active">Historique SICA</Link>
         <Link to="/volailles/vente-directe">Vente directe</Link>
+        <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
         <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/historique" className="poultry-tab-active">Lots terminés</Link>
-        <Link to="/volailles/analyse">Performances</Link>
       </nav>
 
       <section className="history-kpis">
@@ -357,7 +358,7 @@ export default function Historique() {
                 <span>Résultat <b>{formatMontant(lot.resultat)}</b></span>
               </div>
               <div className="history-mobile-actions">
-                <Link to={`/volailles/historique/${lot.id}/analyse`}>Voir l’analyse</Link>
+                <Link to={`/volailles/sica/historique/${lot.id}/analyse`}>Voir l’analyse</Link>
                 <button type="button" onClick={() => reactiverLot(lot)}>Réactiver</button>
                 <button type="button" onClick={() => supprimerLot(lot)}>🗑</button>
               </div>
@@ -390,7 +391,7 @@ export default function Historique() {
                   <td className={lot.resultat < 0 ? "history-negative" : "history-positive"}>{formatMontant(lot.resultat)}</td>
                   <td>
                     <div className="history-row-actions">
-                      <Link title="Voir l’analyse complète" to={`/volailles/historique/${lot.id}/analyse`}>👁</Link>
+                      <Link title="Voir l’analyse complète" to={`/volailles/sica/historique/${lot.id}/analyse`}>👁</Link>
                       <button type="button" title="Réactiver le lot" onClick={() => reactiverLot(lot)}>↻</button>
                       <button type="button" title="Supprimer le lot" onClick={() => supprimerLot(lot)}>🗑</button>
                     </div>
@@ -449,7 +450,7 @@ export default function Historique() {
               {lotsAffiches.map((lot) => <option key={lot.id} value={lot.id}>Lot {lot.nom} · {lot.batiment}</option>)}
             </select>
           </div>
-          <Link to={`/volailles/historique/${lotAnalyse.id}/analyse`}>Voir l’analyse complète →</Link>
+          <Link to={`/volailles/sica/historique/${lotAnalyse.id}/analyse`}>Voir l’analyse complète →</Link>
         </section>
       )}
 

@@ -1095,6 +1095,155 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.poultry-summary-page .poultry-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.poultry-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.poultry-summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.poultry-summary-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8e5;
+  border-radius: 14px;
+  color: #0f2137;
+  background: #fff;
+}
+
+.poultry-summary-row > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  color: #14833d;
+  background: #eaf8ee;
+}
+
+.poultry-summary-row strong,
+.poultry-summary-row small {
+  display: block;
+}
+
+.poultry-summary-row small {
+  margin-top: 3px;
+  color: #64748b;
+}
+
+.poultry-summary-row b {
+  color: #0b7a34;
+  white-space: nowrap;
+}
+
+.poultry-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.poultry-shortcuts a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid #d9e7de;
+  border-radius: 14px;
+  color: #126f35;
+  font-weight: 700;
+  background: #f1fbf4;
+}
+
+.planning-placeholder,
+.planning-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px;
+  margin-top: 18px;
+}
+
+.planning-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planning-filters button {
+  border: 1px solid #d9e3dc;
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: #294056;
+  background: white;
+  font-weight: 700;
+}
+
+.planning-filters .planning-filter-active {
+  border-color: #14783a;
+  color: white;
+  background: #14783a;
+}
+
+.planning-list {
+  display: grid;
+  gap: 10px;
+}
+
+.planning-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #e2e8e5;
+  border-radius: 14px;
+  color: #0f2137;
+  background: #fff;
+}
+
+.planning-row > span {
+  color: #14783a;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.planning-row small {
+  display: block;
+  margin-top: 4px;
+  color: #66758a;
+}
+
+.planning-row-warning {
+  background: #fffaf0;
+}
+
+.planning-row-info {
+  background: #eff8ff;
+}
+
+.planning-placeholder strong,
+.planning-placeholder span {
+  display: block;
+}
+
+.planning-placeholder span {
+  margin-top: 6px;
+  color: #64748b;
+}
+
 .poultry-kpi,
 .poultry-panel,
 .poultry-quick-actions {

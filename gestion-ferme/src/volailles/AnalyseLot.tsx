@@ -99,19 +99,19 @@ export default function AnalyseLot() {
 
   return (
     <div className="lot-analysis-page">
-      <div className="lot-analysis-breadcrumb"><Link to="/volailles/historique">Lots terminés</Link><span>›</span><span>{lot.nom}</span><span>›</span><strong>Analyse complète</strong></div>
+      <div className="lot-analysis-breadcrumb"><Link to="/volailles/sica/historique">Historique SICA</Link><span>›</span><span>{lot.nom}</span><span>›</span><strong>Analyse complète</strong></div>
       <header className="lot-analysis-heading">
         <div>
           <h1>Analyse complète – Lot {lot.nom} <span>Terminé</span></h1>
           <p>Arrivé le {formatDate(lot.date_arrivee)} · Bâtiment {lot.batiment} · Période de {lot.age || 0} jours</p>
           <label className="lot-analysis-selector">
             Lot analysé
-            <select value={lot.id} onChange={(event) => navigate(`/volailles/historique/${event.target.value}/analyse`)}>
+            <select value={lot.id} onChange={(event) => navigate(`/volailles/sica/historique/${event.target.value}/analyse`)}>
               {lotsDisponibles.map((item) => <option key={item.id} value={item.id}>Lot {item.nom} · {item.batiment}</option>)}
             </select>
           </label>
         </div>
-        <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/historique">← Retour aux lots terminés</Link></div>
+        <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>
       </header>
 
       <section className="history-kpis">

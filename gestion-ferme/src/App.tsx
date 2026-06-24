@@ -11,6 +11,8 @@ import Aquaponie from './pages/Aquaponie';
 import Cultures from './pages/Cultures';
 import Ovins from './pages/Ovins';
 import Accueil from './pages/Accueil'; 
+import Planning from './pages/Planning';
+import VolaillesResume from './volailles/VolaillesResume';
 
 import AlimentationPage from './volailles/alimentationPage'
 import Historique from './volailles/Historique'; 
@@ -42,14 +44,19 @@ function App() {
               <main className="app-main">
                 <Routes>
                   <Route index element={<Accueil userName={userName} />} />
-                  <Route path="volailles" element={<Volailles />} />
+                  <Route path="planning" element={<Planning />} />
+                  <Route path="volailles" element={<VolaillesResume />} />
+                  <Route path="/volailles/sica" element={<Volailles />} />
                   <Route path="aquaponie" element={<Aquaponie />} />
                   <Route path="cultures" element={<Cultures />} />
                   <Route path="ovins" element={<Ovins />} />
                   <Route path="/volailles/alimentation" element={<AlimentationPage />} />
                   <Route path="/volailles/vente-directe" element={<VenteDirecte />} />
+                  <Route path="/volailles/vente-directe/historique" element={<VenteDirecte />} />
                   <Route path="/volailles/historique" element={<Historique />} />
+                  <Route path="/volailles/sica/historique" element={<Historique />} />
                   <Route path="/volailles/historique/:lotId/analyse" element={<AnalyseLot />} />
+                  <Route path="/volailles/sica/historique/:lotId/analyse" element={<AnalyseLot />} />
                   <Route path="/volailles/analyse" element={<Analyse />} />
                   <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
                   <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />

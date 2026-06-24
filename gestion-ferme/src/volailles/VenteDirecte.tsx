@@ -838,18 +838,6 @@ export default function VenteDirecte() {
     setSaving(false);
   };
 
-  const updateLotStatus = async (lot: DirectLot, status: DirectLot["status"]) => {
-    const { error } = await supabase
-      .from("direct_sale_lots")
-      .update({ status })
-      .eq("id", lot.id);
-    if (error) toast.error("Le statut n'a pas pu être modifié.");
-    else {
-      toast.success("Statut du lot modifié.");
-      await loadData();
-    }
-  };
-
   const openMortality = (lot: DirectLot) => {
     setSelectedLotId(lot.id);
     setMortalityCount("");

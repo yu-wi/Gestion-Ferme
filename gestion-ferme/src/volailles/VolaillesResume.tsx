@@ -348,6 +348,12 @@ export default function VolaillesResume() {
     return items.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 6);
   }, [directLots, sicaLots]);
 
+  const alertBadge = (alerte: AlertItem) => {
+    if (alerte.tone === "danger") return "À vérifier";
+    if (alerte.tone === "warning") return "Rappel";
+    return "Info";
+  };
+
   if (loading) {
     return <div className="dashboard-loading">Chargement du résumé volailles...</div>;
   }
@@ -370,17 +376,17 @@ export default function VolaillesResume() {
         </div>
       )}
 
-      <section className="poultry-kpis">
-        <article className="poultry-kpi">
+      <section className="poultry-kpis poultry-summary-kpis">
+        <article className="poultry-kpi poultry-summary-kpi">
           <i className="poultry-kpi-icon poultry-kpi-green">▣</i><div><small>Lots SICA Madras</small><strong>{formatNombre(sicaLots.length)}</strong><em>{formatNombre(sujetsSica)} sujets</em></div>
         </article>
-        <article className="poultry-kpi">
+        <article className="poultry-kpi poultry-summary-kpi">
           <i className="poultry-kpi-icon poultry-kpi-blue">◎</i><div><small>Lots Vente directe</small><strong>{formatNombre(directLots.length)}</strong><em>{formatNombre(sujetsDirect)} sujets</em></div>
         </article>
-        <article className="poultry-kpi">
-          <i className="poultry-kpi-icon poultry-kpi-red">†</i><div><small>Mortalités</small><strong>{formatNombre(mortalites)}</strong><em>Tous lots actifs</em></div>
+        <article className="poultry-kpi poultry-summary-kpi">
+          <i className="poultry-kpi-icon poultry-kpi-red">✚</i><div><small>Mortalités</small><strong>{formatNombre(mortalites)}</strong><em>Tous lots actifs</em></div>
         </article>
-        <article className="poultry-kpi">
+        <article className="poultry-kpi poultry-summary-kpi">
           <i className="poultry-kpi-icon poultry-kpi-orange">!</i><div><small>Alertes planning</small><strong>{formatNombre(alertes.length)}</strong><em>Sur 7 jours</em></div>
         </article>
       </section>
@@ -389,7 +395,7 @@ export default function VolaillesResume() {
         <article className="poultry-panel">
           <div className="poultry-panel-heading">
             <h2>Lots actifs SICA Madras</h2>
-            <Link to="/volailles/sica">Voir la gestion</Link>
+            <Link className="summary-heading-link" to="/volailles/sica">Voir la gestion <span>→</span></Link>
           </div>
           <div className="poultry-summary-list">
             {sicaLots.slice(0, 6).map((lot) => (
@@ -397,16 +403,18 @@ export default function VolaillesResume() {
                 <span>▣</span>
                 <div><strong>{lot.nom}</strong><small>{lot.batiment || "Bâtiment non renseigné"} · Arrivé le {formatDate(lot.date_arrivee)}</small></div>
                 <b>{formatNombre(lot.sujets_restants ?? lot.quantite)} sujets</b>
+                <i>›</i>
               </Link>
             ))}
             {sicaLots.length === 0 && <div className="poultry-empty">Aucun lot SICA actif.</div>}
           </div>
+          <Link className="summary-panel-footer" to="/volailles/sica">Voir tous les lots SICA Madras <span>→</span></Link>
         </article>
 
         <article className="poultry-panel">
           <div className="poultry-panel-heading">
             <h2>Lots actifs Vente directe</h2>
-            <Link to="/volailles/vente-directe">Voir la gestion</Link>
+            <Link className="summary-heading-link" to="/volailles/vente-directe">Voir la gestion <span>→</span></Link>
           </div>
           <div className="poultry-summary-list">
             {directLots.slice(0, 6).map((lot) => (
@@ -414,25 +422,28 @@ export default function VolaillesResume() {
                 <span>◎</span>
                 <div><strong>{lot.name}</strong><small>{directSpeciesLabel(lot.species)} · {lot.location || "Emplacement non renseigné"}</small></div>
                 <b>{formatNombre(lot.remaining_quantity)} sujets</b>
+                <i>›</i>
               </Link>
             ))}
             {directLots.length === 0 && <div className="poultry-empty">Aucun lot vente directe actif.</div>}
           </div>
+          <Link className="summary-panel-footer" to="/volailles/vente-directe">Voir tous les lots Vente directe <span>→</span></Link>
         </article>
 
         <article className="poultry-panel">
           <div className="poultry-panel-heading">
             <h2>Alertes planning</h2>
-            <Link to="/planning">Voir le planning</Link>
+            <Link className="summary-heading-link" to="/planning">Voir le planning <span>→</span></Link>
           </div>
           <div className="poultry-alert-list">
             {alertes.map((alerte) => (
-              <Link key={alerte.id} to={alerte.to} className={`poultry-alert poultry-alert-${alerte.tone}`}>
-                <span>{alerte.icon}</span><div><strong>{alerte.title}</strong><small>{alerte.detail}</small></div>
+              <Link key={alerte.id} to={alerte.to} className={`poultry-alert poultry-alert-${alerte.tone} summary-alert-row`}>
+                <span>{alerte.icon}</span><div><strong>{alerte.title}</strong><small>{alerte.detail}</small></div><em>{alertBadge(alerte)}</em>
               </Link>
             ))}
             {alertes.length === 0 && <div className="poultry-empty">Aucune alerte sur les 7 prochains jours.</div>}
           </div>
+          <Link className="summary-panel-footer" to="/planning">Voir toutes les alertes ({formatNombre(alertes.length)}) <span>→</span></Link>
         </article>
 
         <article className="poultry-panel">
@@ -441,10 +452,10 @@ export default function VolaillesResume() {
             <span>Lots SICA et vente directe</span>
           </div>
           <div className="poultry-shortcuts">
-            <button type="button" onClick={openMortalityShortcut}>† Saisir mortalité</button>
-            <button type="button" onClick={openFeedShortcut}>▣ Saisir alimentation</button>
-            <Link to="/volailles/alimentation">🚚 Livraison aliment</Link>
-            <Link to="/volailles/sica">＋ Nouveau lot SICA</Link>
+            <button type="button" onClick={openMortalityShortcut}><span>＋</span><div><strong>Saisir mortalité</strong><small>SICA ou vente directe</small></div></button>
+            <button type="button" onClick={openFeedShortcut}><span>▣</span><div><strong>Saisir alimentation</strong><small>Consommation quotidienne</small></div></button>
+            <Link to="/volailles/alimentation"><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></Link>
+            <Link to="/volailles/sica"><span>＋</span><div><strong>Nouveau lot SICA</strong><small>Créer un lot coopérative</small></div></Link>
           </div>
         </article>
       </section>

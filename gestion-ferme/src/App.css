@@ -1095,42 +1095,109 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.poultry-summary-page .poultry-heading {
+  align-items: flex-end;
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.poultry-summary-page .poultry-heading h1 {
+  font-size: 32px;
+}
+
+.poultry-summary-page .poultry-heading h1 span {
+  color: #14833d;
+}
+
+.poultry-summary-page .poultry-tabs {
+  margin-top: 24px;
+}
+
 .poultry-summary-page .poultry-kpis {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.poultry-summary-kpi {
+  min-height: 120px;
+  border-color: #dfe8e3;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(40, 62, 51, 0.06);
+}
+
+.poultry-summary-kpi .poultry-kpi-icon {
+  width: 68px;
+  height: 68px;
+  font-size: 29px;
 }
 
 .poultry-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 18px;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.poultry-summary-page .poultry-panel {
+  border-color: #dfe8e3;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 12px 30px rgba(40, 62, 51, 0.06);
+}
+
+.poultry-summary-page .poultry-panel-heading {
+  margin-bottom: 12px;
+}
+
+.poultry-summary-page .poultry-panel-heading h2 {
+  font-size: 17px;
+}
+
+.summary-heading-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0d823a;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .poultry-summary-list {
   display: grid;
-  gap: 10px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8e5;
+  border-radius: 8px;
 }
 
 .poultry-summary-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto 18px;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid #e2e8e5;
-  border-radius: 14px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid #e8eee9;
+  border-radius: 0;
   color: #0f2137;
-  background: #fff;
+  background: linear-gradient(90deg, #ffffff, #fbfdfc);
+}
+
+.poultry-summary-row:last-child {
+  border-bottom: 0;
 }
 
 .poultry-summary-row > span {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   color: #14833d;
   background: #eaf8ee;
+  font-size: 18px;
 }
 
 .poultry-summary-row strong,
@@ -1148,29 +1215,97 @@
   white-space: nowrap;
 }
 
+.poultry-summary-row i {
+  color: #607083;
+  font-size: 22px;
+  font-style: normal;
+}
+
+.summary-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  margin-top: 14px;
+  border-radius: 8px;
+  color: #0b7a34;
+  background: linear-gradient(90deg, #eef9f0, #e9f5ee);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.summary-alert-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+}
+
+.summary-alert-row em {
+  color: inherit;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .poultry-shortcuts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
 .poultry-shortcuts a,
 .poultry-shortcuts button {
-  display: flex;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  min-height: 52px;
-  padding: 12px;
-  border: 1px solid #d9e7de;
-  border-radius: 14px;
+  gap: 16px;
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid #dcebe1;
+  border-radius: 8px;
   color: #126f35;
   font-weight: 700;
-  background: #f1fbf4;
+  text-align: left;
+  background: linear-gradient(135deg, #f3fbf4, #ebf6ef);
+  box-shadow: 0 10px 22px rgba(40, 62, 51, 0.04);
 }
 
 .poultry-shortcuts button {
   width: 100%;
   cursor: pointer;
+}
+
+.poultry-shortcuts a > span,
+.poultry-shortcuts button > span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  color: #12803a;
+  background: #ddf2e4;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.poultry-shortcuts strong,
+.poultry-shortcuts small {
+  display: block;
+}
+
+.poultry-shortcuts strong {
+  color: #0d7d39;
+  font-size: 16px;
+}
+
+.poultry-shortcuts small {
+  margin-top: 4px;
+  color: #5c6c7d;
+  font-size: 13px;
 }
 
 .direct-sale-history-table td button {

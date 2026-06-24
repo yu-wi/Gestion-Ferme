@@ -537,7 +537,7 @@ function calculerVigilanceLot(lot: LotVolaille): VigilanceLot {
     ? (mortalites / lot.quantite) * 100
     : 0;
 
-  if (tauxMortalite >= 3) {
+  if (tauxMortalite > 15) {
     return { label: 'Mortalité élevée', tone: 'danger' };
   }
 
@@ -903,7 +903,7 @@ const lotsAlerteMortalite = lots
       taux: lot.quantite > 0 ? (morts / lot.quantite) * 100 : 0,
     };
   })
-  .filter((item) => item.taux >= 3)
+  .filter((item) => item.taux > 15)
   .sort((a, b) => b.taux - a.taux);
 const lotsFaibles = lots.filter(
   (lot) =>
@@ -1079,7 +1079,7 @@ return (
                </div>
                <div className="poultry-mobile-values poultry-mobile-values-compact">
                  <span>Effectif <b>{formatNombre(sujetsRestants)}</b></span>
-                 <span>Mortalité <b className={taux >= 3 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
+                 <span>Mortalité <b className={taux > 15 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
                </div>
                <div className="poultry-card-actions">
                  <button type="button" onClick={() => setDetailLot(lot)}><span aria-hidden="true">👁</span> Fiche</button>
@@ -1124,7 +1124,7 @@ return (
                    <td>{new Date(`${lot.dateArrivee}T00:00:00`).toLocaleDateString("fr-FR")}</td>
 	                   <td>{age} jours</td>
                    <td>{formatNombre(sujetsRestants)}</td>
-	                   <td className={taux >= 3 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
+	                   <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
 	                   <td><span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span></td>
                    <td>
                      <div className="poultry-row-actions">

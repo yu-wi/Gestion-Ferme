@@ -246,6 +246,18 @@ export default function VenteDirecte() {
     (total, lot) => total + Number(lot.remaining_quantity || 0),
     0
   );
+  const archivedInitialSubjects = archivedLots.reduce(
+    (total, lot) => total + Number(lot.initial_quantity || 0),
+    0
+  );
+  const archivedMortalities = archivedLots.reduce(
+    (total, lot) => total + Number(lot.mortality_count || 0),
+    0
+  );
+  const archivedRevenue = archivedLots.reduce((total, lot) => {
+    const lotDeliveries = deliveries.filter((delivery) => delivery.lot_id === lot.id);
+    return total + lotDeliveries.reduce((subtotal, delivery) => subtotal + delivery.amount_invoiced, 0);
+  }, 0);
   const orderGroups = useMemo(
     () =>
       Array.from(
@@ -929,11 +941,61 @@ export default function VenteDirecte() {
 
       <section className="direct-sale-kpis">
         <DirectKpi icon="◉" tone="green" label={historiqueMode ? "Lots clôturés" : "Lots actifs"} value={formatNombre(visibleLots.length)} note={historiqueMode ? "Historique production" : `${formatNombre(availableSubjects)} sujets disponibles`} />
-        <DirectKpi icon="▤" tone="blue" label="Commandes à préparer" value={formatNombre(pendingOrderGroups.length)} note="À venir" />
-        <DirectKpi icon="€" tone="orange" label="Chiffre d’affaires" value={formatMontant(invoicedTotal)} note="Livraisons enregistrées" />
-        <DirectKpi icon="!" tone="red" label="Paiements attendus" value={formatMontant(outstandingTotal)} note="Solde restant" />
+        <DirectKpi icon="▤" tone="blue" label={historiqueMode ? "Sujets initiaux" : "Commandes à préparer"} value={historiqueMode ? formatNombre(archivedInitialSubjects) : formatNombre(pendingOrderGroups.length)} note={historiqueMode ? "Lots clôturés" : "À venir"} />
+        <DirectKpi icon="€" tone="orange" label="Chiffre d’affaires" value={formatMontant(historiqueMode ? archivedRevenue : invoicedTotal)} note="Livraisons enregistrées" />
+        <DirectKpi icon="!" tone="red" label={historiqueMode ? "Mortalités" : "Paiements attendus"} value={historiqueMode ? formatNombre(archivedMortalities) : formatMontant(outstandingTotal)} note={historiqueMode ? "Lots clôturés" : "Solde restant"} />
       </section>
 
+      {historiqueMode ? (
+        <section className="direct-sale-panel">
+          <div className="direct-sale-panel-heading">
+            <div><h2>Historique des lots</h2><span>Lots clôturés destinés à la vente directe.</span></div>
+          </div>
+          <div className="feed-table-wrap">
+            <table className="feed-table direct-sale-history-table">
+              <thead>
+                <tr>
+                  <th>Lot</th>
+                  <th>Espèce</th>
+                  <th>Arrivée</th>
+                  <th>Emplacement</th>
+                  <th>Effectif initial</th>
+                  <th>Restants</th>
+                  <th>Mortalités</th>
+                  <th>Sujets livrés</th>
+                  <th>Chiffre d’affaires</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivedLots.map((lot) => {
+                  const lotDeliveries = deliveries.filter((delivery) => delivery.lot_id === lot.id);
+                  const delivered = lotDeliveries.reduce((total, delivery) => total + delivery.quantity_delivered, 0);
+                  const revenue = lotDeliveries.reduce((total, delivery) => total + delivery.amount_invoiced, 0);
+                  return (
+                    <tr key={lot.id}>
+                      <td><strong>{lot.name}</strong></td>
+                      <td>{speciesLabel(lot.species)}</td>
+                      <td>{formatDate(lot.arrival_date)}</td>
+                      <td>{lot.location || "—"}</td>
+                      <td>{formatNombre(lot.initial_quantity)}</td>
+                      <td>{formatNombre(lot.remaining_quantity)}</td>
+                      <td>{formatNombre(lot.mortality_count)}</td>
+                      <td>{formatNombre(delivered)}</td>
+                      <td>{formatMontant(revenue)}</td>
+                      <td><button type="button" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>Fiche</button></td>
+                    </tr>
+                  );
+                })}
+                {archivedLots.length === 0 && (
+                  <tr><td colSpan={10}>Aucun lot clôturé.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <>
       <section className="direct-sale-panel">
         <div className="direct-sale-panel-heading">
           <div><h2>{historiqueMode ? "Lots clôturés" : "Lots actifs"}</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
@@ -1076,6 +1138,8 @@ export default function VenteDirecte() {
           {customers.length === 0 && <div className="direct-sale-empty">Aucun client enregistré.</div>}
         </div>
       </section>
+        </>
+      )}
 
       {lotModal && (
         <DirectModal title={editingLotId ? "Modifier le lot" : "Ajouter un lot"} subtitle="Ce lot restera séparé des lots destinés à la coopérative." icon="♧" onClose={() => setLotModal(false)}>

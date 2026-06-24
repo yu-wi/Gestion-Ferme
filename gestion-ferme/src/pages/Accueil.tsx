@@ -275,7 +275,7 @@ export default function Accueil({ userName }: AccueilProps) {
         lot.quantite > 0
           ? ((Number(lot.nb_morts) || 0) / lot.quantite) * 100
           : 0;
-      if (tauxMortalite >= 3) {
+      if (tauxMortalite > 15) {
         alertes.push({
           id: `mortalite-${lot.id}`,
           title: `Mortalité à surveiller · ${lot.nom}`,

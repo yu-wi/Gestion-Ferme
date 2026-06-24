@@ -1154,7 +1154,8 @@
   gap: 10px;
 }
 
-.poultry-shortcuts a {
+.poultry-shortcuts a,
+.poultry-shortcuts button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1165,6 +1166,20 @@
   color: #126f35;
   font-weight: 700;
   background: #f1fbf4;
+}
+
+.poultry-shortcuts button {
+  width: 100%;
+  cursor: pointer;
+}
+
+.direct-sale-history-table td button {
+  border: 1px solid #d9e3dc;
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: #113b27;
+  background: #f1fbf4;
+  font-weight: 700;
 }
 
 .planning-placeholder,

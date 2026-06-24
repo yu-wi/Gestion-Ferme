@@ -1237,18 +1237,10 @@
 
 .summary-alert-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr);
   padding: 10px 12px;
   border: 0;
   border-radius: 8px;
-}
-
-.summary-alert-row em {
-  color: inherit;
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .poultry-shortcuts {
@@ -1315,6 +1307,26 @@
   color: #113b27;
   background: #f1fbf4;
   font-weight: 700;
+}
+
+.direct-sale-active-table-wrap {
+  margin-top: 15px;
+  overflow-x: auto;
+}
+
+.direct-sale-active-table th,
+.direct-sale-active-table td {
+  white-space: nowrap;
+}
+
+.direct-sale-table-actions {
+  justify-content: center;
+}
+
+.direct-sale-table-actions button:nth-child(3) {
+  border-color: #dce5e0;
+  color: #365064;
+  background: #fff;
 }
 
 .planning-placeholder,
@@ -4389,6 +4401,7 @@
   .poultry-lots-toolbar > div { width: 100%; flex-wrap: wrap; }
   .poultry-lots-toolbar input[type="search"] { min-width: 0; flex: 1 1 130px; width: auto; }
   .poultry-table-wrap { display: none; }
+  .direct-sale-active-table-wrap { display: block; }
   .poultry-mobile-lots { display: grid; gap: 10px; padding: 12px; }
   .poultry-mobile-card { border: 1px solid #e2e8e5; border-radius: 7px; padding: 14px; background: white; }
   .poultry-mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

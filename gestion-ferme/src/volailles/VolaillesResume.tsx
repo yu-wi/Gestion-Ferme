@@ -348,12 +348,6 @@ export default function VolaillesResume() {
     return items.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 6);
   }, [directLots, sicaLots]);
 
-  const alertBadge = (alerte: AlertItem) => {
-    if (alerte.tone === "danger") return "À vérifier";
-    if (alerte.tone === "warning") return "Rappel";
-    return "Info";
-  };
-
   if (loading) {
     return <div className="dashboard-loading">Chargement du résumé volailles...</div>;
   }
@@ -438,7 +432,7 @@ export default function VolaillesResume() {
           <div className="poultry-alert-list">
             {alertes.map((alerte) => (
               <Link key={alerte.id} to={alerte.to} className={`poultry-alert poultry-alert-${alerte.tone} summary-alert-row`}>
-                <span>{alerte.icon}</span><div><strong>{alerte.title}</strong><small>{alerte.detail}</small></div><em>{alertBadge(alerte)}</em>
+                <span>{alerte.icon}</span><div><strong>{alerte.title}</strong><small>{alerte.detail}</small></div>
               </Link>
             ))}
             {alertes.length === 0 && <div className="poultry-empty">Aucune alerte sur les 7 prochains jours.</div>}

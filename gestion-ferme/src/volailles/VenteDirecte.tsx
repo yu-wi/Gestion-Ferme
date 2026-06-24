@@ -1001,36 +1001,47 @@ export default function VenteDirecte() {
           <div><h2>{historiqueMode ? "Lots clôturés" : "Lots actifs"}</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
           {!historiqueMode && <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>}
         </div>
-        <div className="direct-sale-lot-grid">
-          {visibleLots.map((lot) => (
-            <article key={lot.id} className="direct-sale-lot-card">
-              <div className="direct-sale-lot-title">
-                <span>{lot.species === "pintade" ? "◇" : "♧"}</span>
-                <div><strong>{lot.name}</strong><small>{speciesLabel(lot.species)} · Arrivé le {formatDate(lot.arrival_date)}</small></div>
-                <em className={`direct-sale-status direct-sale-status-${lot.status}`}>{lotStatusLabel[lot.status]}</em>
-              </div>
-              <div className="direct-sale-lot-values">
-                <span>Restants<strong>{formatNombre(lot.remaining_quantity)}</strong></span>
-                <span>Effectif initial<strong>{formatNombre(lot.initial_quantity)}</strong></span>
-                <span>Mortalités<strong>{formatNombre(lot.mortality_count)}</strong></span>
-              </div>
-              <div className="direct-sale-lot-actions">
-                <select value={lot.status} onChange={(event) => updateLotStatus(lot, event.target.value as DirectLot["status"])}>
-                  <option value="elevage">En élevage</option>
-                  <option value="pret">Prêt à vendre</option>
-                  <option value="termine">Terminé</option>
-                </select>
-                <button type="button" onClick={() => openMortality(lot)} title="Enregistrer des mortalités">†</button>
-              </div>
-              <div className="direct-sale-card-actions">
-                <button type="button" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }} title="Ouvrir la fiche">👁 Fiche</button>
-                <button type="button" onClick={() => openLotForm(lot)} title="Modifier">✎</button>
-                <button type="button" onClick={() => deleteLot(lot)} title="Supprimer">⌫</button>
-              </div>
-              <small className="direct-sale-location">{lot.location || "Emplacement non renseigné"}</small>
-            </article>
-          ))}
-          {visibleLots.length === 0 && <div className="direct-sale-empty">{historiqueMode ? "Aucun lot clôturé." : "Aucun lot actif."}</div>}
+        <div className="poultry-table-wrap direct-sale-active-table-wrap">
+          <table className="poultry-table direct-sale-active-table">
+            <thead>
+              <tr>
+                <th>N° lot</th>
+                <th>Emplacement</th>
+                <th>Date début</th>
+                <th>Âge</th>
+                <th>Effectif</th>
+                <th>Mortalité</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleLots.map((lot) => {
+                const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
+                const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
+                return (
+                  <tr key={lot.id}>
+                    <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
+                    <td>{lot.location || "—"}</td>
+                    <td>{formatDate(lot.arrival_date)}</td>
+                    <td>{age} jours</td>
+                    <td>{formatNombre(lot.remaining_quantity)}</td>
+                    <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
+                    <td>
+                      <div className="poultry-row-actions direct-sale-table-actions">
+                        <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.name}`} onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
+                        <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.name}`} onClick={() => openMortality(lot)}>✝</button>
+                        <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.name}`} onClick={() => openLotForm(lot)}>✎</button>
+                        <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.name}`} onClick={() => deleteLot(lot)}>🗑</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {visibleLots.length === 0 && (
+                <tr><td colSpan={7}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 

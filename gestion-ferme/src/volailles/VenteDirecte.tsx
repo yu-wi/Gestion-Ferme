@@ -166,6 +166,7 @@ export default function VenteDirecte() {
   const [deliveryLines, setDeliveryLines] = useState<DeliveryLineForm[]>([
     emptyDeliveryLine(),
   ]);
+  const [mortalityDate, setMortalityDate] = useState(todayIso());
   const [mortalityCount, setMortalityCount] = useState("");
 
   const loadData = async () => {
@@ -853,6 +854,7 @@ export default function VenteDirecte() {
 
   const openMortality = (lot: DirectLot) => {
     setSelectedLotId(lot.id);
+    setMortalityDate(todayIso());
     setMortalityCount("");
     setMortalityModal(true);
   };
@@ -860,8 +862,8 @@ export default function VenteDirecte() {
   const saveMortality = async () => {
     const lot = lotById.get(selectedLotId);
     const count = Number(mortalityCount);
-    if (!lot || !Number.isInteger(count) || count <= 0) {
-      toast.error("Indiquez un nombre de mortalités valide.");
+    if (!lot || !mortalityDate || !Number.isInteger(count) || count <= 0) {
+      toast.error("Indiquez une date et un nombre de mortalités valide.");
       return;
     }
     if (count > lot.remaining_quantity) {
@@ -870,6 +872,21 @@ export default function VenteDirecte() {
     }
     const remainingQuantity = lot.remaining_quantity - count;
     setSaving(true);
+    const { error: detailError } = await supabase
+      .from("direct_sale_mortalities")
+      .insert({
+        lot_id: lot.id,
+        date: mortalityDate,
+        quantity: count,
+      });
+
+    if (detailError) {
+      console.error("Erreur détail mortalité vente directe :", detailError);
+      toast.error("La mortalité n'a pas pu être enregistrée. Vérifiez la mise à jour Supabase.");
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase
       .from("direct_sale_lots")
       .update({
@@ -883,6 +900,8 @@ export default function VenteDirecte() {
     } else {
       toast.success("Mortalités enregistrées.");
       setMortalityModal(false);
+      setMortalityDate(todayIso());
+      setMortalityCount("");
       await loadData();
     }
     setSaving(false);
@@ -1290,7 +1309,8 @@ export default function VenteDirecte() {
       {mortalityModal && (
         <DirectModal title="Enregistrer des mortalités" subtitle={lotById.get(selectedLotId)?.name || "Lot"} icon="†" onClose={() => setMortalityModal(false)}>
           <div className="direct-sale-form-grid">
-            <label className="direct-sale-field-wide">Nombre de sujets morts<input type="number" min="1" value={mortalityCount} onChange={(event) => setMortalityCount(event.target.value)} /></label>
+            <label>Date<input type="date" value={mortalityDate} onChange={(event) => setMortalityDate(event.target.value)} /></label>
+            <label>Nombre de sujets morts<input type="number" min="1" value={mortalityCount} onChange={(event) => setMortalityCount(event.target.value)} /></label>
           </div>
           <ModalActions saving={saving} onCancel={() => setMortalityModal(false)} onSave={saveMortality} label="Enregistrer les mortalités" />
         </DirectModal>

@@ -838,6 +838,19 @@ export default function VenteDirecte() {
     setSaving(false);
   };
 
+  const updateLotStatus = async (lot: DirectLot, status: DirectLot["status"]) => {
+    const { error } = await supabase
+      .from("direct_sale_lots")
+      .update({ status })
+      .eq("id", lot.id);
+    if (error) {
+      toast.error("Le statut n'a pas pu être modifié.");
+    } else {
+      toast.success(status === "termine" ? "Lot clôturé." : "Statut du lot modifié.");
+      await loadData();
+    }
+  };
+
   const openMortality = (lot: DirectLot) => {
     setSelectedLotId(lot.id);
     setMortalityCount("");
@@ -999,6 +1012,7 @@ export default function VenteDirecte() {
                 <th>Âge</th>
                 <th>Effectif</th>
                 <th>Mortalité</th>
+                <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1015,6 +1029,18 @@ export default function VenteDirecte() {
                     <td>{formatNombre(lot.remaining_quantity)}</td>
                     <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
                     <td>
+                      <select
+                        className={`direct-sale-table-status direct-sale-status-${lot.status}`}
+                        value={lot.status}
+                        onChange={(event) => updateLotStatus(lot, event.target.value as DirectLot["status"])}
+                        aria-label={`Statut du lot ${lot.name}`}
+                      >
+                        <option value="elevage">En élevage</option>
+                        <option value="pret">Prêt à vendre</option>
+                        <option value="termine">Clôturer</option>
+                      </select>
+                    </td>
+                    <td>
                       <div className="poultry-row-actions direct-sale-table-actions">
                         <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.name}`} onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
                         <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.name}`} onClick={() => openMortality(lot)}>✝</button>
@@ -1026,7 +1052,7 @@ export default function VenteDirecte() {
                 );
               })}
               {visibleLots.length === 0 && (
-                <tr><td colSpan={7}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+                <tr><td colSpan={8}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
               )}
             </tbody>
           </table>

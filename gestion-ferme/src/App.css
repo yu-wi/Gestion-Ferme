@@ -1338,6 +1338,15 @@
   white-space: nowrap;
 }
 
+.direct-sale-history-actions {
+  justify-content: center;
+}
+
+.direct-sale-full-list {
+  max-height: min(64vh, 620px);
+  overflow: auto;
+}
+
 .planning-placeholder,
 .planning-list-panel {
   display: flex;
@@ -3815,6 +3824,93 @@
   padding: 17px;
 }
 
+.direct-sale-overview {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.direct-sale-active-panel {
+  min-width: 0;
+}
+
+.direct-sale-species-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.direct-sale-species-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #e4ece7;
+  border-radius: 12px;
+  padding: 18px;
+  background: linear-gradient(135deg, #fbfdfc, #f3f8f5);
+}
+
+.direct-sale-species-card > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.direct-sale-species-pintade > span {
+  color: #12803a;
+  background: #dff3e6;
+}
+
+.direct-sale-species-poulet > span {
+  color: #256bd3;
+  background: #e7f0ff;
+}
+
+.direct-sale-species-card strong,
+.direct-sale-species-card b,
+.direct-sale-species-card small {
+  display: block;
+}
+
+.direct-sale-species-card strong {
+  color: #11803a;
+  font-size: 14px;
+}
+
+.direct-sale-species-card b {
+  margin-top: 8px;
+  color: #173047;
+  font-size: 24px;
+}
+
+.direct-sale-species-card small {
+  margin-top: 4px;
+  color: #708093;
+  font-size: 12px;
+}
+
+.direct-sale-species-panel > button,
+.direct-sale-view-all {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  border: 1px solid #dfe7e3;
+  border-radius: 8px;
+  color: #40566a;
+  background: white;
+  font-weight: 800;
+}
+
 .direct-sale-panel-heading {
   display: flex;
   align-items: center;
@@ -4268,6 +4364,8 @@
 
 @media (max-width: 1100px) {
   .direct-sale-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .direct-sale-overview { grid-template-columns: 1fr; }
+  .direct-sale-species-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .direct-sale-lot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .direct-sale-grid { grid-template-columns: 1fr; }
   .direct-sale-customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -4281,8 +4379,11 @@
   .direct-sale-heading > div:last-child button { flex: 1; }
   .direct-sale-setup { align-items: flex-start; flex-direction: column; }
   .direct-sale-kpis,
+  .direct-sale-species-list,
   .direct-sale-lot-grid,
   .direct-sale-customer-grid { grid-template-columns: 1fr; }
+  .direct-sale-overview { gap: 0; }
+  .direct-sale-species-card { padding: 14px; }
   .direct-sale-kpi { min-height: 92px; }
   .direct-sale-panel { padding: 14px; }
   .direct-sale-panel-heading { align-items: flex-start; flex-direction: column; }

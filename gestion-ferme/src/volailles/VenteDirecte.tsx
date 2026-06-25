@@ -131,6 +131,7 @@ export default function VenteDirecte() {
   const [deliveryModal, setDeliveryModal] = useState(false);
   const [mortalityModal, setMortalityModal] = useState(false);
   const [lotDetailModal, setLotDetailModal] = useState(false);
+  const [listModal, setListModal] = useState<"orders" | "deliveries" | null>(null);
   const [selectedLotId, setSelectedLotId] = useState("");
   const [editingLotId, setEditingLotId] = useState("");
   const [editingCustomerId, setEditingCustomerId] = useState("");
@@ -243,6 +244,26 @@ export default function VenteDirecte() {
   const activeLots = lots.filter((lot) => lot.status !== "termine");
   const archivedLots = lots.filter((lot) => lot.status === "termine");
   const visibleLots = historiqueMode ? archivedLots : activeLots;
+  const directSpeciesStats = [
+    {
+      key: "pintade" as const,
+      label: "Pintades",
+      icon: "◎",
+      lots: activeLots.filter((lot) => lot.species === "pintade"),
+    },
+    {
+      key: "poulet" as const,
+      label: "Poulets",
+      icon: "▣",
+      lots: activeLots.filter((lot) => lot.species === "poulet"),
+    },
+  ].map((item) => ({
+    ...item,
+    subjects: item.lots.reduce(
+      (total, lot) => total + Number(lot.remaining_quantity || 0),
+      0
+    ),
+  }));
   const availableSubjects = activeLots.reduce(
     (total, lot) => total + Number(lot.remaining_quantity || 0),
     0
@@ -275,6 +296,7 @@ export default function VenteDirecte() {
       (order) => order.status === "a_preparer" || order.status === "prete"
     )
   );
+  const displayedOrderGroups = orderGroups.slice(0, 4);
   const deliveryGroups = useMemo(
     () =>
       Array.from(
@@ -295,6 +317,7 @@ export default function VenteDirecte() {
     0
   );
   const outstandingTotal = Math.max(0, invoicedTotal - paidTotal);
+  const displayedDeliveryGroups = deliveryGroups.slice(0, 4);
 
   const customerById = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer])),
@@ -852,6 +875,11 @@ export default function VenteDirecte() {
     }
   };
 
+  const restoreLot = async (lot: DirectLot) => {
+    if (!window.confirm(`Restaurer le lot ${lot.name} dans les lots actifs ?`)) return;
+    await updateLotStatus(lot, "elevage");
+  };
+
   const openMortality = (lot: DirectLot) => {
     setSelectedLotId(lot.id);
     setMortalityDate(todayIso());
@@ -1003,7 +1031,13 @@ export default function VenteDirecte() {
                       <td>{formatNombre(lot.mortality_count)}</td>
                       <td>{formatNombre(delivered)}</td>
                       <td>{formatMontant(revenue)}</td>
-                      <td><button type="button" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>Fiche</button></td>
+                      <td>
+                        <div className="history-row-actions direct-sale-history-actions">
+                          <button type="button" title="Voir la fiche" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
+                          <button type="button" title="Restaurer le lot" onClick={() => restoreLot(lot)}>↻</button>
+                          <button type="button" title="Supprimer le lot" onClick={() => deleteLot(lot)}>🗑</button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1016,66 +1050,87 @@ export default function VenteDirecte() {
         </section>
       ) : (
         <>
-      <section className="direct-sale-panel">
-        <div className="direct-sale-panel-heading">
-          <div><h2>{historiqueMode ? "Lots clôturés" : "Lots actifs"}</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
-          {!historiqueMode && <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>}
-        </div>
-        <div className="poultry-table-wrap direct-sale-active-table-wrap">
-          <table className="poultry-table direct-sale-active-table">
-            <thead>
-              <tr>
-                <th>N° lot</th>
-                <th>Emplacement</th>
-                <th>Date début</th>
-                <th>Âge</th>
-                <th>Effectif</th>
-                <th>Mortalité</th>
-                <th>Statut</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleLots.map((lot) => {
-                const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
-                const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
-                return (
-                  <tr key={lot.id}>
-                    <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
-                    <td>{lot.location || "—"}</td>
-                    <td>{formatDate(lot.arrival_date)}</td>
-                    <td>{age} jours</td>
-                    <td>{formatNombre(lot.remaining_quantity)}</td>
-                    <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
-                    <td>
-                      <select
-                        className={`direct-sale-table-status direct-sale-status-${lot.status}`}
-                        value={lot.status}
-                        onChange={(event) => updateLotStatus(lot, event.target.value as DirectLot["status"])}
-                        aria-label={`Statut du lot ${lot.name}`}
-                      >
-                        <option value="elevage">En élevage</option>
-                        <option value="pret">Prêt à vendre</option>
-                        <option value="termine">Clôturer</option>
-                      </select>
-                    </td>
-                    <td>
-                      <div className="poultry-row-actions direct-sale-table-actions">
-                        <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.name}`} onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
-                        <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.name}`} onClick={() => openMortality(lot)}>✝</button>
-                        <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.name}`} onClick={() => openLotForm(lot)}>✎</button>
-                        <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.name}`} onClick={() => deleteLot(lot)}>🗑</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {visibleLots.length === 0 && (
-                <tr><td colSpan={8}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <section className="direct-sale-overview">
+        <aside className="direct-sale-panel direct-sale-species-panel">
+          <div className="direct-sale-panel-heading">
+            <div><h2>Lots actifs par espèce</h2><span>Disponibles à la vente directe.</span></div>
+          </div>
+          <div className="direct-sale-species-list">
+            {directSpeciesStats.map((item) => (
+              <article key={item.key} className={`direct-sale-species-card direct-sale-species-${item.key}`}>
+                <span>{item.icon}</span>
+                <div>
+                  <strong>{item.label}</strong>
+                  <b>{formatNombre(item.lots.length)} lots</b>
+                  <small>{formatNombre(item.subjects)} sujets dispos.</small>
+                </div>
+              </article>
+            ))}
+          </div>
+          <button type="button" onClick={() => openLotForm()}>＋ Nouveau lot</button>
+        </aside>
+
+        <section className="direct-sale-panel direct-sale-active-panel">
+          <div className="direct-sale-panel-heading">
+            <div><h2>Lots actifs</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
+            <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>
+          </div>
+          <div className="poultry-table-wrap direct-sale-active-table-wrap">
+            <table className="poultry-table direct-sale-active-table">
+              <thead>
+                <tr>
+                  <th>N° lot</th>
+                  <th>Espèce</th>
+                  <th>Emplacement</th>
+                  <th>Âge</th>
+                  <th>Effectif</th>
+                  <th>Mortalité</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleLots.map((lot) => {
+                  const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
+                  const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
+                  return (
+                    <tr key={lot.id}>
+                      <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
+                      <td>{speciesLabel(lot.species)}</td>
+                      <td>{lot.location || "—"}</td>
+                      <td>{age} jours</td>
+                      <td>{formatNombre(lot.remaining_quantity)}</td>
+                      <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
+                      <td>
+                        <select
+                          className={`direct-sale-table-status direct-sale-status-${lot.status}`}
+                          value={lot.status}
+                          onChange={(event) => updateLotStatus(lot, event.target.value as DirectLot["status"])}
+                          aria-label={`Statut du lot ${lot.name}`}
+                        >
+                          <option value="elevage">En élevage</option>
+                          <option value="pret">Prêt à vendre</option>
+                          <option value="termine">Clôturer</option>
+                        </select>
+                      </td>
+                      <td>
+                        <div className="poultry-row-actions direct-sale-table-actions">
+                          <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.name}`} onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
+                          <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.name}`} onClick={() => openMortality(lot)}>✝</button>
+                          <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.name}`} onClick={() => openLotForm(lot)}>✎</button>
+                          <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.name}`} onClick={() => deleteLot(lot)}>🗑</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {visibleLots.length === 0 && (
+                  <tr><td colSpan={8}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section className="direct-sale-grid">
@@ -1085,7 +1140,7 @@ export default function VenteDirecte() {
             <button type="button" className="direct-sale-primary" onClick={() => openOrderForm()}>＋ Commande</button>
           </div>
           <div className="direct-sale-list">
-            {orderGroups.map((group) => {
+            {displayedOrderGroups.map((group) => {
               const first = group.lines[0];
               const totalQuantity = group.lines.reduce(
                 (total, line) => total + line.quantity_ordered,
@@ -1123,6 +1178,7 @@ export default function VenteDirecte() {
             )})}
             {orderGroups.length === 0 && <div className="direct-sale-empty">Aucune commande enregistrée.</div>}
           </div>
+          {orderGroups.length > 4 && <button type="button" className="direct-sale-view-all" onClick={() => setListModal("orders")}>Voir toutes les commandes →</button>}
         </article>
 
         <article className="direct-sale-panel">
@@ -1131,7 +1187,7 @@ export default function VenteDirecte() {
             <button type="button" className="direct-sale-secondary" onClick={() => prepareDelivery()}>＋ Livraison</button>
           </div>
           <div className="direct-sale-list">
-            {deliveryGroups.slice(0, 8).map((group) => {
+            {displayedDeliveryGroups.map((group) => {
               const first = group.lines[0];
               const invoiced = group.lines.reduce((total, line) => total + line.amount_invoiced, 0);
               const paid = group.lines.reduce((total, line) => total + line.amount_paid, 0);
@@ -1160,6 +1216,7 @@ export default function VenteDirecte() {
             })}
             {deliveryGroups.length === 0 && <div className="direct-sale-empty">Aucune livraison enregistrée.</div>}
           </div>
+          {deliveryGroups.length > 4 && <button type="button" className="direct-sale-view-all" onClick={() => setListModal("deliveries")}>Voir toutes les livraisons et règlements →</button>}
         </article>
       </section>
 
@@ -1313,6 +1370,83 @@ export default function VenteDirecte() {
             <label>Nombre de sujets morts<input type="number" min="1" value={mortalityCount} onChange={(event) => setMortalityCount(event.target.value)} /></label>
           </div>
           <ModalActions saving={saving} onCancel={() => setMortalityModal(false)} onSave={saveMortality} label="Enregistrer les mortalités" />
+        </DirectModal>
+      )}
+
+      {listModal === "orders" && (
+        <DirectModal title="Toutes les commandes" subtitle={`${formatNombre(orderGroups.length)} commande(s) enregistrée(s).`} icon="▤" onClose={() => setListModal(null)}>
+          <div className="direct-sale-list direct-sale-full-list">
+            {orderGroups.map((group) => {
+              const first = group.lines[0];
+              const totalQuantity = group.lines.reduce(
+                (total, line) => total + line.quantity_ordered,
+                0
+              );
+              return (
+                <div className="direct-sale-order-row" key={group.key}>
+                  <span className="direct-sale-row-icon">▤</span>
+                  <div>
+                    <strong>{customerById.get(first.customer_id)?.name || "Client"}</strong>
+                    <small>{group.lines.length} produit(s) · {formatNombre(totalQuantity)} sujets · {formatDate(first.delivery_date)}</small>
+                  </div>
+                  <select
+                    className={`direct-sale-order-status direct-sale-order-${first.status}`}
+                    value={first.status}
+                    onChange={(event) =>
+                      updateOrderStatus(
+                        group,
+                        event.target.value as DirectOrder["status"]
+                      )
+                    }
+                  >
+                    <option value="a_preparer">À préparer</option>
+                    <option value="prete">Prête</option>
+                    <option value="livree">Livrée</option>
+                    <option value="annulee">Annulée</option>
+                  </select>
+                  <div className="direct-sale-row-actions">
+                    {!["livree", "annulee"].includes(first.status) && <button type="button" title="Enregistrer la livraison" onClick={() => prepareDelivery(group)}>🚚</button>}
+                    <button type="button" title="Modifier" onClick={() => openOrderForm(group)}>✎</button>
+                    <button type="button" title="Supprimer" onClick={() => deleteOrderGroup(group)}>⌫</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DirectModal>
+      )}
+
+      {listModal === "deliveries" && (
+        <DirectModal title="Toutes les livraisons et règlements" subtitle={`${formatNombre(deliveryGroups.length)} livraison(s) enregistrée(s).`} icon="🚚" onClose={() => setListModal(null)}>
+          <div className="direct-sale-list direct-sale-full-list">
+            {deliveryGroups.map((group) => {
+              const first = group.lines[0];
+              const invoiced = group.lines.reduce((total, line) => total + line.amount_invoiced, 0);
+              const paid = group.lines.reduce((total, line) => total + line.amount_paid, 0);
+              const quantity = group.lines.reduce((total, line) => total + line.quantity_delivered, 0);
+              const outstanding = Math.max(0, invoiced - paid);
+              return (
+                <div className="direct-sale-delivery-row" key={group.key}>
+                  <span className="direct-sale-row-icon">🚚</span>
+                  <div>
+                    <strong>{customerById.get(first.customer_id)?.name || "Client"}</strong>
+                    <small>{group.lines.length} produit(s) · {formatDate(first.delivery_date)} · {formatNombre(quantity)} sujets</small>
+                  </div>
+                  <div className="direct-sale-money">
+                    <strong>{formatMontant(invoiced)}</strong>
+                    <small>{outstanding > 0 ? `Reste ${formatMontant(outstanding)}` : "Payée"}</small>
+                  </div>
+                  <div className="direct-sale-row-actions">
+                    {outstanding > 0 ? (
+                      <button type="button" title="Marquer comme réglée" onClick={() => validatePayment(group)} disabled={saving}>€</button>
+                    ) : <span className="direct-sale-paid">✓</span>}
+                    <button type="button" title="Modifier" onClick={() => openDeliveryForm(group)}>✎</button>
+                    <button type="button" title="Supprimer" onClick={() => deleteDeliveryGroup(group)}>⌫</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </DirectModal>
       )}
     </div>

@@ -3037,10 +3037,43 @@
   gap: 16px;
 }
 
-.feed-history > div {
+.feed-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.feed-history-heading h2 {
+  margin: 0;
+}
+
+.feed-history-heading button {
+  border: 1px solid #d9e5df;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #16853d;
+  background: #f6fbf7;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.feed-history > div:not(.feed-history-heading) {
   display: grid;
   gap: 8px;
   margin-top: 13px;
+}
+
+.feed-history-modal {
+  max-width: 780px;
+}
+
+.feed-full-history {
+  display: grid;
+  max-height: min(64vh, 620px);
+  gap: 8px;
+  margin-top: 16px;
+  overflow: auto;
 }
 
 .feed-movement {
@@ -4372,6 +4405,25 @@
 
 .direct-sale-field-wide {
   grid-column: 1 / -1;
+}
+
+.direct-sale-free-line {
+  display: flex !important;
+  min-height: 38px;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d9e8de;
+  border-radius: 7px;
+  padding: 9px 10px;
+  color: #16853d !important;
+  background: #f3faf5;
+  font-weight: 800;
+}
+
+.direct-sale-free-line input {
+  width: 16px !important;
+  height: 16px;
 }
 
 .direct-sale-product-lines {

@@ -74,6 +74,7 @@ type DeliveryLineForm = {
   total_weight: string;
   pricing_mode: DirectDelivery["pricing_mode"];
   unit_price: string;
+  complimentary: boolean;
 };
 
 const emptyOrderLine = (): OrderLineForm => ({
@@ -92,6 +93,7 @@ const emptyDeliveryLine = (): DeliveryLineForm => ({
   total_weight: "",
   pricing_mode: "kg",
   unit_price: "",
+  complimentary: false,
 });
 
 const todayIso = () => {
@@ -589,6 +591,7 @@ export default function VenteDirecte() {
             total_weight: "",
             pricing_mode: line.pricing_mode,
             unit_price: line.unit_price ? String(line.unit_price) : "",
+            complimentary: false,
           }))
         : [emptyDeliveryLine()]
     );
@@ -605,7 +608,7 @@ export default function VenteDirecte() {
       lot: lotById.get(line.lot_id),
       quantityValue: Number(line.quantity),
       weightValue: Number(line.total_weight) || 0,
-      priceValue: Number(line.unit_price) || 0,
+      priceValue: line.complimentary ? 0 : Number(line.unit_price) || 0,
     }));
     const invalidLine = parsedLines.find(
       (line) =>
@@ -615,7 +618,7 @@ export default function VenteDirecte() {
         (line.pricing_mode === "kg" && line.weightValue <= 0)
     );
     if (invalidLine) {
-      toast.error("Complétez le lot, la quantité, le poids et le prix de chaque produit.");
+      toast.error("Complétez le lot, la quantité et le poids de chaque produit.");
       return;
     }
     const quantitiesByLot = parsedLines.reduce((map, line) => {
@@ -790,6 +793,7 @@ export default function VenteDirecte() {
         total_weight: line.total_weight == null ? "" : String(line.total_weight),
         pricing_mode: line.pricing_mode,
         unit_price: String(line.unit_price),
+        complimentary: Number(line.unit_price) === 0 && Number(line.amount_invoiced) === 0,
       }))
     );
     setDeliveryModal(true);
@@ -1326,7 +1330,8 @@ export default function VenteDirecte() {
                   <label>Quantité livrée<input type="number" min="1" value={line.quantity} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, quantity: event.target.value } : item))} /></label>
                   <label>Mode de prix<select value={line.pricing_mode} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, pricing_mode: event.target.value as DirectDelivery["pricing_mode"] } : item))}><option value="kg">Prix au kilogramme</option><option value="unite">Prix à l’unité</option></select></label>
                   {line.pricing_mode === "kg" && <label>Poids total (kg)<input type="number" min="0" step="0.01" value={line.total_weight} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, total_weight: event.target.value } : item))} /></label>}
-                  <label>Prix {line.pricing_mode === "kg" ? "par kg" : "par unité"} (€)<input type="number" min="0" step="0.01" value={line.unit_price} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, unit_price: event.target.value } : item))} /></label>
+                  <label className="direct-sale-free-line"><input type="checkbox" checked={line.complimentary} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, complimentary: event.target.checked, unit_price: event.target.checked ? "" : item.unit_price } : item))} /> Gratuité</label>
+                  <label>Prix {line.pricing_mode === "kg" ? "par kg" : "par unité"} (€)<input type="number" min="0" step="0.01" value={line.complimentary ? "" : line.unit_price} disabled={line.complimentary} placeholder={line.complimentary ? "0.00" : undefined} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, unit_price: event.target.value } : item))} /></label>
                 </div>
               </div>
             ))}

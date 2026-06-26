@@ -3154,7 +3154,7 @@
 
 .analysis-toolbar {
   display: grid;
-  grid-template-columns: auto 180px minmax(240px, 1fr);
+  grid-template-columns: auto minmax(150px, 180px) minmax(150px, 180px) minmax(240px, 1fr);
   align-items: center;
   gap: 16px;
   margin-top: 25px;
@@ -3163,6 +3163,34 @@
   padding: 14px;
   background: white;
   box-shadow: 0 7px 24px rgba(40, 62, 51, 0.05);
+}
+
+.analysis-toolbar-sica {
+  grid-template-columns: auto minmax(150px, 180px) minmax(240px, 1fr);
+}
+
+.analysis-source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.analysis-source-tabs a {
+  border: 1px solid #dce7e1;
+  border-radius: 8px;
+  padding: 11px 15px;
+  color: #40566a;
+  background: white;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 5px 18px rgba(40, 62, 51, 0.04);
+}
+
+.analysis-source-tabs .analysis-source-active {
+  border-color: #16853d;
+  color: white;
+  background: #16853d;
 }
 
 .analysis-tabs {
@@ -3443,6 +3471,49 @@
 
 .analysis-insight strong { font-size: 12px; }
 .analysis-insight p { margin: 5px 0 0; color: #547065; font-size: 10px; line-height: 1.5; }
+
+.analysis-species-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.analysis-species-grid article {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e3e9e6;
+  border-radius: 8px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 7px 24px rgba(40, 62, 51, 0.05);
+}
+
+.analysis-species-grid article > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 50%;
+  color: #16853d;
+  background: #e5f4e8;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.analysis-species-grid strong,
+.analysis-species-grid small,
+.analysis-species-grid b,
+.analysis-species-grid em {
+  display: block;
+}
+
+.analysis-species-grid strong { color: #173047; font-size: 13px; }
+.analysis-species-grid small { margin-top: 4px; color: #718093; font-size: 10px; }
+.analysis-species-grid b { color: #16853d; font-size: 16px; text-align: right; }
+.analysis-species-grid em { grid-column: 2 / -1; color: #617386; font-size: 10px; font-style: normal; }
 
 .analysis-economic-grid {
   display: grid;
@@ -3918,6 +3989,38 @@
   gap: 14px;
 }
 
+.direct-sale-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.direct-sale-segmented {
+  display: inline-flex;
+  border: 1px solid #dde7e1;
+  border-radius: 8px;
+  padding: 3px;
+  background: #f6f8f7;
+}
+
+.direct-sale-segmented button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 12px;
+  color: #52687b;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.direct-sale-segmented .direct-sale-segment-active {
+  color: white;
+  background: #16853d;
+  box-shadow: 0 3px 9px rgba(22, 133, 61, 0.16);
+}
+
 .direct-sale-panel-heading > div {
   display: flex;
   flex-direction: column;
@@ -4362,6 +4465,22 @@
   margin-top: 15px;
 }
 
+.direct-sale-delivery-row-compact {
+  grid-template-columns: minmax(0, 1.2fr) minmax(110px, 0.55fr) auto;
+  min-height: 54px;
+  padding: 10px 12px;
+}
+
+.direct-sale-delivery-row-compact .direct-sale-money {
+  text-align: right;
+}
+
+.direct-sale-delivery-row-compact .direct-sale-row-actions button,
+.direct-sale-delivery-row-compact .direct-sale-paid {
+  width: 30px;
+  height: 30px;
+}
+
 @media (max-width: 1100px) {
   .direct-sale-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .direct-sale-overview { grid-template-columns: 1fr; }
@@ -4387,13 +4506,26 @@
   .direct-sale-kpi { min-height: 92px; }
   .direct-sale-panel { padding: 14px; }
   .direct-sale-panel-heading { align-items: flex-start; flex-direction: column; }
+  .direct-sale-panel-actions { width: 100%; justify-content: stretch; }
+  .direct-sale-segmented { width: 100%; }
+  .direct-sale-segmented button { flex: 1; }
   .direct-sale-panel-heading button { width: 100%; }
+  .direct-sale-panel-heading .direct-sale-segmented button { width: auto; }
   .direct-sale-lot-title { grid-template-columns: 35px minmax(0, 1fr); }
   .direct-sale-lot-title em { grid-column: 1 / -1; width: fit-content; }
   .direct-sale-lot-values { grid-template-columns: 1fr 1fr; }
   .direct-sale-order-row,
   .direct-sale-delivery-row {
     grid-template-columns: 35px minmax(0, 1fr) 34px;
+  }
+  .direct-sale-delivery-row-compact {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .direct-sale-delivery-row-compact > .direct-sale-money {
+    grid-column: 1;
+  }
+  .direct-sale-delivery-row-compact > .direct-sale-row-actions {
+    grid-column: 2;
   }
   .direct-sale-order-row > em,
   .direct-sale-delivery-row > .direct-sale-money {
@@ -4406,6 +4538,12 @@
     grid-column: 3;
     grid-row: 1;
     flex-direction: column;
+  }
+  .direct-sale-delivery-row-compact > .direct-sale-money {
+    grid-column: 1;
+  }
+  .direct-sale-delivery-row-compact > .direct-sale-row-actions {
+    grid-column: 2;
   }
   .direct-sale-form-grid { grid-template-columns: 1fr; }
   .direct-sale-field-wide { grid-column: auto; }

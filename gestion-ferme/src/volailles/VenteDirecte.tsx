@@ -137,6 +137,7 @@ export default function VenteDirecte() {
   const [editingCustomerId, setEditingCustomerId] = useState("");
   const [editingOrderBatch, setEditingOrderBatch] = useState("");
   const [editingDeliveryBatch, setEditingDeliveryBatch] = useState("");
+  const [speciesFilter, setSpeciesFilter] = useState<"" | DirectLot["species"]>("");
   const [lotForm, setLotForm] = useState({
     name: "",
     species: "poulet" as DirectLot["species"],
@@ -244,6 +245,9 @@ export default function VenteDirecte() {
   const activeLots = lots.filter((lot) => lot.status !== "termine");
   const archivedLots = lots.filter((lot) => lot.status === "termine");
   const visibleLots = historiqueMode ? archivedLots : activeLots;
+  const activeLotsAffiches = activeLots.filter(
+    (lot) => !speciesFilter || lot.species === speciesFilter
+  );
   const directSpeciesStats = [
     {
       key: "pintade" as const,
@@ -978,6 +982,8 @@ export default function VenteDirecte() {
         <Link to="/volailles/vente-directe" className={!historiqueMode ? "poultry-tab-active" : undefined}>Vente directe</Link>
         <Link to="/volailles/vente-directe/historique" className={historiqueMode ? "poultry-tab-active" : undefined}>Historique vente directe</Link>
         <Link to="/volailles/alimentation">Alimentation</Link>
+        <Link to="/volailles/analyse/sica">Analyse SICA</Link>
+        <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
       </nav>
 
       {databaseMissing && (
@@ -1067,20 +1073,25 @@ export default function VenteDirecte() {
               </article>
             ))}
           </div>
-          <button type="button" onClick={() => openLotForm()}>＋ Nouveau lot</button>
         </aside>
 
         <section className="direct-sale-panel direct-sale-active-panel">
           <div className="direct-sale-panel-heading">
             <div><h2>Lots actifs</h2><span>Poulets et pintades destinés à la vente directe.</span></div>
-            <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>
+            <div className="direct-sale-panel-actions">
+              <div className="direct-sale-segmented" aria-label="Filtrer les lots par espèce">
+                <button type="button" className={!speciesFilter ? "direct-sale-segment-active" : ""} onClick={() => setSpeciesFilter("")}>Tous</button>
+                <button type="button" className={speciesFilter === "poulet" ? "direct-sale-segment-active" : ""} onClick={() => setSpeciesFilter("poulet")}>Poulets</button>
+                <button type="button" className={speciesFilter === "pintade" ? "direct-sale-segment-active" : ""} onClick={() => setSpeciesFilter("pintade")}>Pintades</button>
+              </div>
+              <button type="button" className="direct-sale-primary" onClick={() => openLotForm()}>＋ Nouveau lot</button>
+            </div>
           </div>
           <div className="poultry-table-wrap direct-sale-active-table-wrap">
             <table className="poultry-table direct-sale-active-table">
               <thead>
                 <tr>
                   <th>N° lot</th>
-                  <th>Espèce</th>
                   <th>Emplacement</th>
                   <th>Âge</th>
                   <th>Effectif</th>
@@ -1090,13 +1101,12 @@ export default function VenteDirecte() {
                 </tr>
               </thead>
               <tbody>
-                {visibleLots.map((lot) => {
+                {activeLotsAffiches.map((lot) => {
                   const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
                   const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
                   return (
                     <tr key={lot.id}>
                       <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
-                      <td>{speciesLabel(lot.species)}</td>
                       <td>{lot.location || "—"}</td>
                       <td>{age} jours</td>
                       <td>{formatNombre(lot.remaining_quantity)}</td>
@@ -1124,8 +1134,8 @@ export default function VenteDirecte() {
                     </tr>
                   );
                 })}
-                {visibleLots.length === 0 && (
-                  <tr><td colSpan={8}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+                {activeLotsAffiches.length === 0 && (
+                  <tr><td colSpan={7}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
                 )}
               </tbody>
             </table>
@@ -1194,8 +1204,7 @@ export default function VenteDirecte() {
               const quantity = group.lines.reduce((total, line) => total + line.quantity_delivered, 0);
               const outstanding = Math.max(0, invoiced - paid);
               return (
-                <div className="direct-sale-delivery-row" key={group.key}>
-                  <span className="direct-sale-row-icon">🚚</span>
+                <div className="direct-sale-delivery-row direct-sale-delivery-row-compact" key={group.key}>
                   <div>
                     <strong>{customerById.get(first.customer_id)?.name || "Client"}</strong>
                     <small>{group.lines.length} produit(s) · {formatDate(first.delivery_date)} · {formatNombre(quantity)} sujets</small>
@@ -1426,8 +1435,7 @@ export default function VenteDirecte() {
               const quantity = group.lines.reduce((total, line) => total + line.quantity_delivered, 0);
               const outstanding = Math.max(0, invoiced - paid);
               return (
-                <div className="direct-sale-delivery-row" key={group.key}>
-                  <span className="direct-sale-row-icon">🚚</span>
+                <div className="direct-sale-delivery-row direct-sale-delivery-row-compact" key={group.key}>
                   <div>
                     <strong>{customerById.get(first.customer_id)?.name || "Client"}</strong>
                     <small>{group.lines.length} produit(s) · {formatDate(first.delivery_date)} · {formatNombre(quantity)} sujets</small>

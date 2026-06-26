@@ -31,7 +31,8 @@ const estDansProductionVolailles = (pathname: string) =>
   pathname.startsWith("/volailles/sica") ||
   pathname.startsWith("/volailles/vente-directe") ||
   pathname.startsWith("/volailles/alimentation") ||
-  pathname.startsWith("/volailles/historique");
+  pathname.startsWith("/volailles/historique") ||
+  pathname.startsWith("/volailles/analyse");
 
 const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   const location = useLocation();
@@ -222,6 +223,26 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 >
                   <span>•</span>
                   Alimentation
+                </NavLink>
+                <NavLink
+                  to="/volailles/analyse/sica"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Analyse SICA
+                </NavLink>
+                <NavLink
+                  to="/volailles/analyse/vente-directe"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Analyse vente directe
                 </NavLink>
               </div>
             )}

@@ -955,6 +955,8 @@ return (
      <Link to="/volailles/vente-directe">Vente directe</Link>
      <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
      <Link to="/volailles/alimentation">Alimentation</Link>
+     <Link to="/volailles/analyse/sica">Analyse SICA</Link>
+     <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
    </nav>
 
    <section id="vue-ensemble" className="poultry-kpis poultry-kpis-compact">

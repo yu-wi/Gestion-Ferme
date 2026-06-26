@@ -57,9 +57,11 @@ function App() {
                   <Route path="/volailles/sica/historique" element={<Historique />} />
                   <Route path="/volailles/historique/:lotId/analyse" element={<AnalyseLot />} />
                   <Route path="/volailles/sica/historique/:lotId/analyse" element={<AnalyseLot />} />
-                  <Route path="/volailles/analyse" element={<Analyse />} />
-                  <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse" replace />} />
-                  <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse?onglet=economie" replace />} />
+                  <Route path="/volailles/analyse" element={<Navigate to="/volailles/analyse/sica" replace />} />
+                  <Route path="/volailles/analyse/sica" element={<Analyse />} />
+                  <Route path="/volailles/analyse/vente-directe" element={<Analyse />} />
+                  <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse/sica" replace />} />
+                  <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse/sica?onglet=economie" replace />} />
                 </Routes>
               </main>
               <Footer />

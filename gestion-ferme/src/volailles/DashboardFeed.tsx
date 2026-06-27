@@ -880,6 +880,7 @@ export default function DashboardFeed() {
         <Link to="/volailles/alimentation" className="poultry-tab-active">Alimentation</Link>
         <Link to="/volailles/analyse/sica">Analyse SICA</Link>
         <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
+        <Link to="/volailles/inventaire">Inventaire</Link>
       </nav>
 
       {!directConsumptionReady && (

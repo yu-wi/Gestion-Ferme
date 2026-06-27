@@ -32,7 +32,8 @@ const estDansProductionVolailles = (pathname: string) =>
   pathname.startsWith("/volailles/vente-directe") ||
   pathname.startsWith("/volailles/alimentation") ||
   pathname.startsWith("/volailles/historique") ||
-  pathname.startsWith("/volailles/analyse");
+  pathname.startsWith("/volailles/analyse") ||
+  pathname.startsWith("/volailles/inventaire");
 
 const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   const location = useLocation();
@@ -243,6 +244,16 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 >
                   <span>•</span>
                   Analyse vente directe
+                </NavLink>
+                <NavLink
+                  to="/volailles/inventaire"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Inventaire
                 </NavLink>
               </div>
             )}

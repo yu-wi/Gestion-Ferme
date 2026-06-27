@@ -988,6 +988,7 @@ export default function VenteDirecte() {
         <Link to="/volailles/alimentation">Alimentation</Link>
         <Link to="/volailles/analyse/sica">Analyse SICA</Link>
         <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
+        <Link to="/volailles/inventaire">Inventaire</Link>
       </nav>
 
       {databaseMissing && (

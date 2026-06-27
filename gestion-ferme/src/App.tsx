@@ -19,6 +19,7 @@ import Historique from './volailles/Historique';
 import Analyse from './volailles/Analyse';
 import AnalyseLot from './volailles/AnalyseLot';
 import VenteDirecte from './volailles/VenteDirecte';
+import Inventaire from './volailles/Inventaire';
 
 
 
@@ -60,6 +61,7 @@ function App() {
                   <Route path="/volailles/analyse" element={<Navigate to="/volailles/analyse/sica" replace />} />
                   <Route path="/volailles/analyse/sica" element={<Analyse />} />
                   <Route path="/volailles/analyse/vente-directe" element={<Analyse />} />
+                  <Route path="/volailles/inventaire" element={<Inventaire />} />
                   <Route path="/volailles/statistiques" element={<Navigate to="/volailles/analyse/sica" replace />} />
                   <Route path="/volailles/analyseeconomie" element={<Navigate to="/volailles/analyse/sica?onglet=economie" replace />} />
                 </Routes>

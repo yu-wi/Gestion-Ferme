@@ -313,6 +313,7 @@ export default function Historique() {
         <Link to="/volailles/alimentation">Alimentation</Link>
         <Link to="/volailles/analyse/sica">Analyse SICA</Link>
         <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
+        <Link to="/volailles/inventaire">Inventaire</Link>
       </nav>
 
       <section className="history-kpis">

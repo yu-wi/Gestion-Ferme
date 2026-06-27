@@ -54,13 +54,14 @@ const monthEndIso = (year: number, monthIndex: number) => {
   ].join("-");
 };
 
-const todayIso = () => {
+const currentMonthEndIso = () => {
   const date = new Date();
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
+  return monthEndIso(date.getFullYear(), date.getMonth());
+};
+
+const snapshotMonthEndIso = (snapshotDate: string) => {
+  const [year, month] = snapshotDate.split("-").map(Number);
+  return monthEndIso(year, month - 1);
 };
 
 function PoultrySubnav() {
@@ -152,7 +153,10 @@ export default function Inventaire() {
             unit: snapshot.unit,
             values: {},
           } satisfies InventoryRow);
-        existing.values[snapshot.snapshot_date] = snapshot.quantity;
+        const monthKey = snapshotMonthEndIso(snapshot.snapshot_date);
+        if (existing.values[monthKey] == null) {
+          existing.values[monthKey] = snapshot.quantity;
+        }
         grouped.set(key, existing);
       });
 
@@ -174,7 +178,7 @@ export default function Inventaire() {
   const enregistrerMaintenant = async () => {
     setSaving(true);
     const { error } = await supabase.rpc("capture_monthly_inventory", {
-      p_snapshot_date: todayIso(),
+      p_snapshot_date: currentMonthEndIso(),
     });
 
     if (error) {

@@ -12,6 +12,7 @@ type InventorySnapshot = {
   id: string;
   snapshot_date: string;
   category: InventoryCategory;
+  source_id: string;
   group_label: string;
   item_label: string;
   quantity: number;
@@ -26,6 +27,29 @@ type InventoryRow = {
   itemLabel: string;
   unit: InventoryUnit;
   values: Record<string, number>;
+};
+
+type FeedReference = {
+  feed_type: string;
+  feed_price_ht: number | null;
+};
+
+type SicaLotReference = {
+  id: string;
+  date_arrivee: string;
+};
+
+type DirectLotReference = {
+  id: string;
+  species: "poulet" | "pintade";
+  arrival_date: string;
+};
+
+type InventoryValueRow = {
+  monthKey: string;
+  feedValue: number;
+  poultryValue: number;
+  totalValue: number;
 };
 
 const MONTH_LABELS = [
@@ -44,6 +68,35 @@ const MONTH_LABELS = [
 ];
 
 const FEED_ORDER = ["starter", "croissance", "finition"];
+const POULTRY_PRICE_BY_SPECIES = {
+  poulet: 9,
+  pintade: 11,
+};
+const WEIGHT_REFERENCES = {
+  poulet: [
+    { day: 21, weightG: 400 },
+    { day: 28, weightG: 600 },
+    { day: 35, weightG: 950 },
+    { day: 42, weightG: 1047 },
+    { day: 49, weightG: 1276 },
+    { day: 56, weightG: 1586 },
+    { day: 63, weightG: 2000 },
+    { day: 70, weightG: 2100 },
+  ],
+  pintade: [
+    { day: 10, weightG: 600 },
+    { day: 20, weightG: 700 },
+    { day: 30, weightG: 800 },
+    { day: 40, weightG: 900 },
+    { day: 50, weightG: 1000 },
+    { day: 60, weightG: 1100 },
+    { day: 70, weightG: 1200 },
+    { day: 80, weightG: 1300 },
+    { day: 90, weightG: 1400 },
+    { day: 100, weightG: 1500 },
+    { day: 110, weightG: 1600 },
+  ],
+};
 
 const monthEndIso = (year: number, monthIndex: number) => {
   const date = new Date(year, monthIndex + 1, 0);
@@ -62,6 +115,37 @@ const currentMonthEndIso = () => {
 const snapshotMonthEndIso = (snapshotDate: string) => {
   const [year, month] = snapshotDate.split("-").map(Number);
   return monthEndIso(year, month - 1);
+};
+
+const daysBetween = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate) return 0;
+  return Math.max(
+    0,
+    Math.floor(
+      (new Date(`${endDate}T00:00:00`).getTime() -
+        new Date(`${startDate}T00:00:00`).getTime()) /
+        86400000
+    )
+  );
+};
+
+const estimateWeightKg = (species: "poulet" | "pintade", ageDays: number) => {
+  const references = WEIGHT_REFERENCES[species];
+  const first = references[0];
+  const last = references[references.length - 1];
+  if (ageDays <= first.day) return first.weightG / 1000;
+  if (ageDays >= last.day) return last.weightG / 1000;
+
+  for (let index = 1; index < references.length; index += 1) {
+    const previous = references[index - 1];
+    const next = references[index];
+    if (ageDays <= next.day) {
+      const ratio = (ageDays - previous.day) / (next.day - previous.day);
+      return (previous.weightG + (next.weightG - previous.weightG) * ratio) / 1000;
+    }
+  }
+
+  return last.weightG / 1000;
 };
 
 function PoultrySubnav() {
@@ -88,23 +172,38 @@ export default function Inventaire() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [databaseReady, setDatabaseReady] = useState(true);
+  const [feedReferences, setFeedReferences] = useState<FeedReference[]>([]);
+  const [sicaLotReferences, setSicaLotReferences] = useState<SicaLotReference[]>([]);
+  const [directLotReferences, setDirectLotReferences] = useState<DirectLotReference[]>([]);
 
   const chargerInventaires = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const [inventoryResult, feedResult, sicaResult, directResult] = await Promise.all([
+      supabase
       .from("monthly_inventory_snapshots")
-      .select("id, snapshot_date, category, group_label, item_label, quantity, unit, created_at")
+      .select("id, snapshot_date, category, source_id, group_label, item_label, quantity, unit, created_at")
       .order("snapshot_date", { ascending: false })
-      .order("group_label", { ascending: true });
+        .order("group_label", { ascending: true }),
+      supabase
+        .from("feed_reference")
+        .select("feed_type, feed_price_ht")
+        .order("age_min_days", { ascending: false }),
+      supabase
+        .from("lots_volailles")
+        .select("id, date_arrivee"),
+      supabase
+        .from("direct_sale_lots")
+        .select("id, species, arrival_date"),
+    ]);
 
-    if (error) {
-      console.error("Erreur chargement inventaire :", error);
+    if (inventoryResult.error) {
+      console.error("Erreur chargement inventaire :", inventoryResult.error);
       setDatabaseReady(false);
       setSnapshots([]);
     } else {
       setDatabaseReady(true);
       setSnapshots(
-        (data || []).map((row) => ({
+        (inventoryResult.data || []).map((row) => ({
           ...row,
           category: row.category as InventoryCategory,
           quantity: Number(row.quantity) || 0,
@@ -112,6 +211,17 @@ export default function Inventaire() {
         }))
       );
     }
+
+    if (!feedResult.error) {
+      setFeedReferences(
+        (feedResult.data || []).map((reference) => ({
+          feed_type: reference.feed_type,
+          feed_price_ht: reference.feed_price_ht == null ? null : Number(reference.feed_price_ht),
+        }))
+      );
+    }
+    if (!sicaResult.error) setSicaLotReferences((sicaResult.data || []) as SicaLotReference[]);
+    if (!directResult.error) setDirectLotReferences((directResult.data || []) as DirectLotReference[]);
     setLoading(false);
   };
 
@@ -173,6 +283,77 @@ export default function Inventaire() {
 
   const feedRows = rows.filter((row) => row.category === "feed");
   const poultryRows = rows.filter((row) => row.category !== "feed");
+  const totalPoultryRow = useMemo<InventoryRow>(() => {
+    const values = months.reduce<Record<string, number>>((total, month) => {
+      total[month.key] = poultryRows.reduce((sum, row) => sum + (row.values[month.key] || 0), 0);
+      return total;
+    }, {});
+    return {
+      key: "total-poultry",
+      category: "sica",
+      groupLabel: "Total",
+      itemLabel: "Total tous lots",
+      unit: "sujets",
+      values,
+    };
+  }, [months, poultryRows]);
+  const feedPriceByType = useMemo(() => {
+    const prices = new Map<string, number>();
+    feedReferences.forEach((reference) => {
+      const key = reference.feed_type.toLowerCase();
+      if (!prices.has(key) && reference.feed_price_ht != null) {
+        prices.set(key, reference.feed_price_ht);
+      }
+    });
+    return prices;
+  }, [feedReferences]);
+  const sicaLotById = useMemo(
+    () => new Map(sicaLotReferences.map((lot) => [lot.id, lot])),
+    [sicaLotReferences]
+  );
+  const directLotById = useMemo(
+    () => new Map(directLotReferences.map((lot) => [lot.id, lot])),
+    [directLotReferences]
+  );
+  const valueRows = useMemo<InventoryValueRow[]>(
+    () =>
+      months.map((month) => {
+        const monthSnapshots = snapshots.filter(
+          (snapshot) =>
+            snapshot.snapshot_date.startsWith(String(selectedYear)) &&
+            snapshotMonthEndIso(snapshot.snapshot_date) === month.key
+        );
+        const feedValue = monthSnapshots
+          .filter((snapshot) => snapshot.category === "feed")
+          .reduce((total, snapshot) => {
+            const price = feedPriceByType.get(snapshot.item_label.toLowerCase()) || 0;
+            return total + snapshot.quantity * price;
+          }, 0);
+        const poultryValue = monthSnapshots
+          .filter((snapshot) => snapshot.category === "sica" || snapshot.category === "direct")
+          .reduce((total, snapshot) => {
+            const isDirect = snapshot.category === "direct";
+            const directLot = isDirect ? directLotById.get(snapshot.source_id) : null;
+            const sicaLot = !isDirect ? sicaLotById.get(snapshot.source_id) : null;
+            const species = directLot?.species || "poulet";
+            const arrivalDate = directLot?.arrival_date || sicaLot?.date_arrivee;
+            if (!arrivalDate) return total;
+            const age = daysBetween(arrivalDate, snapshot.snapshot_date);
+            const estimatedWeight = estimateWeightKg(species, age);
+            const priceKg = POULTRY_PRICE_BY_SPECIES[species];
+            return total + snapshot.quantity * estimatedWeight * priceKg;
+          }, 0);
+
+        return {
+          monthKey: month.key,
+          feedValue,
+          poultryValue,
+          totalValue: feedValue + poultryValue,
+        };
+      }),
+    [directLotById, feedPriceByType, months, selectedYear, sicaLotById, snapshots]
+  );
+  const latestValueRow = [...valueRows].reverse().find((row) => row.totalValue > 0);
   const dernierInventaire = snapshots[0];
 
   const enregistrerMaintenant = async () => {
@@ -296,8 +477,10 @@ export default function Inventaire() {
             icon="♧"
             rows={poultryRows}
             months={months}
+            totalRow={totalPoultryRow}
             emptyLabel="Aucun lot enregistré pour cette année."
           />
+          <InventoryValueSection rows={valueRows} months={months} latestValueRow={latestValueRow} />
         </>
       ) : (
         <InventoryGraph rows={rows} months={months} />
@@ -320,12 +503,14 @@ function InventoryTable({
   icon,
   rows,
   months,
+  totalRow,
   emptyLabel,
 }: {
   title: string;
   icon: string;
   rows: InventoryRow[];
   months: Array<{ key: string; label: string }>;
+  totalRow?: InventoryRow;
   emptyLabel: string;
 }) {
   const groupLabels = Array.from(new Set(rows.map((row) => row.groupLabel)));
@@ -366,6 +551,7 @@ function InventoryTable({
                   months={months}
                 />
               ))}
+              {totalRow && <InventoryTotalRow row={totalRow} months={months} />}
             </tbody>
           </table>
         </div>
@@ -410,6 +596,108 @@ function InventoryGroup({
         </tr>
       ))}
     </>
+  );
+}
+
+function InventoryTotalRow({
+  row,
+  months,
+}: {
+  row: InventoryRow;
+  months: Array<{ key: string; label: string }>;
+}) {
+  return (
+    <tr className="inventory-total-row">
+      <td>{row.itemLabel}</td>
+      {months.map((month) => {
+        const value = row.values[month.key];
+        return (
+          <td key={month.key} className={value > 0 ? "inventory-value" : "inventory-empty-cell"}>
+            {value > 0 ? formatNombre(value) : "–"}
+          </td>
+        );
+      })}
+      <td>{row.unit}</td>
+    </tr>
+  );
+}
+
+function InventoryValueSection({
+  rows,
+  months,
+  latestValueRow,
+}: {
+  rows: InventoryValueRow[];
+  months: Array<{ key: string; label: string }>;
+  latestValueRow?: InventoryValueRow;
+}) {
+  return (
+    <section className="inventory-panel inventory-value-panel">
+      <div className="inventory-panel-heading">
+        <div>
+          <span>€</span>
+          <h2>Estimation de la valeur du stock</h2>
+        </div>
+        <p>Aliments au prix d’achat des sacs. Volailles estimées selon l’âge, le poids de référence et le prix moyen au kg.</p>
+      </div>
+      <div className="inventory-value-kpis">
+        <div>
+          <small>Valeur aliments</small>
+          <strong>{formatNombre(latestValueRow?.feedValue || 0, 2)} €</strong>
+        </div>
+        <div>
+          <small>Valeur volailles</small>
+          <strong>{formatNombre(latestValueRow?.poultryValue || 0, 2)} €</strong>
+        </div>
+        <div>
+          <small>Total estimé</small>
+          <strong>{formatNombre(latestValueRow?.totalValue || 0, 2)} €</strong>
+        </div>
+      </div>
+      <div className="inventory-table-wrap">
+        <table className="inventory-table inventory-value-table">
+          <thead>
+            <tr>
+              <th>Valeur</th>
+              {months.map((month) => <th key={month.key}>{month.label}</th>)}
+              <th>Unité</th>
+            </tr>
+          </thead>
+          <tbody>
+            <InventoryMoneyRow label="Aliments" field="feedValue" rows={rows} months={months} />
+            <InventoryMoneyRow label="Volailles" field="poultryValue" rows={rows} months={months} />
+            <InventoryMoneyRow label="Total estimé" field="totalValue" rows={rows} months={months} />
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function InventoryMoneyRow({
+  label,
+  field,
+  rows,
+  months,
+}: {
+  label: string;
+  field: keyof Pick<InventoryValueRow, "feedValue" | "poultryValue" | "totalValue">;
+  rows: InventoryValueRow[];
+  months: Array<{ key: string; label: string }>;
+}) {
+  return (
+    <tr className={field === "totalValue" ? "inventory-total-row" : undefined}>
+      <td>{label}</td>
+      {months.map((month) => {
+        const value = rows.find((row) => row.monthKey === month.key)?.[field] || 0;
+        return (
+          <td key={month.key} className={value > 0 ? "inventory-value" : "inventory-empty-cell"}>
+            {value > 0 ? formatNombre(value, 2) : "–"}
+          </td>
+        );
+      })}
+      <td>€</td>
+    </tr>
   );
 }
 

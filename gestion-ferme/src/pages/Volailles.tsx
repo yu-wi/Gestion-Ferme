@@ -58,6 +58,7 @@ const [searchNom, setSearchNom] = useState('');
 const [searchBatiment, setSearchBatiment] = useState('');
 const [showOnlyAlertLots, setShowOnlyAlertLots] = useState(false);
 const [nouveauLotModalOpen, setNouveauLotModalOpen] = useState(false);
+const [lotEnModification, setLotEnModification] = useState<LotVolaille | null>(null);
 
 
 const [mortaliteModalOpen, setMortaliteModalOpen] = useState(false);
@@ -151,7 +152,29 @@ const sortedLots = [...filteredLots].sort((a, b) => {
 });
 
 // Calcul des dates des événements
-const ajouterLot = async () => {
+const reinitialiserFormulaireLot = () => {
+ setNom('');
+ setQuantite('');
+ setDateArrivee('');
+ setBatiment('');
+ setLotEnModification(null);
+};
+
+const fermerFormulaireLot = () => {
+ reinitialiserFormulaireLot();
+ setNouveauLotModalOpen(false);
+};
+
+const ouvrirModificationLot = (lot: LotVolaille) => {
+ setLotEnModification(lot);
+ setNom(lot.nom);
+ setQuantite(String(lot.quantite || ''));
+ setDateArrivee(lot.dateArrivee || '');
+ setBatiment(lot.batiment || '');
+ setNouveauLotModalOpen(true);
+};
+
+const enregistrerLot = async () => {
  if (saving) return;
  const quantiteNumerique = Number(quantite);
  if (!nom.trim() || quantiteNumerique <= 0 || !dateArrivee || !batiment.trim()) {
@@ -172,13 +195,46 @@ const ajouterLot = async () => {
  const nouveauxEvenements = genererEvenementsLot(dateArrivee);
 
 
+ const donneesLot = {
+   nom: nom.trim(),
+   quantite: quantiteNumerique,
+   age: ageCalcule,
+   date_arrivee: dateArrivee,
+   batiment: batiment.trim(),
+   evenements: nouveauxEvenements.map(e => ({ title: e.title, date: e.date.toISOString().split('T')[0] })),
+ };
+
+ if (lotEnModification) {
+   const mortalitesLot = lotEnModification.mortalites.reduce((total, mort) => total + Number(mort.nombre || 0), 0);
+   const autoconsommationLot = Number(lotEnModification.autoconsommation || 0);
+   const sujetsRestantsMaj = Math.max(0, quantiteNumerique - mortalitesLot - autoconsommationLot);
+   const { error } = await supabase
+     .from('lots_volailles')
+     .update({
+       ...donneesLot,
+       sujets_restants: sujetsRestantsMaj,
+     })
+     .eq('id', lotEnModification.id);
+
+   if (error) {
+     console.error('Erreur modification du lot :', error.message);
+     toast.error("Le lot n'a pas pu être modifié.");
+   } else {
+     await rechargerLots();
+     fermerFormulaireLot();
+     toast.success('Lot modifié.');
+   }
+   setSaving(false);
+   return;
+ }
+
  const nouveauLot: LotVolaille = {
    id,
-   nom,
+   nom: nom.trim(),
    quantite: quantiteNumerique,
    age: ageCalcule,
    dateArrivee,
-   batiment,
+   batiment: batiment.trim(),
    mortalites: [],
    livraisons: [],
    evenements: nouveauxEvenements,
@@ -189,13 +245,8 @@ const ajouterLot = async () => {
 
  const { error } = await supabase.from('lots_volailles').insert({
    id,
-   nom,
-   quantite: quantiteNumerique,
-   age: ageCalcule,
-   date_arrivee: dateArrivee,
-   batiment,
+   ...donneesLot,
    mortalites: [],
-   evenements: nouveauxEvenements.map(e => ({ title: e.title, date: e.date.toISOString().split('T')[0] })),
    couleur,
    sujets_restants: sujetsRestants,
    is_active: true
@@ -204,14 +255,10 @@ const ajouterLot = async () => {
 
  if (error) {
    console.error('Erreur lors de l’ajout du lot à Supabase :', error.message);
-   toast.error("Le lot n'a pas pu être enregistré.");
+  toast.error("Le lot n'a pas pu être enregistré.");
   } else {
    setLots([...lots, nouveauLot]);
-   setNom('');
-   setQuantite('');
-   setDateArrivee('');
-   setBatiment('');
-   setNouveauLotModalOpen(false);
+   fermerFormulaireLot();
    toast.success('Lot enregistré.');
   }
   setSaving(false);
@@ -941,7 +988,10 @@ return (
        <button
          type="button"
          className="poultry-primary-button"
-         onClick={() => setNouveauLotModalOpen(true)}
+         onClick={() => {
+           reinitialiserFormulaireLot();
+           setNouveauLotModalOpen(true);
+         }}
        >
          ＋ Nouveau lot
        </button>
@@ -1086,6 +1136,7 @@ return (
                </div>
                <div className="poultry-card-actions">
                  <button type="button" onClick={() => setDetailLot(lot)}><span aria-hidden="true">👁</span> Fiche</button>
+                 <button type="button" onClick={() => ouvrirModificationLot(lot)}><span aria-hidden="true">✎</span> Modifier</button>
                  <button type="button" className="poultry-action-mortality" onClick={() => ouvrirMortaliteModal(lot.id)}><span aria-hidden="true">✝</span> Mortalité</button>
                  <button type="button" onClick={() => {
                    setSelectedLot(lot);
@@ -1132,6 +1183,7 @@ return (
                    <td>
                      <div className="poultry-row-actions">
                        <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.nom}`} onClick={() => setDetailLot(lot)}>👁</button>
+                       <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.nom}`} onClick={() => ouvrirModificationLot(lot)}>✎</button>
                        <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.nom}`} onClick={() => ouvrirMortaliteModal(lot.id)}>✝</button>
                        <button type="button" className="poultry-action-delivery" title="Enregistrer une livraison" aria-label={`Enregistrer une livraison pour le lot ${lot.nom}`} onClick={() => {
                          setSelectedLot(lot);
@@ -1156,7 +1208,7 @@ return (
 
      <aside className="poultry-quick-actions">
        <h2>Actions rapides</h2>
-       <button type="button" onClick={() => setNouveauLotModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
+       <button type="button" onClick={() => { reinitialiserFormulaireLot(); setNouveauLotModalOpen(true); }}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
        <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
        <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
        <Link to="/volailles/sica/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique SICA</small></div></Link>
@@ -1168,12 +1220,12 @@ return (
   <div className="poultry-modal-backdrop">
     <div className="poultry-modal poultry-modal-medium">
       <ModalCloseButton
-        onClick={() => setNouveauLotModalOpen(false)}
+        onClick={fermerFormulaireLot}
         disabled={saving}
       />
       <div className="poultry-modal-header">
-        <span className="poultry-modal-icon">＋</span>
-        <div><h2>Nouveau lot</h2><p>Créer un nouveau lot de volailles.</p></div>
+        <span className="poultry-modal-icon">{lotEnModification ? '✎' : '＋'}</span>
+        <div><h2>{lotEnModification ? 'Modifier le lot' : 'Nouveau lot'}</h2><p>{lotEnModification ? 'Corriger les informations principales du lot.' : 'Créer un nouveau lot de volailles.'}</p></div>
       </div>
       <div className="poultry-form-grid">
         <label>
@@ -1194,10 +1246,10 @@ return (
         </label>
       </div>
       <div className="poultry-modal-actions">
-        <button type="button" className="poultry-modal-primary" onClick={ajouterLot} disabled={saving}>
-          {saving ? 'Enregistrement...' : '＋ Ajouter le lot'}
+        <button type="button" className="poultry-modal-primary" onClick={enregistrerLot} disabled={saving}>
+          {saving ? 'Enregistrement...' : lotEnModification ? '✎ Modifier le lot' : '＋ Ajouter le lot'}
         </button>
-        <button type="button" className="poultry-modal-secondary" onClick={() => setNouveauLotModalOpen(false)}>Annuler</button>
+        <button type="button" className="poultry-modal-secondary" onClick={fermerFormulaireLot}>Annuler</button>
       </div>
     </div>
   </div>

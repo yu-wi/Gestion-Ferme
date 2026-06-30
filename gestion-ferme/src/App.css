@@ -1424,6 +1424,482 @@
   color: #64748b;
 }
 
+.planning-page {
+  display: grid;
+  gap: 24px;
+  padding: 30px;
+}
+
+.planning-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.planning-heading-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.planning-heading-icon,
+.planning-panel-heading > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  color: #12843f;
+  background: #e8f6ed;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.planning-heading h1 {
+  margin: 0;
+  color: #0f2338;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.planning-heading p {
+  margin: 7px 0 0;
+  color: #56687c;
+  font-size: 14px;
+}
+
+.planning-add-button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 18px;
+  color: white;
+  background: #12843f;
+  box-shadow: 0 10px 24px rgba(18, 132, 63, 0.18);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.planning-add-button:hover {
+  background: #0c7133;
+}
+
+.planning-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.planning-kpi,
+.planning-calendar-card,
+.planning-upcoming-card,
+.planning-reminders-card {
+  border: 1px solid #e0e8e4;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 34px rgba(25, 52, 41, 0.06);
+}
+
+.planning-kpi {
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  gap: 17px;
+  padding: 18px;
+}
+
+.planning-kpi-icon,
+.planning-upcoming-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.planning-kpi small {
+  display: block;
+  color: #5c6c80;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.planning-kpi strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f2338;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.planning-kpi em {
+  display: block;
+  margin-top: 9px;
+  color: #5f7083;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.planning-event-green {
+  color: #12843f;
+  background: #e7f6ec;
+}
+
+.planning-event-violet {
+  color: #7b3fd8;
+  background: #f0e9fb;
+}
+
+.planning-event-blue {
+  color: #176bd7;
+  background: #e9f2ff;
+}
+
+.planning-event-orange {
+  color: #d98100;
+  background: #fff4df;
+}
+
+.planning-event-red {
+  color: #d62839;
+  background: #fde7e9;
+}
+
+.planning-event-neutral {
+  color: #526477;
+  background: #eef2f4;
+}
+
+.planning-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid #e2e8e5;
+  padding-top: 24px;
+}
+
+.planning-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.planning-month-nav button,
+.planning-filter-tabs button {
+  border: 1px solid #d8e3de;
+  border-radius: 6px;
+  color: #24384c;
+  background: white;
+  font-weight: 750;
+}
+
+.planning-month-nav button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.planning-month-nav h2 {
+  min-width: 158px;
+  margin: 0;
+  color: #10263a;
+  font-size: 18px;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.planning-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.planning-filter-tabs button {
+  min-height: 40px;
+  padding: 0 13px;
+  font-size: 12px;
+}
+
+.planning-filter-tabs .planning-filter-active {
+  border-color: #98c7a5;
+  color: #12843f;
+  background: #f3fbf6;
+  box-shadow: inset 0 -2px 0 rgba(18, 132, 63, 0.2);
+}
+
+.planning-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.planning-calendar-card,
+.planning-upcoming-card,
+.planning-reminders-card {
+  padding: 18px;
+}
+
+.planning-calendar-grid {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #e2e8e5;
+  border-radius: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.planning-calendar-weekday {
+  min-height: 45px;
+  border-right: 1px solid #e6ece8;
+  border-bottom: 1px solid #e6ece8;
+  padding: 14px 8px;
+  color: #10263a;
+  background: #fbfcfd;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.planning-calendar-weekday:nth-child(7) {
+  border-right: 0;
+}
+
+.planning-calendar-day {
+  min-height: 108px;
+  border-right: 1px solid #e6ece8;
+  border-bottom: 1px solid #e6ece8;
+  padding: 10px 8px;
+  background: white;
+}
+
+.planning-calendar-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.planning-calendar-day:nth-last-child(-n + 7) {
+  border-bottom: 0;
+}
+
+.planning-calendar-day > span {
+  display: block;
+  color: #11263a;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.planning-calendar-day-muted {
+  background: #fbfcfc;
+}
+
+.planning-calendar-day-muted > span {
+  color: #a8b3bd;
+}
+
+.planning-calendar-day-today {
+  background: #fffaf0;
+}
+
+.planning-calendar-events {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.planning-calendar-event {
+  display: block;
+  overflow: hidden;
+  border-radius: 5px;
+  padding: 5px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planning-calendar-more {
+  color: #68798b;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.planning-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.planning-panel-heading h2 {
+  margin: 0;
+  color: #10263a;
+  font-size: 20px;
+}
+
+.planning-panel-heading p {
+  margin: 3px 0 0;
+  color: #6a7a8b;
+  font-size: 12px;
+}
+
+.planning-upcoming-list {
+  display: grid;
+  gap: 14px;
+}
+
+.planning-upcoming-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #e2e8e5;
+  border-left: 4px solid currentColor;
+  border-radius: 8px;
+  padding: 14px;
+  color: #10263a;
+  background: white;
+}
+
+.planning-upcoming-green { color: #12843f; }
+.planning-upcoming-violet { color: #7b3fd8; }
+.planning-upcoming-blue { color: #176bd7; }
+.planning-upcoming-orange { color: #d98100; }
+.planning-upcoming-red { color: #d62839; }
+.planning-upcoming-neutral { color: #526477; }
+
+.planning-upcoming-item strong {
+  display: block;
+  color: #10263a;
+  font-size: 13px;
+}
+
+.planning-upcoming-item small {
+  display: block;
+  margin-top: 4px;
+  color: #637487;
+  font-size: 11px;
+}
+
+.planning-upcoming-item em {
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: currentColor;
+  background: color-mix(in srgb, currentColor 10%, white);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.planning-panel-link {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 1px solid #dfe8e3;
+  border-radius: 6px;
+  color: #526477;
+  background: white;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.planning-panel-link:hover {
+  border-color: #98c7a5;
+  color: #12843f;
+}
+
+.planning-reminders-card {
+  display: grid;
+  gap: 8px;
+}
+
+.planning-reminders-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.planning-reminder {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #e2e8e5;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.planning-reminder > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 22px;
+}
+
+.planning-reminder strong,
+.planning-reminder b,
+.planning-reminder small {
+  display: block;
+}
+
+.planning-reminder strong {
+  color: #10263a;
+  font-size: 13px;
+}
+
+.planning-reminder b {
+  margin-top: 5px;
+  color: #10263a;
+  font-size: 20px;
+}
+
+.planning-reminder small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.planning-empty {
+  margin: 0;
+  border: 1px dashed #dbe5df;
+  border-radius: 8px;
+  padding: 20px;
+  color: #6d7c8e;
+  background: #fbfcfc;
+  text-align: center;
+}
+
+.planning-event-modal .poultry-modal-icon {
+  color: #12843f;
+  background: #e7f6ec;
+}
+
 .poultry-kpi,
 .poultry-panel,
 .poultry-quick-actions {
@@ -4463,6 +4939,9 @@
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-calendar { grid-column: 1 / span 2; grid-row: auto; }
   .dashboard-side-column { grid-column: 1 / span 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planning-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planning-main-grid { grid-template-columns: 1fr; }
+  .planning-reminders-grid { grid-template-columns: 1fr; }
   .poultry-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .poultry-main-grid { grid-template-columns: 1fr; }
   .poultry-quick-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -5244,6 +5723,107 @@
 }
 
 @media (max-width: 760px) {
+  .planning-page {
+    gap: 18px;
+    padding: 18px 0 28px;
+  }
+
+  .planning-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .planning-heading-main {
+    align-items: flex-start;
+  }
+
+  .planning-heading h1 {
+    font-size: 24px;
+  }
+
+  .planning-add-button {
+    width: 100%;
+  }
+
+  .planning-kpis {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .planning-kpi {
+    min-height: 94px;
+  }
+
+  .planning-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding-top: 18px;
+  }
+
+  .planning-month-nav {
+    justify-content: space-between;
+  }
+
+  .planning-month-nav h2 {
+    min-width: 0;
+    flex: 1;
+    font-size: 17px;
+  }
+
+  .planning-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .planning-filter-tabs button {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .planning-calendar-card,
+  .planning-upcoming-card,
+  .planning-reminders-card {
+    padding: 12px;
+  }
+
+  .planning-calendar-grid {
+    overflow-x: auto;
+    grid-template-columns: repeat(7, minmax(88px, 1fr));
+  }
+
+  .planning-calendar-day {
+    min-height: 92px;
+    padding: 8px 6px;
+  }
+
+  .planning-calendar-event {
+    font-size: 9px;
+  }
+
+  .planning-panel-heading {
+    align-items: flex-start;
+  }
+
+  .planning-panel-heading h2 {
+    font-size: 17px;
+  }
+
+  .planning-upcoming-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .planning-upcoming-item em {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
+
+  .planning-reminder {
+    min-height: 82px;
+  }
+
   .direct-sale-page { padding: 18px 0 28px; }
   .direct-sale-heading { align-items: flex-start; flex-direction: column; }
   .direct-sale-heading h1 { font-size: 24px; }

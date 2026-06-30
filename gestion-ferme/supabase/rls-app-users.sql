@@ -33,7 +33,12 @@ declare
     'livraisons_volailles',
     'consommations_aliment',
     'livraisons_aliment',
-    'feed_consumption'
+    'direct_sale_lots',
+    'direct_sale_mortalities',
+    'direct_sale_customers',
+    'direct_sale_orders',
+    'direct_sale_deliveries',
+    'monthly_inventory_snapshots'
   ];
 begin
   foreach table_name in array protected_tables loop

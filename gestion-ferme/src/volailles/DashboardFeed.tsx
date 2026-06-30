@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
@@ -43,6 +42,15 @@ type LivraisonStock = {
   fournisseur?: string | null;
   prix_total_ht?: number | null;
   note?: string | null;
+};
+
+type ConsumptionFollowUpRow = {
+  lot: Lot;
+  date: string | null;
+  feedType: string | null;
+  sacs: number;
+  status: "renseigne" | "a_renseigner";
+  latestConsumption: Consommation | null;
 };
 
 type StockRow = {
@@ -129,6 +137,11 @@ export default function DashboardFeed() {
   const [referenceAgeMax, setReferenceAgeMax] = useState("");
   const [referenceConso, setReferenceConso] = useState("");
   const [referencePrix, setReferencePrix] = useState("");
+  const [consumptionSearch, setConsumptionSearch] = useState("");
+  const [consumptionSourceFilter, setConsumptionSourceFilter] = useState<"tous" | "sica" | "vente_directe">("tous");
+  const [consumptionStatusFilter, setConsumptionStatusFilter] = useState<"tous" | "renseigne" | "a_renseigner">("tous");
+  const [deliverySearch, setDeliverySearch] = useState("");
+  const [deliveryFeedFilter, setDeliveryFeedFilter] = useState("tous");
 
   const [consommationLotId, setConsommationLotId] = useState("");
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
@@ -848,6 +861,75 @@ export default function DashboardFeed() {
   const consommationDuJour = consommations
     .filter((item) => item.date === aujourdHui())
     .reduce((total, item) => total + item.quantite_kg, 0);
+  const consommationsAujourdhui = consommations.filter(
+    (item) => item.date === aujourdHui()
+  );
+  const consumptionFollowUp = lots
+    .map<ConsumptionFollowUpRow>((lot) => {
+      const lotConsumptions = consommationsAujourdhui.filter(
+        (item) =>
+          item.source_type === lot.source &&
+          (lot.source === "vente_directe"
+            ? item.direct_sale_lot_id === lot.id
+            : item.lot_id === lot.id)
+      );
+      const sacs = lotConsumptions.reduce(
+        (total, item) => total + enSacs(item.quantite_kg),
+        0
+      );
+      const latest = lotConsumptions[0];
+      return {
+        lot,
+        date: latest?.date || null,
+        feedType: latest?.feed_type || null,
+        sacs,
+        status: sacs > 0 ? "renseigne" : "a_renseigner",
+        latestConsumption: latest || null,
+      };
+    })
+    .filter((row) => {
+      const matchSearch = row.lot.nom
+        .toLowerCase()
+        .includes(consumptionSearch.toLowerCase());
+      const matchSource =
+        consumptionSourceFilter === "tous" ||
+        row.lot.source === consumptionSourceFilter;
+      const matchStatus =
+        consumptionStatusFilter === "tous" ||
+        row.status === consumptionStatusFilter;
+      return matchSearch && matchSource && matchStatus;
+    });
+  const lotsRenseignesAujourdhui = lots.filter((lot) =>
+    consommationsAujourdhui.some(
+      (item) =>
+        item.source_type === lot.source &&
+        (lot.source === "vente_directe"
+          ? item.direct_sale_lot_id === lot.id
+          : item.lot_id === lot.id)
+    )
+  ).length;
+  const lotsARenseigner = Math.max(0, lots.length - lotsRenseignesAujourdhui);
+  const derniereConsommation = consommations[0]?.date || null;
+  const debutMois = aujourdHui().slice(0, 8) + "01";
+  const livraisonsMois = livraisons.filter(
+    (item) => item.date >= debutMois && item.date <= aujourdHui()
+  );
+  const totalLivraisonsMoisKg = livraisonsMois.reduce(
+    (total, item) => total + item.quantite_kg,
+    0
+  );
+  const deliveryRows = livraisons
+    .filter((item) => {
+      const matchSearch =
+        item.feed_type.toLowerCase().includes(deliverySearch.toLowerCase()) ||
+        (item.fournisseur || "")
+          .toLowerCase()
+          .includes(deliverySearch.toLowerCase());
+      const matchFeed =
+        deliveryFeedFilter === "tous" || item.feed_type === deliveryFeedFilter;
+      return matchSearch && matchFeed;
+    })
+    .slice(0, 6);
   const stockTotal = stock.reduce((total, item) => total + item.stock, 0);
   const besoinTotalSacs = prevision.reduce(
     (total, item) => total + item.besoinSacs,
@@ -936,24 +1018,88 @@ export default function DashboardFeed() {
         </div>
       </section>
 
-      <section className="feed-history-grid">
-        <FeedHistory title="Dernières consommations" empty="Aucune consommation enregistrée." onViewAll={consommations.length > 6 ? () => setHistoryModal("consommations") : undefined}>
-          {consommations.slice(0, 6).map((item) => {
-            const lotId =
-              item.source_type === "vente_directe"
-                ? item.direct_sale_lot_id
-                : item.lot_id;
-            const lot = lots.find(
-              (candidate) =>
-                candidate.id === lotId &&
-                candidate.source === item.source_type
-            );
-            return <Mouvement key={item.id} titre={`${lot?.nom || "Lot"} · ${item.feed_type}`} sousTitre={`${item.source_type === "vente_directe" ? "Vente directe" : "SICA Madras"} · ${formatDate(item.date)}`} valeur={`-${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />;
-          })}
-        </FeedHistory>
-        <FeedHistory title="Dernières livraisons de stock" empty="Aucune livraison enregistrée." onViewAll={livraisons.length > 6 ? () => setHistoryModal("livraisons") : undefined}>
-          {livraisons.slice(0, 6).map((item) => <Mouvement key={item.id} titre={`${item.feed_type}${item.fournisseur ? ` · ${item.fournisseur}` : ""}`} sousTitre={formatDate(item.date)} valeur={`+${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}
-        </FeedHistory>
+      <section className="feed-history-grid feed-tracking-grid">
+        <section className="feed-panel feed-tracking-panel">
+          <div className="feed-tracking-heading">
+            <div><span className="feed-tracking-icon">▣</span><div><h2>Suivi des consommations d’aliment</h2><p>Saisie des consommations par lot pour aujourd’hui.</p></div></div>
+            <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>⊕ Enregistrer</button>
+          </div>
+          <div className="feed-tracking-kpis">
+            <FeedMiniKpi tone="red" label="Lots à renseigner" value={String(lotsARenseigner)} note={`sur ${lots.length}`} icon="!" />
+            <FeedMiniKpi tone="green" label="Renseignés aujourd’hui" value={String(lotsRenseignesAujourdhui)} note={`sur ${lots.length}`} icon="✓" />
+            <FeedMiniKpi tone="green" label="Dernière saisie" value={derniereConsommation ? formatDate(derniereConsommation) : "Aucune"} note="Consommation" icon="□" />
+          </div>
+          <div className="feed-tracking-filters">
+            <input type="search" value={consumptionSearch} onChange={(event) => setConsumptionSearch(event.target.value)} placeholder="Rechercher un lot..." />
+            <select value={consumptionSourceFilter} onChange={(event) => setConsumptionSourceFilter(event.target.value as "tous" | "sica" | "vente_directe")}>
+              <option value="tous">Toutes origines</option>
+              <option value="sica">SICA Madras</option>
+              <option value="vente_directe">Vente directe</option>
+            </select>
+            <select value={consumptionStatusFilter} onChange={(event) => setConsumptionStatusFilter(event.target.value as "tous" | "renseigne" | "a_renseigner")}>
+              <option value="tous">Tous statuts</option>
+              <option value="renseigne">Renseigné</option>
+              <option value="a_renseigner">À renseigner</option>
+            </select>
+          </div>
+          <div className="feed-tracking-table-wrap">
+            <table className="feed-tracking-table">
+              <thead><tr><th>Lot</th><th>Origine</th><th>Dernière saisie</th><th>Consommation</th><th>Statut</th><th>Action</th></tr></thead>
+              <tbody>
+                {consumptionFollowUp.map((row) => (
+                  <tr key={`${row.lot.source}-${row.lot.id}`}>
+                    <td><strong>{row.lot.nom}</strong></td>
+                    <td>{row.lot.source === "vente_directe" ? "Vente directe" : "SICA"}</td>
+                    <td>{row.date ? formatDate(row.date) : "–"}</td>
+                    <td>{row.sacs > 0 ? `${sacsEntiers(row.sacs)} sac${sacsEntiers(row.sacs) > 1 ? "s" : ""}` : "–"}</td>
+                    <td><span className={`feed-status feed-status-${row.status}`}>{row.status === "renseigne" ? "✓ Renseigné" : "! À renseigner"}</span></td>
+                    <td><button type="button" title={row.latestConsumption ? "Modifier la consommation" : "Saisir une consommation"} onClick={() => { if (row.latestConsumption) { modifierConsommation(row.latestConsumption); } else { annulerModificationConsommation(); setConsommationLotId(`${row.lot.source}:${row.lot.id}`); setConsommationDate(aujourdHui()); setConsommationModalOpen(true); } }}>✎</button></td>
+                  </tr>
+                ))}
+                {!consumptionFollowUp.length && <tr><td colSpan={6}><div className="feed-empty">Aucun lot ne correspond aux filtres.</div></td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="feed-tracking-legend"><span><i className="feed-dot-green" /> Renseigné</span><span><i className="feed-dot-red" /> À renseigner</span></div>
+          {consommations.length > 0 && <button type="button" className="feed-view-all" onClick={() => setHistoryModal("consommations")}>Voir toutes les consommations →</button>}
+        </section>
+
+        <section className="feed-panel feed-tracking-panel">
+          <div className="feed-tracking-heading">
+            <div><span className="feed-tracking-icon feed-tracking-icon-truck">🚚</span><div><h2>Suivi des livraisons d’aliment</h2><p>Enregistrement des entrées de stock.</p></div></div>
+            <button type="button" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>⊕ Enregistrer</button>
+          </div>
+          <div className="feed-tracking-kpis">
+            <FeedMiniKpi tone="green" label="Livraisons ce mois" value={String(livraisonsMois.length)} note="Entrées" icon="🚚" />
+            <FeedMiniKpi tone="green" label="Total ce mois" value={`${sacsEntiers(enSacs(totalLivraisonsMoisKg))} sacs`} note="Toutes références" icon="▣" />
+            <FeedMiniKpi tone="green" label="Dernière livraison" value={livraisons[0] ? formatDate(livraisons[0].date) : "Aucune"} note="Stock" icon="□" />
+          </div>
+          <div className="feed-tracking-filters feed-delivery-filters">
+            <input type="search" value={deliverySearch} onChange={(event) => setDeliverySearch(event.target.value)} placeholder="Rechercher un aliment..." />
+            <select value={deliveryFeedFilter} onChange={(event) => setDeliveryFeedFilter(event.target.value)}>
+              <option value="tous">Tous aliments</option>
+              {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </div>
+          <div className="feed-tracking-table-wrap">
+            <table className="feed-tracking-table">
+              <thead><tr><th>Aliment</th><th>Fournisseur</th><th>Dernière livraison</th><th>Quantité</th><th>Actions</th></tr></thead>
+              <tbody>
+                {deliveryRows.map((item) => (
+                  <tr key={item.id}>
+                    <td><span className="feed-type-pill">▣</span><strong>{item.feed_type}</strong></td>
+                    <td>{item.fournisseur || "–"}</td>
+                    <td>{formatDate(item.date)}</td>
+                    <td className="feed-delivery-quantity">+{sacsEntiers(enSacs(item.quantite_kg))} sacs</td>
+                    <td><div className="feed-row-actions"><button type="button" title="Modifier" onClick={() => modifierLivraison(item)} disabled={saving}>✎</button><button type="button" title="Supprimer" onClick={() => supprimerLivraison(item)} disabled={saving}>🗑</button></div></td>
+                  </tr>
+                ))}
+                {!deliveryRows.length && <tr><td colSpan={5}><div className="feed-empty">Aucune livraison ne correspond aux filtres.</div></td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {livraisons.length > 6 && <button type="button" className="feed-view-all" onClick={() => setHistoryModal("livraisons")}>Voir toutes les livraisons →</button>}
+        </section>
       </section>
 
       {consommationModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2><p>Enregistrer les sacs consommés par un lot.</p></div></div><div className="poultry-form-grid"><label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}><option value="">Choisir un lot</option><optgroup label="Lots SICA Madras">{lots.filter((lot) => lot.source === "sica").map((lot) => <option key={`sica-${lot.id}`} value={`sica:${lot.id}`}>{lot.nom}</option>)}</optgroup><optgroup label="Lots Vente directe">{lots.filter((lot) => lot.source === "vente_directe").map((lot) => <option key={`vente-${lot.id}`} value={`vente_directe:${lot.id}`}>{lot.nom}</option>)}</optgroup></select></label><label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label><label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label></div>{suggestionConsommation && <div className="feed-suggestion"><div><strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong><span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span></div><button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button></div>}<div className="poultry-form-stack feed-note-field"><label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button></div></div></div>}
@@ -975,9 +1121,29 @@ function FeedKpi({ tone, icon, label, value, note }: { tone: string; icon: strin
   return <article className="feed-kpi"><span className={`feed-kpi-icon feed-kpi-${tone}`}>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div></article>;
 }
 
-function FeedHistory({ title, empty, children, onViewAll }: { title: string; empty: string; children: ReactNode; onViewAll?: () => void }) {
-  const items = Array.isArray(children) ? children : [children];
-  return <section className="feed-panel feed-history"><div className="feed-history-heading"><h2>{title}</h2>{onViewAll && <button type="button" onClick={onViewAll}>Voir tout →</button>}</div><div>{items.length && items[0] ? children : <div className="feed-empty">{empty}</div>}</div></section>;
+function FeedMiniKpi({
+  tone,
+  label,
+  value,
+  note,
+  icon,
+}: {
+  tone: "green" | "red";
+  label: string;
+  value: string;
+  note: string;
+  icon: string;
+}) {
+  return (
+    <article className={`feed-mini-kpi feed-mini-kpi-${tone}`}>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        <em>{note}</em>
+      </div>
+      <span>{icon}</span>
+    </article>
+  );
 }
 
 function Mouvement({

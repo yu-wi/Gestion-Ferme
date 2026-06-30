@@ -105,6 +105,17 @@ Pour gerer les references depuis l'interface :
 3. Verifier que le statut affiche `OK`.
 
 La fonction supprime le lot et ses donnees rattachees dans une seule
-transaction, y compris les consommations de l'ancienne table
-`feed_consumption`. En cas d'erreur, aucune suppression partielle n'est
-conservee.
+transaction. En cas d'erreur, aucune suppression partielle n'est conservee.
+
+## Nettoyage des anciennes tables
+
+1. Executer `nettoyage-tables-inutilisees.sql`.
+2. Verifier les deux tableaux de controle affiches par Supabase.
+
+Le script supprime l'ancienne table `feed_consumption`, remplacee par
+`consommations_aliment`, et liste les eventuelles autres tables publiques qui
+ne sont pas appelees par l'interface actuelle.
+
+Si le controle affiche encore `daily_tasks`, `feed_stock`,
+`feed_stock_movements` ou `mortalites`, executer ensuite
+`nettoyage-tables-anciennes-confirmation.sql`.

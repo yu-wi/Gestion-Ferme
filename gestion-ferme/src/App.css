@@ -3037,6 +3037,279 @@
   gap: 16px;
 }
 
+.feed-tracking-grid {
+  align-items: flex-start;
+}
+
+.feed-tracking-panel {
+  min-width: 0;
+}
+
+.feed-tracking-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.feed-tracking-heading > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.feed-tracking-heading h2 {
+  margin: 0;
+  color: #11283f;
+  font-size: 18px;
+}
+
+.feed-tracking-heading p {
+  margin: 5px 0 0;
+  color: #61758b;
+  font-size: 12px;
+}
+
+.feed-tracking-heading button,
+.feed-view-all {
+  border: 1px solid #0c813d;
+  border-radius: 7px;
+  padding: 10px 14px;
+  color: white;
+  background: linear-gradient(135deg, #0f9948, #087938);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.feed-tracking-icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #0b813d;
+  background: #e6f6ec;
+  font-weight: 900;
+}
+
+.feed-tracking-icon-truck {
+  color: #0a7c3a;
+}
+
+.feed-tracking-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.feed-mini-kpi {
+  display: flex;
+  min-width: 0;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e1e9e5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdfc;
+}
+
+.feed-mini-kpi-red {
+  border-color: #f2d7d7;
+  background: #fff8f8;
+}
+
+.feed-mini-kpi small,
+.feed-mini-kpi em {
+  display: block;
+  color: #61758b;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.feed-mini-kpi strong {
+  display: block;
+  margin-top: 5px;
+  color: #0c8140;
+  font-size: 19px;
+}
+
+.feed-mini-kpi-red strong {
+  color: #e02e2e;
+}
+
+.feed-mini-kpi span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #0a813c;
+  background: #e5f6ec;
+  font-weight: 900;
+}
+
+.feed-mini-kpi-red span {
+  color: #ef2f2f;
+  background: #ffe6e6;
+}
+
+.feed-tracking-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(140px, .8fr) minmax(140px, .8fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.feed-delivery-filters {
+  grid-template-columns: minmax(0, 1.45fr) minmax(160px, .8fr);
+}
+
+.feed-tracking-filters input,
+.feed-tracking-filters select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #dce5e1;
+  border-radius: 7px;
+  padding: 0 12px;
+  color: #20384e;
+  background: white;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.feed-tracking-table-wrap {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.feed-tracking-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.feed-tracking-table th,
+.feed-tracking-table td {
+  border-top: 1px solid #e5ebe8;
+  padding: 12px 10px;
+  color: #243d54;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.feed-tracking-table th {
+  color: #53677d;
+  background: #f8faf9;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.feed-tracking-table th:first-child,
+.feed-tracking-table td:first-child {
+  text-align: left;
+}
+
+.feed-tracking-table strong {
+  color: #0d7e3c;
+}
+
+.feed-tracking-table button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #cfe4d6;
+  border-radius: 7px;
+  color: #0d7e3c;
+  background: #f8fcfa;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.feed-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.feed-status-renseigne {
+  color: #08763a;
+  background: #e5f6ec;
+}
+
+.feed-status-a_renseigner {
+  color: #d22d2d;
+  background: #ffe6e6;
+}
+
+.feed-tracking-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 14px;
+  border: 1px solid #e5ebe8;
+  border-radius: 7px;
+  padding: 12px;
+  color: #5f7287;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.feed-tracking-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.feed-dot-green,
+.feed-dot-red {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.feed-dot-green { background: #10a34d; }
+.feed-dot-red { background: #ff4d4d; }
+
+.feed-type-pill {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #8547e8;
+  background: #f0e8ff;
+  margin-right: 8px;
+}
+
+.feed-delivery-quantity {
+  color: #08763a !important;
+  font-weight: 900;
+}
+
+.feed-view-all {
+  width: 100%;
+  margin-top: 14px;
+  border-color: #d9e5df;
+  color: #08763a;
+  background: #fbfdfc;
+}
+
 .feed-history-heading {
   display: flex;
   align-items: center;
@@ -5437,6 +5710,13 @@
   .feed-kpi { min-height: 96px; }
   .feed-stock-grid { grid-template-columns: 1fr; }
   .feed-history-grid { grid-template-columns: 1fr; }
+  .feed-tracking-heading { align-items: stretch; flex-direction: column; }
+  .feed-tracking-heading button { width: 100%; }
+  .feed-tracking-kpis { grid-template-columns: 1fr; }
+  .feed-tracking-filters,
+  .feed-delivery-filters { grid-template-columns: 1fr; }
+  .feed-tracking-table { min-width: 680px; }
+  .feed-tracking-legend { justify-content: flex-start; flex-wrap: wrap; }
   .feed-movement { grid-template-columns: minmax(0, 1fr) auto; }
   .feed-movement .feed-row-actions { grid-column: 1 / -1; justify-content: flex-end; }
   .feed-suggestion { align-items: stretch; flex-direction: column; }

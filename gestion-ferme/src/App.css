@@ -3038,6 +3038,7 @@
 }
 
 .feed-tracking-grid {
+  grid-template-columns: 1fr;
   align-items: flex-start;
 }
 
@@ -3194,7 +3195,7 @@
 
 .feed-tracking-table {
   width: 100%;
-  min-width: 620px;
+  min-width: 0;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -5715,7 +5716,7 @@
   .feed-tracking-kpis { grid-template-columns: 1fr; }
   .feed-tracking-filters,
   .feed-delivery-filters { grid-template-columns: 1fr; }
-  .feed-tracking-table { min-width: 680px; }
+  .feed-tracking-table { min-width: 0; }
   .feed-tracking-legend { justify-content: flex-start; flex-wrap: wrap; }
   .feed-movement { grid-template-columns: minmax(0, 1fr) auto; }
   .feed-movement .feed-row-actions { grid-column: 1 / -1; justify-content: flex-end; }

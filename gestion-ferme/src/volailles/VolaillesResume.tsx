@@ -34,6 +34,14 @@ type UnifiedLot = {
   source: "sica" | "vente_directe";
   label: string;
   restants: number;
+  dateArrivee: string;
+};
+
+type FeedReference = {
+  feed_type: string;
+  daily_consumption_g: number;
+  age_min_days: number;
+  age_max_days: number;
 };
 
 type AlertItem = {
@@ -69,6 +77,12 @@ const todayIso = () => {
   ].join("-");
 };
 
+const ageEntreDates = (dateArrivee: string, dateCible: string) => {
+  const arrivee = new Date(`${dateArrivee}T00:00:00`);
+  const cible = new Date(`${dateCible}T00:00:00`);
+  return Math.max(0, Math.floor((cible.getTime() - arrivee.getTime()) / 86400000));
+};
+
 function PoultrySubnav() {
   return (
     <nav className="poultry-tabs" aria-label="Sections volailles">
@@ -92,6 +106,7 @@ export default function VolaillesResume() {
   const [directAvailable, setDirectAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedTypes, setFeedTypes] = useState<string[]>(["starter", "croissance", "finition"]);
+  const [feedReferences, setFeedReferences] = useState<FeedReference[]>([]);
   const [mortalityModalOpen, setMortalityModalOpen] = useState(false);
   const [feedModalOpen, setFeedModalOpen] = useState(false);
   const [mortalityLotKey, setMortalityLotKey] = useState("");
@@ -119,7 +134,7 @@ export default function VolaillesResume() {
           .order("arrival_date", { ascending: false }),
         supabase
           .from("feed_reference")
-          .select("feed_type")
+          .select("feed_type, daily_consumption_g, age_min_days, age_max_days")
           .order("age_min_days"),
       ]);
 
@@ -139,6 +154,14 @@ export default function VolaillesResume() {
       }
 
       if (!feedReferenceResult.error) {
+        setFeedReferences(
+          (feedReferenceResult.data || []).map((item) => ({
+            feed_type: String(item.feed_type || ""),
+            daily_consumption_g: Number(item.daily_consumption_g) || 0,
+            age_min_days: Number(item.age_min_days) || 0,
+            age_max_days: Number(item.age_max_days) || 0,
+          }))
+        );
         const types = Array.from(
           new Set((feedReferenceResult.data || []).map((item) => String(item.feed_type || "").trim()).filter(Boolean))
         );
@@ -173,14 +196,29 @@ export default function VolaillesResume() {
       source: "sica" as const,
       label: `SICA · ${lot.nom}`,
       restants: lot.sujets_restants ?? lot.quantite ?? 0,
+      dateArrivee: lot.date_arrivee,
     })),
     ...directLots.map((lot) => ({
       id: lot.id,
       source: "vente_directe" as const,
       label: `Vente directe · ${lot.name}`,
       restants: Number(lot.remaining_quantity) || 0,
+      dateArrivee: lot.arrival_date,
     })),
   ];
+
+  const selectedFeedLot = allLots.find((lot) => `${lot.source}:${lot.id}` === feedLotKey) || null;
+  const feedSuggestion = selectedFeedLot && feedDate
+    ? (() => {
+        const age = ageEntreDates(selectedFeedLot.dateArrivee, feedDate);
+        const reference = feedReferences.find(
+          (item) => age >= item.age_min_days && age <= item.age_max_days
+        );
+        if (!reference) return null;
+        const sacs = (reference.daily_consumption_g * selectedFeedLot.restants) / 1000 / POIDS_SAC_KG;
+        return { age, reference, sacs };
+      })()
+    : null;
 
   const openMortalityShortcut = () => {
     setMortalityLotKey("");
@@ -197,6 +235,12 @@ export default function VolaillesResume() {
     setFeedNote("");
     setFeedModalOpen(true);
   };
+
+  useEffect(() => {
+    if (feedSuggestion) {
+      setFeedType(feedSuggestion.reference.feed_type);
+    }
+  }, [feedSuggestion?.reference.feed_type]);
 
   const saveMortality = async () => {
     const selected = allLots.find((lot) => `${lot.source}:${lot.id}` === mortalityLotKey);
@@ -501,6 +545,17 @@ export default function VolaillesResume() {
               </select></label>
               <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedBags} onChange={(event) => setFeedBags(event.target.value)} /></label>
             </div>
+            {feedSuggestion && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(feedSuggestion.sacs)} sacs de {feedSuggestion.reference.feed_type}</strong>
+                  <span>{selectedFeedLot?.label} · {feedSuggestion.age} jours · {formatNombre(selectedFeedLot?.restants || 0)} sujets restants</span>
+                </div>
+                <button type="button" onClick={() => setFeedBags(String(Math.ceil(feedSuggestion.sacs)))}>
+                  Utiliser
+                </button>
+              </div>
+            )}
             <div className="poultry-form-stack feed-note-field">
               <label>Note facultative<input type="text" value={feedNote} onChange={(event) => setFeedNote(event.target.value)} /></label>
             </div>

@@ -81,39 +81,27 @@ const POULTRY_TRACKING_RULES: TrackingRule[] = [
   { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
-  { key: "selenium-4", title: "Sélénium + Vit E", offset: 3, type: "soin", tone: "orange", icon: "✚" },
   { key: "vaccin-poulvac", title: "Vaccin POULVAC", offset: 4, type: "vaccination", tone: "violet", icon: "💉" },
-  { key: "selenium-6", title: "Sélénium + Vit E", offset: 5, type: "soin", tone: "orange", icon: "✚" },
-  { key: "selenium-7", title: "Sélénium + Vit E", offset: 6, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-10", title: "Vitamines", offset: 9, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-11", title: "Vitamines", offset: 10, type: "soin", tone: "orange", icon: "✚" },
   { key: "vaccins-gumboro", title: "Vaccins Gumboro - AVINEW - Nobilis", offset: 13, type: "vaccination", tone: "violet", icon: "💉" },
-  { key: "vitamines-18", title: "Vitamines", offset: 17, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-19", title: "Vitamines", offset: 18, type: "soin", tone: "orange", icon: "✚" },
   { key: "rappel-gumboro", title: "Rappel Gumboro", offset: 20, type: "vaccination", tone: "violet", icon: "💉" },
-  { key: "vitamines-24", title: "Vitamines", offset: 23, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-25", title: "Vitamines", offset: 24, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-31", title: "Vitamines", offset: 30, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-32", title: "Vitamines", offset: 31, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-37", title: "Vitamines", offset: 36, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-38", title: "Vitamines", offset: 37, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-41", title: "Vitamines", offset: 40, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-42", title: "Vitamines", offset: 41, type: "soin", tone: "orange", icon: "✚" },
   { key: "analyse", title: "Analyse sanitaire", offset: 46, type: "analyse", tone: "orange", icon: "⌕" },
-  { key: "vitamines-49", title: "Vitamines", offset: 48, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-50", title: "Vitamines", offset: 49, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-56", title: "Vitamines", offset: 55, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-57", title: "Vitamines", offset: 56, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-63", title: "Vitamines", offset: 62, type: "soin", tone: "orange", icon: "✚" },
-  { key: "vitamines-64", title: "Vitamines", offset: 63, type: "soin", tone: "orange", icon: "✚" },
   { key: "livraison", title: "Livraison prévue", offset: 70, type: "livraison", tone: "blue", icon: "🚚" },
+];
+
+const DIRECT_POULET_RULES: TrackingRule[] = [
+  { key: "reception", title: "Réception", offset: 0, type: "reception", tone: "green", icon: "▣" },
+  { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
+  { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
+  { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
+  { key: "pret-vente", title: "Lot prêt à vendre", offset: 70, type: "livraison", tone: "blue", icon: "🚚" },
 ];
 
 const DIRECT_PINTADE_RULES: TrackingRule[] = [
   { key: "reception", title: "Réception", offset: 0, type: "reception", tone: "green", icon: "▣" },
-  { key: "controle-30", title: "Contrôle sanitaire", offset: 29, type: "soin", tone: "orange", icon: "✚" },
-  { key: "controle-60", title: "Contrôle sanitaire", offset: 59, type: "soin", tone: "orange", icon: "✚" },
-  { key: "pret-vente", title: "Lot prêt à vendre", offset: 99, type: "livraison", tone: "blue", icon: "🚚" },
+  { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
+  { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
+  { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
+  { key: "pret-vente", title: "Lot prêt à vendre", offset: 90, type: "livraison", tone: "blue", icon: "🚚" },
 ];
 
 function startOfDay(date: Date) {
@@ -199,6 +187,7 @@ export default function Planning() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<PlanningEvent | null>(null);
   const [saving, setSaving] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
@@ -279,7 +268,7 @@ export default function Planning() {
 
     const direct = directLots.flatMap((lot) => {
       if (!lot.arrival_date) return [];
-      const rules = lot.species === "pintade" ? DIRECT_PINTADE_RULES : POULTRY_TRACKING_RULES;
+      const rules = lot.species === "pintade" ? DIRECT_PINTADE_RULES : DIRECT_POULET_RULES;
       return rules.map((rule) => {
         const date = addDays(lot.arrival_date!, rule.offset);
         return {
@@ -463,7 +452,11 @@ export default function Planning() {
                   <span>{day.getDate()}</span>
                   <div className="planning-calendar-events">
                     {dayEvents.slice(0, 2).map((event) => (
-                      <PlanningEventChip key={event.id} event={event} />
+                      <PlanningEventChip
+                        key={event.id}
+                        event={event}
+                        onOpen={() => setSelectedEvent(event)}
+                      />
                     ))}
                     {dayEvents.length > 2 && (
                       <small className="planning-calendar-more">+{dayEvents.length - 2}</small>
@@ -488,7 +481,12 @@ export default function Planning() {
               <p className="planning-empty">Aucun événement à venir avec le filtre sélectionné.</p>
             ) : (
               upcomingEvents.map((event) => (
-                <PlanningUpcomingItem key={event.id} event={event} today={today} />
+                <PlanningUpcomingItem
+                  key={event.id}
+                  event={event}
+                  today={today}
+                  onOpen={() => setSelectedEvent(event)}
+                />
               ))
             )}
           </div>
@@ -511,18 +509,64 @@ export default function Planning() {
             <p className="planning-empty">Aucun rappel prévu pour le moment.</p>
           ) : (
             reminders.map((event) => (
-              <article key={event.id} className={`planning-reminder planning-event-${event.tone}`}>
+              <button
+                key={event.id}
+                type="button"
+                className={`planning-reminder planning-event-${event.tone}`}
+                onClick={() => setSelectedEvent(event)}
+                title={`${event.title} - ${event.detail}`}
+              >
                 <span>{event.icon}</span>
                 <div>
                   <strong>{event.title}</strong>
                   <b>{relativeLabel(event.date, today)}</b>
                   <small>{DATE_LABEL_FORMAT.format(event.date)}</small>
                 </div>
-              </article>
+              </button>
             ))
           )}
         </div>
       </section>
+
+      {selectedEvent && (
+        <div className="poultry-modal-backdrop" role="dialog" aria-modal="true">
+          <section className="poultry-modal poultry-modal-small planning-event-modal">
+            <ModalCloseButton onClick={() => setSelectedEvent(null)} />
+            <div className="poultry-modal-header">
+              <span className={`poultry-modal-icon planning-event-${selectedEvent.tone}`}>
+                {selectedEvent.icon}
+              </span>
+              <div>
+                <h2>{selectedEvent.title}</h2>
+                <p>{eventTypeLabel(selectedEvent.type)}</p>
+              </div>
+            </div>
+            <div className="planning-event-detail">
+              <span>
+                Date
+                <strong>{DATE_LABEL_FORMAT.format(selectedEvent.date)}</strong>
+              </span>
+              <span>
+                Détail
+                <strong>{selectedEvent.detail}</strong>
+              </span>
+              <span>
+                Origine
+                <strong>{selectedEvent.source === "automatique" ? "Calculé depuis le lot" : "Ajout manuel"}</strong>
+              </span>
+            </div>
+            <div className="poultry-modal-actions">
+              <button
+                type="button"
+                className="poultry-modal-secondary"
+                onClick={() => setSelectedEvent(null)}
+              >
+                Fermer
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {modalOpen && (
         <div className="poultry-modal-backdrop" role="dialog" aria-modal="true">
@@ -606,28 +650,47 @@ function PlanningKpi({
   );
 }
 
-function PlanningEventChip({ event }: { event: PlanningEvent }) {
-  const content = (
-    <span className={`planning-calendar-event planning-event-${event.tone}`}>
+function PlanningEventChip({
+  event,
+  onOpen,
+}: {
+  event: PlanningEvent;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`planning-calendar-event planning-event-${event.tone}`}
+      onClick={onOpen}
+      title={`${event.title} - ${event.detail}`}
+    >
       {event.title}
-    </span>
+    </button>
   );
-  if (!event.to) return content;
-  return <Link to={event.to}>{content}</Link>;
 }
 
-function PlanningUpcomingItem({ event, today }: { event: PlanningEvent; today: Date }) {
-  const content = (
-    <article className={`planning-upcoming-item planning-upcoming-${event.tone}`}>
+function PlanningUpcomingItem({
+  event,
+  today,
+  onOpen,
+}: {
+  event: PlanningEvent;
+  today: Date;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`planning-upcoming-item planning-upcoming-${event.tone}`}
+      onClick={onOpen}
+      title={`${event.title} - ${event.detail}`}
+    >
       <span className={`planning-upcoming-icon planning-event-${event.tone}`}>{event.icon}</span>
       <div>
         <strong>{event.title}</strong>
         <small>{event.detail}</small>
       </div>
       <em>{relativeLabel(event.date, today)}</em>
-    </article>
+    </button>
   );
-
-  if (!event.to) return content;
-  return <Link to={event.to}>{content}</Link>;
 }

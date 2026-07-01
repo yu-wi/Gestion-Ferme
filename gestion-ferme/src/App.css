@@ -1725,14 +1725,18 @@
 
 .planning-calendar-event {
   display: block;
+  width: 100%;
   overflow: hidden;
+  border: 0;
   border-radius: 5px;
   padding: 5px 6px;
   font-size: 10px;
   font-weight: 800;
   line-height: 1.25;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .planning-calendar-more {
@@ -1771,12 +1775,16 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 13px;
+  width: 100%;
   border: 1px solid #e2e8e5;
   border-left: 4px solid currentColor;
   border-radius: 8px;
   padding: 14px;
   color: #10263a;
   background: white;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .planning-upcoming-green { color: #12843f; }
@@ -1846,9 +1854,13 @@
   min-height: 92px;
   align-items: center;
   gap: 14px;
+  width: 100%;
   border: 1px solid #e2e8e5;
   border-radius: 8px;
   padding: 16px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .planning-reminder > span {
@@ -1898,6 +1910,62 @@
 .planning-event-modal .poultry-modal-icon {
   color: #12843f;
   background: #e7f6ec;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-green {
+  color: #12843f;
+  background: #e7f6ec;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-violet {
+  color: #7b3fd8;
+  background: #f0e9fb;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-blue {
+  color: #176bd7;
+  background: #e9f2ff;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-orange {
+  color: #d98100;
+  background: #fff4df;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-red {
+  color: #d62839;
+  background: #fde7e9;
+}
+
+.planning-event-modal .poultry-modal-icon.planning-event-neutral {
+  color: #526477;
+  background: #eef2f4;
+}
+
+.planning-event-detail {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.planning-event-detail span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #e1e8e4;
+  border-radius: 7px;
+  padding: 12px;
+  color: #697a8c;
+  background: #fbfcfc;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.planning-event-detail strong {
+  color: #173047;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .poultry-kpi,

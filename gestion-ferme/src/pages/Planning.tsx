@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
@@ -149,6 +149,14 @@ function buildCalendarDays(month: Date) {
     date.setDate(start.getDate() + index);
     return date;
   });
+}
+
+function getIsoWeek(date: Date) {
+  const current = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = current.getUTCDay() || 7;
+  current.setUTCDate(current.getUTCDate() + 4 - dayNumber);
+  const yearStart = new Date(Date.UTC(current.getUTCFullYear(), 0, 1));
+  return Math.ceil(((current.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
 function relativeLabel(eventDate: Date, today: Date) {
@@ -434,35 +442,43 @@ export default function Planning() {
       <section className="planning-main-grid">
         <article className="planning-calendar-card">
           <div className="planning-calendar-grid">
+            <div className="planning-calendar-weekday planning-calendar-week-label">Sem.</div>
             {WEEK_DAYS.map((day) => (
               <div key={day} className="planning-calendar-weekday">{day}</div>
             ))}
-            {calendarDays.map((day) => {
+            {calendarDays.map((day, index) => {
               const iso = toIsoDate(day);
               const dayEvents = monthEvents.filter((event) => event.iso === iso);
               return (
-                <div
-                  key={iso}
-                  className={[
-                    "planning-calendar-day",
-                    sameMonth(day, currentMonth) ? "" : "planning-calendar-day-muted",
-                    iso === toIsoDate(today) ? "planning-calendar-day-today" : "",
-                  ].filter(Boolean).join(" ")}
-                >
-                  <span>{day.getDate()}</span>
-                  <div className="planning-calendar-events">
-                    {dayEvents.slice(0, 2).map((event) => (
-                      <PlanningEventChip
-                        key={event.id}
-                        event={event}
-                        onOpen={() => setSelectedEvent(event)}
-                      />
-                    ))}
-                    {dayEvents.length > 2 && (
-                      <small className="planning-calendar-more">+{dayEvents.length - 2}</small>
-                    )}
+                <Fragment key={`day-${iso}`}>
+                  {index % 7 === 0 && (
+                    <div key={`week-${iso}`} className="planning-calendar-week-number">
+                      S{getIsoWeek(day)}
+                    </div>
+                  )}
+                  <div
+                    key={iso}
+                    className={[
+                      "planning-calendar-day",
+                      sameMonth(day, currentMonth) ? "" : "planning-calendar-day-muted",
+                      iso === toIsoDate(today) ? "planning-calendar-day-today" : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <span>{day.getDate()}</span>
+                    <div className="planning-calendar-events">
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <PlanningEventChip
+                          key={event.id}
+                          event={event}
+                          onOpen={() => setSelectedEvent(event)}
+                        />
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <small className="planning-calendar-more">+{dayEvents.length - 2}</small>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </Fragment>
               );
             })}
           </div>

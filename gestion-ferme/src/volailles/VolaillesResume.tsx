@@ -417,6 +417,19 @@ export default function VolaillesResume() {
         </div>
       )}
 
+      <section className="poultry-panel poultry-summary-shortcuts-panel">
+        <div className="poultry-panel-heading">
+          <h2>Raccourcis de saisie</h2>
+          <span>Lots SICA et vente directe</span>
+        </div>
+        <div className="poultry-shortcuts">
+          <button type="button" onClick={openMortalityShortcut}><span>＋</span><div><strong>Saisir mortalité</strong><small>SICA ou vente directe</small></div></button>
+          <button type="button" onClick={openFeedShortcut}><span>▣</span><div><strong>Saisir alimentation</strong><small>Consommation quotidienne</small></div></button>
+          <Link to="/volailles/alimentation"><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></Link>
+          <Link to="/volailles/sica"><span>＋</span><div><strong>Nouveau lot SICA</strong><small>Créer un lot coopérative</small></div></Link>
+        </div>
+      </section>
+
       <section className="poultry-kpis poultry-summary-kpis">
         <article className="poultry-kpi poultry-summary-kpi">
           <i className="poultry-kpi-icon poultry-kpi-green">▣</i><div><small>Lots SICA Madras</small><strong>{formatNombre(sicaLots.length)}</strong><em>{formatNombre(sujetsSica)} sujets</em></div>
@@ -487,18 +500,6 @@ export default function VolaillesResume() {
           <Link className="summary-panel-footer" to="/planning">Voir toutes les alertes ({formatNombre(alertes.length)}) <span>→</span></Link>
         </article>
 
-        <article className="poultry-panel">
-          <div className="poultry-panel-heading">
-            <h2>Raccourcis de saisie</h2>
-            <span>Lots SICA et vente directe</span>
-          </div>
-          <div className="poultry-shortcuts">
-            <button type="button" onClick={openMortalityShortcut}><span>＋</span><div><strong>Saisir mortalité</strong><small>SICA ou vente directe</small></div></button>
-            <button type="button" onClick={openFeedShortcut}><span>▣</span><div><strong>Saisir alimentation</strong><small>Consommation quotidienne</small></div></button>
-            <Link to="/volailles/alimentation"><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></Link>
-            <Link to="/volailles/sica"><span>＋</span><div><strong>Nouveau lot SICA</strong><small>Créer un lot coopérative</small></div></Link>
-          </div>
-        </article>
       </section>
 
       {mortalityModalOpen && (

@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import AddEventModal from "../outils/AddEventModal";
+import ModalCloseButton from "../components/ModalCloseButton";
 import {
   CLES_EVENEMENTS_VOLAILLES,
   dateDepuisArrivee,
@@ -75,6 +76,25 @@ type DashboardAlert = {
   to: string;
 };
 
+type DashboardTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: "todo" | "done";
+  priority: "normal" | "urgent";
+  created_at: string;
+};
+
+type DashboardNote = {
+  id: string;
+  title: string;
+  content: string | null;
+  category: string | null;
+  is_pinned: boolean;
+  created_at: string;
+};
+
 const POIDS_SAC_KG = 25;
 const METEO_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=14.4685&longitude=-60.9214&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=America%2FMartinique&forecast_days=4";
@@ -86,6 +106,11 @@ const formatNombre = (value: number, decimals = 0) =>
 
 const formatDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR");
+
+const todayIso = () => new Date().toISOString().split("T")[0];
+
+const formatDateOptionnelle = (value: string | null) =>
+  value ? formatDate(value) : "Sans échéance";
 
 const dateDuJour = () =>
   new Date().toLocaleDateString("fr-FR", {
@@ -119,6 +144,26 @@ export default function Accueil({ userName }: AccueilProps) {
   const [meteo, setMeteo] = useState<MeteoSainteLuce | null>(null);
   const [meteoOpen, setMeteoOpen] = useState(false);
   const [meteoErreur, setMeteoErreur] = useState(false);
+  const [tasks, setTasks] = useState<DashboardTask[]>([]);
+  const [notes, setNotes] = useState<DashboardNote[]>([]);
+  const [taskTableReady, setTaskTableReady] = useState(true);
+  const [noteTableReady, setNoteTableReady] = useState(true);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    description: "",
+    due_date: todayIso(),
+    priority: "normal" as DashboardTask["priority"],
+  });
+  const [noteForm, setNoteForm] = useState({
+    title: "",
+    content: "",
+    category: "",
+    is_pinned: false,
+  });
   const [newEvent, setNewEvent] = useState({
     title: "",
     start: "",
@@ -128,7 +173,7 @@ export default function Accueil({ userName }: AccueilProps) {
 
   useEffect(() => {
     const chargerTableauDeBord = async () => {
-      const [eventRes, lotsRes, consommationsRes, livraisonsRes] =
+      const [eventRes, lotsRes, consommationsRes, livraisonsRes, tasksRes, notesRes] =
         await Promise.all([
           supabase.from("evenements").select("*"),
           supabase
@@ -143,6 +188,16 @@ export default function Accueil({ userName }: AccueilProps) {
           supabase
             .from("livraisons_aliment")
             .select("feed_type, quantite_kg, date"),
+          supabase
+            .from("dashboard_tasks")
+            .select("id, title, description, due_date, status, priority, created_at")
+            .order("status", { ascending: false })
+            .order("due_date", { ascending: true }),
+          supabase
+            .from("dashboard_notes")
+            .select("id, title, content, category, is_pinned, created_at")
+            .order("is_pinned", { ascending: false })
+            .order("created_at", { ascending: false }),
         ]);
 
       if (eventRes.error) console.error("Erreur événements :", eventRes.error);
@@ -151,6 +206,20 @@ export default function Accueil({ userName }: AccueilProps) {
         console.error("Erreur consommations :", consommationsRes.error);
       if (livraisonsRes.error)
         console.error("Erreur livraisons d'aliment :", livraisonsRes.error);
+      if (tasksRes.error) {
+        console.error("Erreur tâches :", tasksRes.error);
+        setTaskTableReady(false);
+      } else {
+        setTaskTableReady(true);
+        setTasks((tasksRes.data || []) as DashboardTask[]);
+      }
+      if (notesRes.error) {
+        console.error("Erreur notes :", notesRes.error);
+        setNoteTableReady(false);
+      } else {
+        setNoteTableReady(true);
+        setNotes((notesRes.data || []) as DashboardNote[]);
+      }
 
       const lotsData = (lotsRes.data || []) as LotDashboard[];
       const evenementsLots: DashboardEvent[] = lotsData
@@ -374,6 +443,152 @@ export default function Accueil({ userName }: AccueilProps) {
     setSelectedEventId(null);
   };
 
+  const openTaskModal = (task?: DashboardTask) => {
+    if (task) {
+      setEditingTaskId(task.id);
+      setTaskForm({
+        title: task.title,
+        description: task.description || "",
+        due_date: task.due_date || todayIso(),
+        priority: task.priority || "normal",
+      });
+    } else {
+      setEditingTaskId(null);
+      setTaskForm({ title: "", description: "", due_date: todayIso(), priority: "normal" });
+    }
+    setTaskModalOpen(true);
+  };
+
+  const openNoteModal = (note?: DashboardNote) => {
+    if (note) {
+      setEditingNoteId(note.id);
+      setNoteForm({
+        title: note.title,
+        content: note.content || "",
+        category: note.category || "",
+        is_pinned: Boolean(note.is_pinned),
+      });
+    } else {
+      setEditingNoteId(null);
+      setNoteForm({ title: "", content: "", category: "", is_pinned: false });
+    }
+    setNoteModalOpen(true);
+  };
+
+  const saveTask = async () => {
+    if (saving || !taskForm.title.trim()) {
+      toast.error("Ajoute un titre pour la tâche.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || null,
+      due_date: taskForm.due_date || null,
+      priority: taskForm.priority,
+    };
+    const request = editingTaskId
+      ? supabase.from("dashboard_tasks").update(payload).eq("id", editingTaskId).select().single()
+      : supabase.from("dashboard_tasks").insert({ id: uuidv4(), ...payload }).select().single();
+    const { data, error } = await request;
+    setSaving(false);
+    if (error) {
+      console.error("Erreur sauvegarde tâche :", error);
+      toast.error("La tâche n'a pas pu être enregistrée.");
+      return;
+    }
+    setTasks((current) =>
+      editingTaskId
+        ? current.map((item) => (item.id === editingTaskId ? (data as DashboardTask) : item))
+        : [data as DashboardTask, ...current]
+    );
+    setTaskModalOpen(false);
+    toast.success(editingTaskId ? "Tâche modifiée." : "Tâche ajoutée.");
+  };
+
+  const toggleTaskStatus = async (task: DashboardTask) => {
+    const nextStatus: DashboardTask["status"] = task.status === "done" ? "todo" : "done";
+    const { error } = await supabase
+      .from("dashboard_tasks")
+      .update({ status: nextStatus })
+      .eq("id", task.id);
+    if (error) {
+      toast.error("La tâche n'a pas pu être mise à jour.");
+      return;
+    }
+    setTasks((current) =>
+      current.map((item) => (item.id === task.id ? { ...item, status: nextStatus } : item))
+    );
+    toast.success(nextStatus === "done" ? "Tâche terminée." : "Tâche remise à faire.");
+  };
+
+  const deleteTask = async (task: DashboardTask) => {
+    if (!window.confirm("Supprimer cette tâche ?")) return;
+    const { error } = await supabase.from("dashboard_tasks").delete().eq("id", task.id);
+    if (error) {
+      toast.error("La tâche n'a pas pu être supprimée.");
+      return;
+    }
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    toast.success("Tâche supprimée.");
+  };
+
+  const saveNote = async () => {
+    if (saving || !noteForm.title.trim()) {
+      toast.error("Ajoute un titre pour la note.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      title: noteForm.title.trim(),
+      content: noteForm.content.trim() || null,
+      category: noteForm.category.trim() || null,
+      is_pinned: noteForm.is_pinned,
+    };
+    const request = editingNoteId
+      ? supabase.from("dashboard_notes").update(payload).eq("id", editingNoteId).select().single()
+      : supabase.from("dashboard_notes").insert({ id: uuidv4(), ...payload }).select().single();
+    const { data, error } = await request;
+    setSaving(false);
+    if (error) {
+      console.error("Erreur sauvegarde note :", error);
+      toast.error("La note n'a pas pu être enregistrée.");
+      return;
+    }
+    setNotes((current) =>
+      editingNoteId
+        ? current.map((item) => (item.id === editingNoteId ? (data as DashboardNote) : item))
+        : [data as DashboardNote, ...current]
+    );
+    setNoteModalOpen(false);
+    toast.success(editingNoteId ? "Note modifiée." : "Note ajoutée.");
+  };
+
+  const toggleNotePinned = async (note: DashboardNote) => {
+    const { error } = await supabase
+      .from("dashboard_notes")
+      .update({ is_pinned: !note.is_pinned })
+      .eq("id", note.id);
+    if (error) {
+      toast.error("La note n'a pas pu être mise à jour.");
+      return;
+    }
+    setNotes((current) =>
+      current.map((item) => (item.id === note.id ? { ...item, is_pinned: !item.is_pinned } : item))
+    );
+  };
+
+  const deleteNote = async (note: DashboardNote) => {
+    if (!window.confirm("Supprimer cette note ?")) return;
+    const { error } = await supabase.from("dashboard_notes").delete().eq("id", note.id);
+    if (error) {
+      toast.error("La note n'a pas pu être supprimée.");
+      return;
+    }
+    setNotes((current) => current.filter((item) => item.id !== note.id));
+    toast.success("Note supprimée.");
+  };
+
   const handleDateClick = (arg: DateClickArg) => {
     const date = arg.date.toISOString();
     setNewEvent({ title: "", start: date, end: date, category: "volailles" });
@@ -502,6 +717,82 @@ export default function Accueil({ userName }: AccueilProps) {
         <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG)} sacs`} note="Suivi quotidien" />
         <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
         <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${formatNombre(resultatBrut, 2)} €`} note={`${lotsArchives.length} lots archivés`} />
+      </section>
+
+      <section className="dashboard-workspace-grid">
+        <article className="dashboard-panel dashboard-tasks-panel">
+          <div className="dashboard-section-heading">
+            <PanelTitle icon="✓" title="Tâches à faire" />
+            <button type="button" className="dashboard-outline-button" onClick={() => openTaskModal()}>
+              ＋ Ajouter une tâche
+            </button>
+          </div>
+          <p className="dashboard-section-subtitle">Vos actions prioritaires et échéances à ne pas manquer.</p>
+          {!taskTableReady ? (
+            <div className="dashboard-setup-hint">
+              Exécutez <strong>supabase/dashboard-taches-notes.sql</strong> pour activer les tâches.
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="dashboard-empty-state">Aucune tâche enregistrée.</div>
+          ) : (
+            <div className="dashboard-task-list">
+              {tasks.slice(0, 6).map((task) => (
+                <article key={task.id} className={`dashboard-task-row dashboard-task-${task.status}`}>
+                  <button type="button" className="dashboard-task-check" onClick={() => toggleTaskStatus(task)}>
+                    {task.status === "done" ? "✓" : ""}
+                  </button>
+                  <div>
+                    <strong>{task.title}</strong>
+                    {task.description && <small>{task.description}</small>}
+                  </div>
+                  <span>{formatDateOptionnelle(task.due_date)}</span>
+                  <em className={task.status === "done" ? "dashboard-status-done" : task.priority === "urgent" ? "dashboard-status-urgent" : "dashboard-status-todo"}>
+                    {task.status === "done" ? "Terminée" : task.priority === "urgent" ? "Urgent" : "À faire"}
+                  </em>
+                  <div className="dashboard-row-actions">
+                    <button type="button" onClick={() => openTaskModal(task)} title="Modifier">✎</button>
+                    <button type="button" onClick={() => deleteTask(task)} title="Supprimer">🗑</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="dashboard-panel dashboard-notes-panel">
+          <div className="dashboard-section-heading">
+            <PanelTitle icon="▤" title="Notes" />
+            <button type="button" className="dashboard-outline-button" onClick={() => openNoteModal()}>
+              ＋ Nouvelle note
+            </button>
+          </div>
+          <p className="dashboard-section-subtitle">Vos notes et informations importantes.</p>
+          {!noteTableReady ? (
+            <div className="dashboard-setup-hint">
+              Exécutez <strong>supabase/dashboard-taches-notes.sql</strong> pour activer les notes.
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="dashboard-empty-state">Aucune note enregistrée.</div>
+          ) : (
+            <div className="dashboard-note-list">
+              {notes.slice(0, 5).map((note) => (
+                <article key={note.id} className={`dashboard-note-card ${note.is_pinned ? "dashboard-note-pinned" : ""}`}>
+                  <div>
+                    <strong>{note.title}</strong>
+                    {note.content && <p>{note.content}</p>}
+                    {note.category && <span>{note.category}</span>}
+                  </div>
+                  <small>{new Date(note.created_at).toLocaleDateString("fr-FR")}</small>
+                  <div className="dashboard-row-actions">
+                    <button type="button" onClick={() => toggleNotePinned(note)} title="Épingler">{note.is_pinned ? "★" : "☆"}</button>
+                    <button type="button" onClick={() => openNoteModal(note)} title="Modifier">✎</button>
+                    <button type="button" onClick={() => deleteNote(note)} title="Supprimer">🗑</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
       </section>
 
       <section className="dashboard-grid">
@@ -670,6 +961,56 @@ export default function Accueil({ userName }: AccueilProps) {
         onDelete={handleDeleteEvent}
         saving={saving}
       />
+
+      {taskModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-small">
+            <ModalCloseButton onClick={() => setTaskModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">✓</span>
+              <div>
+                <h2>{editingTaskId ? "Modifier la tâche" : "Ajouter une tâche"}</h2>
+                <p>Notez une action à suivre sur l’exploitation.</p>
+              </div>
+            </div>
+            <div className="poultry-form-stack">
+              <label>Titre<input value={taskForm.title} onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label>Description<input value={taskForm.description} onChange={(event) => setTaskForm((current) => ({ ...current, description: event.target.value }))} /></label>
+              <label>Échéance<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm((current) => ({ ...current, due_date: event.target.value }))} /></label>
+              <label>Priorité<select value={taskForm.priority} onChange={(event) => setTaskForm((current) => ({ ...current, priority: event.target.value as DashboardTask["priority"] }))}><option value="normal">Normale</option><option value="urgent">Urgente</option></select></label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-primary" onClick={saveTask} disabled={saving}>Enregistrer</button>
+              <button type="button" className="poultry-modal-secondary" onClick={() => setTaskModalOpen(false)} disabled={saving}>Annuler</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {noteModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-small">
+            <ModalCloseButton onClick={() => setNoteModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">▤</span>
+              <div>
+                <h2>{editingNoteId ? "Modifier la note" : "Nouvelle note"}</h2>
+                <p>Conservez une information importante.</p>
+              </div>
+            </div>
+            <div className="poultry-form-stack">
+              <label>Titre<input value={noteForm.title} onChange={(event) => setNoteForm((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label>Note<input value={noteForm.content} onChange={(event) => setNoteForm((current) => ({ ...current, content: event.target.value }))} /></label>
+              <label>Catégorie<input value={noteForm.category} onChange={(event) => setNoteForm((current) => ({ ...current, category: event.target.value }))} placeholder="Ex. Organisation" /></label>
+              <label className="dashboard-checkbox-field"><input type="checkbox" checked={noteForm.is_pinned} onChange={(event) => setNoteForm((current) => ({ ...current, is_pinned: event.target.checked }))} /> Épingler la note</label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-primary" onClick={saveNote} disabled={saving}>Enregistrer</button>
+              <button type="button" className="poultry-modal-secondary" onClick={() => setNoteModalOpen(false)} disabled={saving}>Annuler</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {meteoOpen && (
         <div className="poultry-modal-backdrop" onClick={() => setMeteoOpen(false)}>

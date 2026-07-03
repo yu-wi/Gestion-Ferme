@@ -98,6 +98,13 @@ Pour gerer les references depuis l'interface :
 2. Executer `check-feed-reference-management.sql`.
 3. Verifier que le statut affiche `OK`.
 
+## Taches et notes de la page d'accueil
+
+Executer `dashboard-taches-notes.sql` dans le SQL Editor Supabase.
+
+Ce script cree les deux tables utilisees par les nouvelles sections de la page
+d'accueil : `dashboard_tasks` et `dashboard_notes`.
+
 ## Suppression definitive d'un lot
 
 1. Executer `suppression-lot-volaille.sql`.

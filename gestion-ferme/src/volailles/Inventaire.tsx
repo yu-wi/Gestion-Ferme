@@ -68,40 +68,63 @@ const MONTH_LABELS = [
 ];
 
 const FEED_ORDER = ["starter", "croissance", "finition"];
-const POULTRY_PRICE_BY_SPECIES = {
-  poulet: 3.5,
-  pintade: 11,
-};
-const WEIGHT_REFERENCES = {
-  poulet: [
-    { day: 0, weightG: 40 },
-    { day: 7, weightG: 160 },
-    { day: 14, weightG: 380 },
-    { day: 21, weightG: 700 },
-    { day: 28, weightG: 1000 },
-    { day: 35, weightG: 1300 },
-    { day: 42, weightG: 1550 },
-    { day: 49, weightG: 1750 },
-    { day: 56, weightG: 1900 },
-    { day: 63, weightG: 2000 },
-    { day: 70, weightG: 2100 },
-  ],
-  pintade: [
-    { day: 0, weightG: 30 },
-    { day: 7, weightG: 80 },
-    { day: 14, weightG: 170 },
-    { day: 21, weightG: 300 },
-    { day: 28, weightG: 450 },
-    { day: 35, weightG: 620 },
-    { day: 42, weightG: 780 },
-    { day: 49, weightG: 920 },
-    { day: 56, weightG: 1040 },
-    { day: 63, weightG: 1150 },
-    { day: 70, weightG: 1240 },
-    { day: 77, weightG: 1300 },
-    { day: 84, weightG: 1360 },
-    { day: 90, weightG: 1400 },
-  ],
+type PoultryValueProfile = "sicaPoulet" | "directPoulet" | "pintade";
+
+const POULTRY_VALUE_PROFILES: Record<
+  PoultryValueProfile,
+  { priceKg: number; weights: Array<{ day: number; weightG: number }> }
+> = {
+  sicaPoulet: {
+    priceKg: 3.5,
+    weights: [
+      { day: 0, weightG: 40 },
+      { day: 7, weightG: 160 },
+      { day: 14, weightG: 380 },
+      { day: 21, weightG: 700 },
+      { day: 28, weightG: 1000 },
+      { day: 35, weightG: 1300 },
+      { day: 42, weightG: 1550 },
+      { day: 49, weightG: 1750 },
+      { day: 56, weightG: 1900 },
+      { day: 63, weightG: 2000 },
+      { day: 70, weightG: 2100 },
+    ],
+  },
+  directPoulet: {
+    priceKg: 8.5,
+    weights: [
+      { day: 0, weightG: 40 },
+      { day: 7, weightG: 160 },
+      { day: 14, weightG: 380 },
+      { day: 21, weightG: 700 },
+      { day: 28, weightG: 1000 },
+      { day: 35, weightG: 1300 },
+      { day: 42, weightG: 1550 },
+      { day: 49, weightG: 1750 },
+      { day: 56, weightG: 1900 },
+      { day: 63, weightG: 2000 },
+      { day: 70, weightG: 2000 },
+    ],
+  },
+  pintade: {
+    priceKg: 11,
+    weights: [
+      { day: 0, weightG: 30 },
+      { day: 7, weightG: 80 },
+      { day: 14, weightG: 170 },
+      { day: 21, weightG: 300 },
+      { day: 28, weightG: 450 },
+      { day: 35, weightG: 620 },
+      { day: 42, weightG: 780 },
+      { day: 49, weightG: 920 },
+      { day: 56, weightG: 1040 },
+      { day: 63, weightG: 1150 },
+      { day: 70, weightG: 1240 },
+      { day: 77, weightG: 1300 },
+      { day: 84, weightG: 1360 },
+      { day: 90, weightG: 1400 },
+    ],
+  },
 };
 
 const monthEndIso = (year: number, monthIndex: number) => {
@@ -135,8 +158,17 @@ const daysBetween = (startDate: string, endDate: string) => {
   );
 };
 
-const estimateWeightKg = (species: "poulet" | "pintade", ageDays: number) => {
-  const references = WEIGHT_REFERENCES[species];
+const getPoultryValueProfile = (
+  category: InventoryCategory,
+  species?: "poulet" | "pintade"
+): PoultryValueProfile => {
+  if (category === "direct" && species === "pintade") return "pintade";
+  if (category === "direct") return "directPoulet";
+  return "sicaPoulet";
+};
+
+const estimateWeightKg = (profile: PoultryValueProfile, ageDays: number) => {
+  const references = POULTRY_VALUE_PROFILES[profile].weights;
   const first = references[0];
   const last = references[references.length - 1];
   if (ageDays <= first.day) return first.weightG / 1000;
@@ -341,12 +373,12 @@ export default function Inventaire() {
             const isDirect = snapshot.category === "direct";
             const directLot = isDirect ? directLotById.get(snapshot.source_id) : null;
             const sicaLot = !isDirect ? sicaLotById.get(snapshot.source_id) : null;
-            const species = directLot?.species || "poulet";
             const arrivalDate = directLot?.arrival_date || sicaLot?.date_arrivee;
             if (!arrivalDate) return total;
             const age = daysBetween(arrivalDate, snapshot.snapshot_date);
-            const estimatedWeight = estimateWeightKg(species, age);
-            const priceKg = POULTRY_PRICE_BY_SPECIES[species];
+            const profile = getPoultryValueProfile(snapshot.category, directLot?.species);
+            const estimatedWeight = estimateWeightKg(profile, age);
+            const priceKg = POULTRY_VALUE_PROFILES[profile].priceKg;
             return total + snapshot.quantity * estimatedWeight * priceKg;
           }, 0);
 

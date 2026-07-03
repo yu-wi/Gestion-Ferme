@@ -105,6 +105,14 @@ Executer `dashboard-taches-notes.sql` dans le SQL Editor Supabase.
 Ce script cree les deux tables utilisees par les nouvelles sections de la page
 d'accueil : `dashboard_tasks` et `dashboard_notes`.
 
+## Aquaponie
+
+Executer `aquaponie-suivi.sql` dans le SQL Editor Supabase.
+
+Ce script cree les tables de base pour la premiere version du suivi aquaponique :
+`aquaponie_basins`, `aquaponie_water_measures`, `aquaponie_cultures` et
+`aquaponie_harvests`.
+
 ## Suppression definitive d'un lot
 
 1. Executer `suppression-lot-volaille.sql`.

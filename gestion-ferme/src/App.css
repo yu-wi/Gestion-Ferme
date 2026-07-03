@@ -1155,6 +1155,527 @@
 .event-ovins { background: #8463c9 !important; border-color: #8463c9 !important; }
 .event-administratif { background: #d65454 !important; border-color: #d65454 !important; }
 
+/* Aquaponie */
+.aquaponie-page {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px 0 32px;
+  color: #173047;
+}
+
+.aquaponie-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.aquaponie-heading h1 {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  color: #102638;
+  font-size: 30px;
+}
+
+.aquaponie-heading h1 span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  color: #0b8c9f;
+  background: #dff6f7;
+}
+
+.aquaponie-heading p {
+  margin: 8px 0 0;
+  color: #5d6f83;
+  font-size: 14px;
+}
+
+.aquaponie-heading > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.aquaponie-heading button,
+.aquaponie-panel-heading button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 15px;
+  color: white;
+  background: #0b8f77;
+  font-weight: 800;
+}
+
+.aquaponie-heading button:last-child {
+  background: #16853d;
+}
+
+.aquaponie-tabs button {
+  border: 0;
+  padding: 15px 2px 13px;
+  color: #596c7f;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.aquaponie-setup {
+  margin: 18px 0;
+  border: 1px solid #f1d59c;
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #8a5a08;
+  background: #fff8e8;
+  font-size: 13px;
+}
+
+.aquaponie-kpis,
+.aquaponie-harvest-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.aquaponie-harvest-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 16px;
+}
+
+.aquaponie-kpi,
+.aquaponie-panel {
+  border: 1px solid #e1e9e6;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 8px 24px rgba(26, 57, 48, 0.06);
+}
+
+.aquaponie-kpi {
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+}
+
+.aquaponie-kpi-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.aquaponie-kpi-green { color: #12823b; background: #e3f4e8; }
+.aquaponie-kpi-blue { color: #0b78a4; background: #e3f4ff; }
+.aquaponie-kpi-orange { color: #d47a00; background: #fff0d8; }
+
+.aquaponie-kpi div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.aquaponie-kpi small {
+  color: #64788c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.aquaponie-kpi strong {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: #102638;
+  font-size: 25px;
+  line-height: 1.12;
+}
+
+.aquaponie-kpi em {
+  margin-top: 7px;
+  color: #12823b;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.aquaponie-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.aquaponie-panel {
+  margin-top: 14px;
+  padding: 18px;
+}
+
+.aquaponie-overview .aquaponie-panel {
+  margin-top: 0;
+}
+
+.aquaponie-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.aquaponie-panel-heading h2 {
+  margin: 0;
+  color: #112940;
+  font-size: 18px;
+}
+
+.aquaponie-panel-heading button {
+  color: #0b7e43;
+  background: #e8f7ec;
+}
+
+.aquaponie-basin-list,
+.aquaponie-culture-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.aquaponie-basin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(88px, 0.45fr)) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e4ece8;
+  border-radius: 8px;
+  padding: 13px 14px;
+  background: #fbfdfc;
+}
+
+.aquaponie-basin-row div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.aquaponie-basin-row strong {
+  color: #102638;
+  font-size: 14px;
+}
+
+.aquaponie-basin-row small,
+.aquaponie-basin-row span {
+  color: #65788b;
+  font-size: 12px;
+}
+
+.aquaponie-basin-row b {
+  color: #102638;
+}
+
+.aquaponie-status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.aquaponie-status-stable { color: #11813b; background: #e4f5e9; }
+.aquaponie-status-surveillance { color: #b26600; background: #fff0d4; }
+.aquaponie-status-probleme { color: #c92a2a; background: #fde5e7; }
+
+.aquaponie-culture-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  border: 1px solid #e4ece8;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.aquaponie-culture-mini strong {
+  display: block;
+  overflow: hidden;
+  color: #102638;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aquaponie-culture-mini small,
+.aquaponie-culture-mini em {
+  color: #66798b;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.aquaponie-culture-mini > span {
+  color: #10843d;
+  font-weight: 900;
+}
+
+.aquaponie-culture-mini button {
+  width: fit-content;
+  border: 1px solid #dbe7e1;
+  border-radius: 7px;
+  padding: 7px 11px;
+  color: #173047;
+  background: #fff;
+  font-weight: 800;
+}
+
+.aquaponie-progress {
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2ef;
+}
+
+.aquaponie-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16a34a, #72d879);
+}
+
+.aquaponie-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5ece8;
+  border-radius: 8px;
+}
+
+.aquaponie-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.aquaponie-table th,
+.aquaponie-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #e8eeeb;
+  text-align: left;
+}
+
+.aquaponie-table th {
+  color: #52667c;
+  background: #f7f9f8;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.aquaponie-table td {
+  color: #173047;
+  font-weight: 700;
+}
+
+.aquaponie-row-actions {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.aquaponie-row-actions button,
+.aquaponie-card-actions button {
+  border: 1px solid #dfe8e4;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: #173047;
+  background: white;
+  font-weight: 850;
+}
+
+.aquaponie-row-actions button:last-child,
+.aquaponie-card-actions button:last-child {
+  color: #d22d35;
+  background: #fff0f1;
+}
+
+.aquaponie-last-measure {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.aquaponie-last-measure div {
+  border: 1px solid #e2ebe6;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdfc;
+}
+
+.aquaponie-last-measure small {
+  display: block;
+  color: #64788c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.aquaponie-last-measure strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f7c7f;
+  font-size: 18px;
+}
+
+.aquaponie-culture-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.aquaponie-culture-card {
+  border: 1px solid #e4ece8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.aquaponie-culture-card .aquaponie-culture-mini {
+  border: 0;
+  border-radius: 0;
+}
+
+.aquaponie-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.aquaponie-empty {
+  padding: 22px;
+  color: #697c8e;
+  text-align: center;
+  font-size: 13px;
+}
+
+.aquaponie-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.aquaponie-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #283d52;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.aquaponie-form-grid input,
+.aquaponie-form-grid select,
+.aquaponie-form-grid textarea {
+  width: 100%;
+  border: 1px solid #d9e4df;
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: #173047;
+  background: #fff;
+  font: inherit;
+}
+
+.aquaponie-form-grid textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.aquaponie-field-wide {
+  grid-column: 1 / -1;
+}
+
+.aquaponie-modal {
+  max-width: 780px;
+}
+
+@media (max-width: 1180px) {
+  .aquaponie-kpis,
+  .aquaponie-culture-grid,
+  .aquaponie-last-measure {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aquaponie-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .aquaponie-basin-row {
+    grid-template-columns: minmax(0, 1fr) repeat(2, minmax(88px, auto));
+  }
+
+  .aquaponie-basin-row .aquaponie-status {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .aquaponie-page {
+    padding: 18px 0 28px;
+  }
+
+  .aquaponie-heading {
+    flex-direction: column;
+  }
+
+  .aquaponie-heading h1 {
+    font-size: 25px;
+  }
+
+  .aquaponie-heading > div:last-child,
+  .aquaponie-heading button,
+  .aquaponie-panel-heading button {
+    width: 100%;
+  }
+
+  .aquaponie-kpis,
+  .aquaponie-harvest-kpis,
+  .aquaponie-culture-grid,
+  .aquaponie-last-measure,
+  .aquaponie-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aquaponie-kpi {
+    min-height: 94px;
+  }
+
+  .aquaponie-panel {
+    padding: 14px;
+  }
+
+  .aquaponie-panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aquaponie-basin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .aquaponie-field-wide {
+    grid-column: auto;
+  }
+}
+
 .app-login-page {
   display: grid;
   min-height: 100vh;

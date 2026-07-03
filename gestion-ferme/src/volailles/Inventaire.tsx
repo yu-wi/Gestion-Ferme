@@ -300,10 +300,29 @@ export default function Inventaire() {
     [selectedYear]
   );
 
+  const latestSnapshotsByMonth = useMemo(() => {
+    const byMonth = new Map<string, InventorySnapshot[]>();
+    months.forEach((month) => {
+      const monthSnapshots = snapshots.filter(
+        (snapshot) =>
+          snapshot.snapshot_date.startsWith(String(selectedYear)) &&
+          snapshotMonthEndIso(snapshot.snapshot_date) === month.key
+      );
+      const latestDate = monthSnapshots
+        .map((snapshot) => snapshot.snapshot_date)
+        .sort((a, b) => b.localeCompare(a))[0];
+      byMonth.set(
+        month.key,
+        latestDate ? monthSnapshots.filter((snapshot) => snapshot.snapshot_date === latestDate) : []
+      );
+    });
+    return byMonth;
+  }, [months, selectedYear, snapshots]);
+
   const rows = useMemo(() => {
     const grouped = new Map<string, InventoryRow>();
-    snapshots
-      .filter((snapshot) => snapshot.snapshot_date.startsWith(String(selectedYear)))
+    Array.from(latestSnapshotsByMonth.values())
+      .flat()
       .forEach((snapshot) => {
         const key = `${snapshot.category}-${snapshot.group_label}-${snapshot.item_label}`;
         const existing =
@@ -332,7 +351,7 @@ export default function Inventaire() {
       }
       return `${a.groupLabel} ${a.itemLabel}`.localeCompare(`${b.groupLabel} ${b.itemLabel}`);
     });
-  }, [selectedYear, snapshots]);
+  }, [latestSnapshotsByMonth]);
 
   const feedRows = rows.filter((row) => row.category === "feed");
   const poultryRows = rows.filter((row) => row.category !== "feed");
@@ -371,11 +390,7 @@ export default function Inventaire() {
   const valueRows = useMemo<InventoryValueRow[]>(
     () =>
       months.map((month) => {
-        const monthSnapshots = snapshots.filter(
-          (snapshot) =>
-            snapshot.snapshot_date.startsWith(String(selectedYear)) &&
-            snapshotMonthEndIso(snapshot.snapshot_date) === month.key
-        );
+        const monthSnapshots = latestSnapshotsByMonth.get(month.key) || [];
         const feedValue = monthSnapshots
           .filter((snapshot) => snapshot.category === "feed")
           .reduce((total, snapshot) => {
@@ -404,7 +419,7 @@ export default function Inventaire() {
           totalValue: feedValue + poultryValue,
         };
       }),
-    [directLotById, feedPriceByType, months, selectedYear, sicaLotById, snapshots]
+    [directLotById, feedPriceByType, latestSnapshotsByMonth, months, sicaLotById]
   );
   const latestValueRow = [...valueRows].reverse().find((row) => row.totalValue > 0);
   const dernierInventaire = snapshots[0];

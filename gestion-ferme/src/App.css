@@ -5160,6 +5160,51 @@
   font-weight: 800;
 }
 
+.inventory-value-detail {
+  margin: 0 18px 18px;
+  border: 1px solid #e2ebe6;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.inventory-value-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e8eeeb;
+  background: linear-gradient(135deg, #f5fbf7, #ffffff);
+}
+
+.inventory-value-detail-heading h3 {
+  margin: 0;
+  color: #112940;
+  font-size: 16px;
+}
+
+.inventory-value-detail-heading p {
+  margin: 5px 0 0;
+  color: #66798d;
+  font-size: 12px;
+}
+
+.inventory-value-detail-heading strong {
+  color: #08793a;
+  font-size: 19px;
+  white-space: nowrap;
+}
+
+.inventory-detail-table {
+  min-width: 720px;
+}
+
+.inventory-detail-table td:nth-child(2),
+.inventory-detail-table td:nth-child(4) {
+  font-weight: 800;
+}
+
 .inventory-note {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);

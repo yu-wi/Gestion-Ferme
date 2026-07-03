@@ -52,6 +52,15 @@ type InventoryValueRow = {
   totalValue: number;
 };
 
+type InventoryValueDetailRow = {
+  id: string;
+  category: InventoryCategory;
+  product: string;
+  quantityLabel: string;
+  referenceLabel: string;
+  value: number;
+};
+
 const MONTH_LABELS = [
   "31 janv.",
   "28 fev.",
@@ -184,6 +193,12 @@ const estimateWeightKg = (profile: PoultryValueProfile, ageDays: number) => {
   }
 
   return last.weightG / 1000;
+};
+
+const profileLabel = (profile: PoultryValueProfile) => {
+  if (profile === "directPoulet") return "Poulet vente directe";
+  if (profile === "pintade") return "Pintade";
+  return "Poulet SICA";
 };
 
 function PoultrySubnav() {
@@ -393,6 +408,47 @@ export default function Inventaire() {
   );
   const latestValueRow = [...valueRows].reverse().find((row) => row.totalValue > 0);
   const dernierInventaire = snapshots[0];
+  const latestSnapshotDate = dernierInventaire?.snapshot_date;
+  const latestValueDetails = useMemo<InventoryValueDetailRow[]>(() => {
+    if (!latestSnapshotDate) return [];
+    return snapshots
+      .filter((snapshot) => snapshot.snapshot_date === latestSnapshotDate)
+      .map((snapshot) => {
+        if (snapshot.category === "feed") {
+          const price = feedPriceByType.get(snapshot.item_label.toLowerCase()) || 0;
+          return {
+            id: snapshot.id,
+            category: snapshot.category,
+            product: snapshot.item_label,
+            quantityLabel: `${formatNombre(snapshot.quantity)} sacs`,
+            referenceLabel: `${formatNombre(price, 2)} €/sac`,
+            value: snapshot.quantity * price,
+          };
+        }
+
+        const isDirect = snapshot.category === "direct";
+        const directLot = isDirect ? directLotById.get(snapshot.source_id) : null;
+        const sicaLot = !isDirect ? sicaLotById.get(snapshot.source_id) : null;
+        const arrivalDate = directLot?.arrival_date || sicaLot?.date_arrivee;
+        const profile = getPoultryValueProfile(snapshot.category, directLot?.species);
+        const age = arrivalDate ? daysBetween(arrivalDate, snapshot.snapshot_date) : 0;
+        const estimatedWeight = estimateWeightKg(profile, age);
+        const priceKg = POULTRY_VALUE_PROFILES[profile].priceKg;
+
+        return {
+          id: snapshot.id,
+          category: snapshot.category,
+          product: `${snapshot.group_label} · ${snapshot.item_label}`,
+          quantityLabel: `${formatNombre(snapshot.quantity)} sujets`,
+          referenceLabel: `${profileLabel(profile)} · ${formatNombre(estimatedWeight, 2)} kg · ${formatNombre(priceKg, 2)} €/kg`,
+          value: snapshot.quantity * estimatedWeight * priceKg,
+        };
+      })
+      .sort((a, b) => {
+        if (a.category !== b.category) return a.category.localeCompare(b.category);
+        return a.product.localeCompare(b.product);
+      });
+  }, [directLotById, feedPriceByType, latestSnapshotDate, sicaLotById, snapshots]);
 
   const enregistrerMaintenant = async () => {
     setSaving(true);
@@ -518,7 +574,13 @@ export default function Inventaire() {
             totalRow={totalPoultryRow}
             emptyLabel="Aucun lot enregistré pour cette année."
           />
-          <InventoryValueSection rows={valueRows} months={months} latestValueRow={latestValueRow} />
+          <InventoryValueSection
+            rows={valueRows}
+            months={months}
+            latestValueRow={latestValueRow}
+            latestDetails={latestValueDetails}
+            latestSnapshotDate={latestSnapshotDate}
+          />
         </>
       ) : (
         <InventoryGraph rows={rows} months={months} />
@@ -664,11 +726,17 @@ function InventoryValueSection({
   rows,
   months,
   latestValueRow,
+  latestDetails,
+  latestSnapshotDate,
 }: {
   rows: InventoryValueRow[];
   months: Array<{ key: string; label: string }>;
   latestValueRow?: InventoryValueRow;
+  latestDetails: InventoryValueDetailRow[];
+  latestSnapshotDate?: string;
 }) {
+  const detailTotal = latestDetails.reduce((total, row) => total + row.value, 0);
+
   return (
     <section className="inventory-panel inventory-value-panel">
       <div className="inventory-panel-heading">
@@ -707,6 +775,56 @@ function InventoryValueSection({
             <InventoryMoneyRow label="Total estimé" field="totalValue" rows={rows} months={months} />
           </tbody>
         </table>
+      </div>
+      <div className="inventory-value-detail">
+        <div className="inventory-value-detail-heading">
+          <div>
+            <h3>Détail du dernier inventaire</h3>
+            <p>
+              {latestSnapshotDate
+                ? `Calcul basé sur l’inventaire du ${formatDateCourte(new Date(`${latestSnapshotDate}T00:00:00`))}.`
+                : "Aucun inventaire enregistré pour le moment."}
+            </p>
+          </div>
+          <strong>{formatNombre(detailTotal, 2)} €</strong>
+        </div>
+        {!latestDetails.length ? (
+          <div className="inventory-empty">Aucune ligne à détailler pour le dernier inventaire.</div>
+        ) : (
+          <div className="inventory-table-wrap">
+            <table className="inventory-table inventory-detail-table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Quantité</th>
+                  <th>Prix de référence</th>
+                  <th>Valeur estimée</th>
+                </tr>
+              </thead>
+              <tbody>
+                {latestDetails.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <span className="inventory-item">
+                        <i>{row.category === "feed" ? "▣" : row.category === "sica" ? "□" : "◎"}</i>
+                        {row.product}
+                      </span>
+                    </td>
+                    <td>{row.quantityLabel}</td>
+                    <td>{row.referenceLabel}</td>
+                    <td className="inventory-value">{formatNombre(row.value, 2)} €</td>
+                  </tr>
+                ))}
+                <tr className="inventory-total-row">
+                  <td>Total</td>
+                  <td>–</td>
+                  <td>–</td>
+                  <td>{formatNombre(detailTotal, 2)} €</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -1239,7 +1239,7 @@
 .aquaponie-kpis,
 .aquaponie-harvest-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -2742,6 +2742,14 @@
   color: #173047;
   font-size: 13px;
   font-weight: 800;
+}
+
+.planning-delivery-edit {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #dce9df;
+  border-radius: 8px;
+  background: #f6fbf7;
 }
 
 .poultry-kpi,
@@ -6581,6 +6589,40 @@
   margin: 7px 0;
   color: #607286;
   font-size: 10px;
+}
+
+.direct-sale-detail-wide {
+  grid-column: 1 / -1;
+}
+
+.direct-sale-detail-table-wrap {
+  overflow-x: auto;
+}
+
+.direct-sale-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.direct-sale-detail-table th,
+.direct-sale-detail-table td {
+  border-bottom: 1px solid #edf2ef;
+  padding: 9px 8px;
+  text-align: left;
+}
+
+.direct-sale-detail-table th {
+  color: #5d7086;
+  background: #f8faf9;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.direct-sale-detail-table td:last-child {
+  color: #16853d;
+  font-weight: 900;
 }
 
 .direct-sale-detail-actions {

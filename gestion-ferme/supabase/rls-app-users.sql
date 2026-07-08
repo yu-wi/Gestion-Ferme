@@ -38,7 +38,13 @@ declare
     'direct_sale_customers',
     'direct_sale_orders',
     'direct_sale_deliveries',
-    'monthly_inventory_snapshots'
+    'monthly_inventory_snapshots',
+    'sica_delivery_schedule',
+    'aquaponie_basins',
+    'aquaponie_tanks',
+    'aquaponie_water_measures',
+    'aquaponie_cultures',
+    'aquaponie_harvests'
   ];
 begin
   foreach table_name in array protected_tables loop

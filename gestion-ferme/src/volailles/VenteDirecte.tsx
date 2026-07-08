@@ -58,6 +58,14 @@ type DirectDelivery = {
   payment_method: string | null;
 };
 
+type DirectMortality = {
+  id: string;
+  lot_id: string;
+  date: string;
+  quantity: number;
+  created_at: string;
+};
+
 type OrderLineForm = {
   lot_id: string;
   species: DirectOrder["species"];
@@ -124,6 +132,7 @@ export default function VenteDirecte() {
   const [customers, setCustomers] = useState<DirectCustomer[]>([]);
   const [orders, setOrders] = useState<DirectOrder[]>([]);
   const [deliveries, setDeliveries] = useState<DirectDelivery[]>([]);
+  const [mortalities, setMortalities] = useState<DirectMortality[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [databaseMissing, setDatabaseMissing] = useState(false);
@@ -175,7 +184,7 @@ export default function VenteDirecte() {
 
   const loadData = async () => {
     setLoading(true);
-    const [lotsResult, customersResult, ordersResult, deliveriesResult] =
+    const [lotsResult, customersResult, ordersResult, deliveriesResult, mortalitiesResult] =
       await Promise.all([
         supabase
           .from("direct_sale_lots")
@@ -193,12 +202,17 @@ export default function VenteDirecte() {
           .from("direct_sale_deliveries")
           .select("*")
           .order("delivery_date", { ascending: false }),
+        supabase
+          .from("direct_sale_mortalities")
+          .select("*")
+          .order("date", { ascending: false }),
       ]);
     const error =
       lotsResult.error ||
       customersResult.error ||
       ordersResult.error ||
-      deliveriesResult.error;
+      deliveriesResult.error ||
+      mortalitiesResult.error;
     if (error) {
       console.error("Erreur chargement vente directe :", error);
       setDatabaseMissing(error.code === "42P01" || error.code === "PGRST205");
@@ -235,6 +249,12 @@ export default function VenteDirecte() {
           amount_invoiced: Number(delivery.amount_invoiced) || 0,
           amount_paid: Number(delivery.amount_paid) || 0,
         })) as DirectDelivery[]
+      );
+      setMortalities(
+        (mortalitiesResult.data || []).map((mortality) => ({
+          ...mortality,
+          quantity: Number(mortality.quantity) || 0,
+        })) as DirectMortality[]
       );
     }
     setLoading(false);
@@ -1346,6 +1366,7 @@ export default function VenteDirecte() {
         const lot = lotById.get(selectedLotId)!;
         const lotOrders = orders.filter((order) => order.lot_id === lot.id);
         const lotDeliveries = deliveries.filter((delivery) => delivery.lot_id === lot.id);
+        const lotMortalities = mortalities.filter((mortality) => mortality.lot_id === lot.id);
         const delivered = lotDeliveries.reduce((total, delivery) => total + delivery.quantity_delivered, 0);
         const revenue = lotDeliveries.reduce((total, delivery) => total + delivery.amount_invoiced, 0);
         return (
@@ -1368,6 +1389,31 @@ export default function VenteDirecte() {
                 <p><b>Commandes :</b> {formatNombre(lotOrders.length)}</p>
                 <p><b>Livraisons :</b> {formatNombre(lotDeliveries.length)}</p>
                 <p><b>Chiffre d’affaires :</b> {formatMontant(revenue)}</p>
+              </section>
+              <section className="direct-sale-detail-wide">
+                <h3>Historique des mortalités</h3>
+                {lotMortalities.length === 0 ? (
+                  <p>Aucune mortalité enregistrée.</p>
+                ) : (
+                  <div className="direct-sale-detail-table-wrap">
+                    <table className="direct-sale-detail-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Nombre</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lotMortalities.map((mortality) => (
+                          <tr key={mortality.id}>
+                            <td>{formatDate(mortality.date)}</td>
+                            <td>{formatNombre(mortality.quantity)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
             </div>
             <div className="direct-sale-detail-actions">

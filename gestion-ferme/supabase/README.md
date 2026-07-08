@@ -110,8 +110,18 @@ d'accueil : `dashboard_tasks` et `dashboard_notes`.
 Executer `aquaponie-suivi.sql` dans le SQL Editor Supabase.
 
 Ce script cree les tables de base pour la premiere version du suivi aquaponique :
-`aquaponie_basins`, `aquaponie_water_measures`, `aquaponie_cultures` et
-`aquaponie_harvests`.
+`aquaponie_basins`, `aquaponie_tanks`, `aquaponie_water_measures`,
+`aquaponie_cultures` et `aquaponie_harvests`.
+
+Les mesures d'eau peuvent etre rattachees soit a un bassin, soit a une cuve de
+reserve.
+
+## Planning des livraisons SICA
+
+Executer `planning-livraisons-sica.sql` dans le SQL Editor Supabase.
+
+Ce script cree `sica_delivery_schedule`, utilisee pour remplacer la date
+theorique de livraison d'un lot SICA par la date confirmee.
 
 ## Suppression definitive d'un lot
 

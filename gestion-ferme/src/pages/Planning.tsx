@@ -52,6 +52,10 @@ type PlanningEvent = {
   icon: string;
   source: "automatique" | "manuel";
   to?: string;
+  lotId?: string;
+  ruleKey?: string;
+  editableDelivery?: boolean;
+  deliveryScheduleId?: string;
 };
 
 type TrackingRule = {
@@ -61,6 +65,12 @@ type TrackingRule = {
   type: PlanningEventType;
   tone: PlanningTone;
   icon: string;
+};
+
+type SicaDeliverySchedule = {
+  id: string;
+  lot_id: string;
+  delivery_date: string;
 };
 
 const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat("fr-FR", {
@@ -188,6 +198,7 @@ export default function Planning() {
   const [manualEvents, setManualEvents] = useState<ManualEvent[]>([]);
   const [sicaLots, setSicaLots] = useState<SicaLot[]>([]);
   const [directLots, setDirectLots] = useState<DirectLot[]>([]);
+  const [deliverySchedules, setDeliverySchedules] = useState<SicaDeliverySchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<PlanningEventType | "all" | "autres">("all");
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -196,6 +207,7 @@ export default function Planning() {
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<PlanningEvent | null>(null);
+  const [deliveryDateEdit, setDeliveryDateEdit] = useState("");
   const [saving, setSaving] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
@@ -206,7 +218,7 @@ export default function Planning() {
   useEffect(() => {
     const loadPlanning = async () => {
       setLoading(true);
-      const [eventsResult, sicaResult, directResult] = await Promise.all([
+      const [eventsResult, sicaResult, directResult, schedulesResult] = await Promise.all([
         supabase.from("evenements").select("id, title, start, end, category"),
         supabase
           .from("lots_volailles")
@@ -218,6 +230,10 @@ export default function Planning() {
           .select("id, name, species, location, arrival_date, status")
           .neq("status", "termine")
           .order("arrival_date", { ascending: false }),
+        supabase
+          .from("sica_delivery_schedule")
+          .select("id, lot_id, delivery_date")
+          .order("delivery_date", { ascending: true }),
       ]);
 
       if (eventsResult.error) console.error("Erreur planning :", eventsResult.error);
@@ -225,15 +241,27 @@ export default function Planning() {
       if (directResult.error && directResult.error.code !== "42P01") {
         console.error("Erreur lots vente directe :", directResult.error);
       }
+      if (schedulesResult.error && schedulesResult.error.code !== "42P01" && schedulesResult.error.code !== "PGRST205") {
+        console.error("Erreur dates livraison SICA :", schedulesResult.error);
+      }
 
       setManualEvents((eventsResult.data || []) as ManualEvent[]);
       setSicaLots((sicaResult.data || []) as SicaLot[]);
       setDirectLots((directResult.data || []) as DirectLot[]);
+      setDeliverySchedules((schedulesResult.data || []) as SicaDeliverySchedule[]);
       setLoading(false);
     };
 
     loadPlanning();
   }, []);
+
+  useEffect(() => {
+    if (selectedEvent?.editableDelivery) {
+      setDeliveryDateEdit(toIsoDate(selectedEvent.date));
+    } else {
+      setDeliveryDateEdit("");
+    }
+  }, [selectedEvent]);
 
   const allEvents = useMemo<PlanningEvent[]>(() => {
     const manual = manualEvents.flatMap((event) => {
@@ -258,7 +286,11 @@ export default function Planning() {
     const sica = sicaLots.flatMap((lot) => {
       if (!lot.date_arrivee) return [];
       return POULTRY_TRACKING_RULES.map((rule) => {
-        const date = addDays(lot.date_arrivee!, rule.offset);
+        const schedule = deliverySchedules.find((item) => item.lot_id === lot.id);
+        const plannedDate = addDays(lot.date_arrivee!, rule.offset);
+        const date = rule.key === "livraison" && schedule?.delivery_date
+          ? readIsoDate(schedule.delivery_date) || plannedDate
+          : plannedDate;
         return {
           id: `sica-${lot.id}-${rule.key}`,
           title: `${rule.title} lot ${lot.nom}`,
@@ -270,6 +302,10 @@ export default function Planning() {
           icon: rule.icon,
           source: "automatique" as const,
           to: "/volailles/sica",
+          lotId: lot.id,
+          ruleKey: rule.key,
+          editableDelivery: rule.key === "livraison",
+          deliveryScheduleId: schedule?.id,
         };
       });
     });
@@ -297,7 +333,54 @@ export default function Planning() {
     });
 
     return [...manual, ...sica, ...direct].sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [directLots, manualEvents, sicaLots]);
+  }, [deliverySchedules, directLots, manualEvents, sicaLots]);
+
+  const saveSicaDeliveryDate = async () => {
+    if (!selectedEvent?.editableDelivery || !selectedEvent.lotId || !deliveryDateEdit) {
+      toast.error("Choisis une date de livraison.");
+      return;
+    }
+
+    setSaving(true);
+    const existing = deliverySchedules.find((item) => item.lot_id === selectedEvent.lotId);
+    const payload = {
+      lot_id: selectedEvent.lotId,
+      delivery_date: deliveryDateEdit,
+    };
+    const request = existing
+      ? supabase.from("sica_delivery_schedule").update(payload).eq("id", existing.id).select("id, lot_id, delivery_date").single()
+      : supabase.from("sica_delivery_schedule").insert(payload).select("id, lot_id, delivery_date").single();
+    const { data, error } = await request;
+    setSaving(false);
+
+    if (error) {
+      console.error("Erreur date livraison SICA :", error);
+      toast.error("La date de livraison n'a pas pu être enregistrée.");
+      return;
+    }
+
+    const saved = data as SicaDeliverySchedule;
+    setDeliverySchedules((current) =>
+      existing
+        ? current.map((item) => item.id === existing.id ? saved : item)
+        : [saved, ...current]
+    );
+    const nextDate = readIsoDate(saved.delivery_date) || selectedEvent.date;
+    setSelectedEvent((current) =>
+      current
+        ? {
+            ...current,
+            date: nextDate,
+            iso: toIsoDate(nextDate),
+            detail: current.detail.includes("·")
+              ? `${DATE_LABEL_FORMAT.format(nextDate)} · ${current.detail.split("·").slice(1).join("·").trim()}`
+              : DATE_LABEL_FORMAT.format(nextDate),
+            deliveryScheduleId: saved.id,
+          }
+        : current
+    );
+    toast.success("Date de livraison mise à jour.");
+  };
 
   const filteredEvents = useMemo(() => {
     if (filter === "all") return allEvents;
@@ -571,6 +654,26 @@ export default function Planning() {
                 <strong>{selectedEvent.source === "automatique" ? "Calculé depuis le lot" : "Ajout manuel"}</strong>
               </span>
             </div>
+            {selectedEvent.editableDelivery && (
+              <div className="poultry-form-stack planning-delivery-edit">
+                <label>
+                  Date réelle ou confirmée de livraison
+                  <input
+                    type="date"
+                    value={deliveryDateEdit}
+                    onChange={(event) => setDeliveryDateEdit(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="poultry-modal-primary"
+                  onClick={saveSicaDeliveryDate}
+                  disabled={saving}
+                >
+                  {saving ? "Enregistrement..." : "Mettre à jour la livraison"}
+                </button>
+              </div>
+            )}
             <div className="poultry-modal-actions">
               <button
                 type="button"

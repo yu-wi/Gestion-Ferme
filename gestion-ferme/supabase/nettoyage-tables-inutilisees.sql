@@ -6,6 +6,11 @@
 
 -- Tables actuellement utilisees par l'interface :
 -- - app_profiles
+-- - aquaponie_basins
+-- - aquaponie_cultures
+-- - aquaponie_harvests
+-- - aquaponie_tanks
+-- - aquaponie_water_measures
 -- - charges
 -- - consommations_aliment
 -- - direct_sale_customers
@@ -20,12 +25,18 @@
 -- - lots_volailles
 -- - monthly_inventory_snapshots
 -- - mortalites_volailles
+-- - sica_delivery_schedule
 
 -- 1) Controle avant suppression : tables presentes dans public mais non
 -- appelees par l'interface actuelle.
 with tables_utilisees(table_name) as (
   values
     ('app_profiles'),
+    ('aquaponie_basins'),
+    ('aquaponie_cultures'),
+    ('aquaponie_harvests'),
+    ('aquaponie_tanks'),
+    ('aquaponie_water_measures'),
     ('charges'),
     ('consommations_aliment'),
     ('direct_sale_customers'),
@@ -39,7 +50,8 @@ with tables_utilisees(table_name) as (
     ('livraisons_volailles'),
     ('lots_volailles'),
     ('monthly_inventory_snapshots'),
-    ('mortalites_volailles')
+    ('mortalites_volailles'),
+    ('sica_delivery_schedule')
 )
 select
   table_name as table_hors_interface_a_verifier
@@ -80,6 +92,11 @@ grant execute on function public.supprimer_lot_volaille(uuid) to authenticated;
 with tables_utilisees(table_name) as (
   values
     ('app_profiles'),
+    ('aquaponie_basins'),
+    ('aquaponie_cultures'),
+    ('aquaponie_harvests'),
+    ('aquaponie_tanks'),
+    ('aquaponie_water_measures'),
     ('charges'),
     ('consommations_aliment'),
     ('direct_sale_customers'),
@@ -93,7 +110,8 @@ with tables_utilisees(table_name) as (
     ('livraisons_volailles'),
     ('lots_volailles'),
     ('monthly_inventory_snapshots'),
-    ('mortalites_volailles')
+    ('mortalites_volailles'),
+    ('sica_delivery_schedule')
 )
 select
   table_name as table_hors_interface_restante

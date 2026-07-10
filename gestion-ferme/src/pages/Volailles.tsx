@@ -207,7 +207,8 @@ const enregistrerLot = async () => {
  if (lotEnModification) {
    const mortalitesLot = lotEnModification.mortalites.reduce((total, mort) => total + Number(mort.nombre || 0), 0);
    const autoconsommationLot = Number(lotEnModification.autoconsommation || 0);
-   const sujetsRestantsMaj = Math.max(0, quantiteNumerique - mortalitesLot - autoconsommationLot);
+   const livraisonsLot = lotEnModification.livraisons.reduce((total, livraison) => total + Number(livraison.quantite || 0), 0);
+   const sujetsRestantsMaj = Math.max(0, quantiteNumerique - mortalitesLot - autoconsommationLot - livraisonsLot);
    const { error } = await supabase
      .from('lots_volailles')
      .update({
@@ -292,9 +293,6 @@ const enregistrerMortalite = async () => {
   }
   setSaving(true);
 
-  const totalMortalites = lot.mortalites.reduce((sum, m) => sum + m.nombre, 0) + nombreMortalites;
-  const sujetsRestants = lot.quantite - totalMortalites - (lot.autoconsommation || 0); // si autoconsommation existe
-
   const { data, error } = await supabase
     .from('mortalites_volailles')
     .insert({
@@ -310,30 +308,7 @@ const enregistrerMortalite = async () => {
     toast.error("La mortalité n'a pas pu être enregistrée.");
   } else if (data) {
     const nouvelleMortalite = { ...data, nombre: Number(data.nombre) || 0 };
-    setLots((prevLots) =>
-      prevLots.map((l) => (
-        l.id === mortaliteLotId
-          ? {
-              ...l,
-              mortalites: [...l.mortalites, nouvelleMortalite],
-              nb_morts: totalMortalites,
-              sujets_restants: sujetsRestants,
-            }
-          : l
-      ))
-    );
-    setDetailLot((current) => {
-      if (!current || current.id !== mortaliteLotId) {
-        return current;
-      }
-
-      return {
-        ...current,
-        mortalites: [...current.mortalites, nouvelleMortalite],
-        nb_morts: totalMortalites,
-        sujets_restants: sujetsRestants,
-      };
-    });
+    appliquerMortalitesLocales(lot.id, [...lot.mortalites, nouvelleMortalite]);
 
     setMortaliteModalOpen(false);
     setMortaliteNombre('');
@@ -368,12 +343,16 @@ const appliquerMortalitesLocales = (
       (total, mortalite) => total + mortalite.nombre,
       0
     );
+    const totalLivraisons = lot.livraisons.reduce(
+      (total, livraison) => total + Number(livraison.quantite || 0),
+      0
+    );
 
     return {
       ...lot,
       mortalites: nouvellesMortalites,
       nb_morts: totalMortalites,
-      sujets_restants: lot.quantite - totalMortalites - (lot.autoconsommation || 0),
+      sujets_restants: lot.quantite - totalMortalites - (lot.autoconsommation || 0) - totalLivraisons,
     };
   };
 
@@ -460,10 +439,26 @@ const appliquerLivraisonsLocales = (
   lotId: string,
   nouvellesLivraisons: LivraisonVolaille[]
 ) => {
-  const mettreAJour = (lot: LotVolaille): LotVolaille => ({
-    ...lot,
-    livraisons: nouvellesLivraisons,
-  });
+  const mettreAJour = (lot: LotVolaille): LotVolaille => {
+    const totalLivraisons = nouvellesLivraisons.reduce(
+      (total, livraison) => total + Number(livraison.quantite || 0),
+      0
+    );
+    const totalMortalites = lot.mortalites.reduce(
+      (total, mortalite) => total + Number(mortalite.nombre || 0),
+      0
+    );
+
+    return {
+      ...lot,
+      livraisons: nouvellesLivraisons,
+      sujets_restants: lot.quantite - totalMortalites - (lot.autoconsommation || 0) - totalLivraisons,
+      total_poids_livre: nouvellesLivraisons.reduce(
+        (total, livraison) => total + Number(livraison.poids || 0),
+        0
+      ),
+    };
+  };
 
   setLots((lotsActuels) =>
     lotsActuels.map((lot) => (lot.id === lotId ? mettreAJour(lot) : lot))
@@ -487,6 +482,15 @@ const enregistrerModificationLivraison = async () => {
 
   const lot = lots.find((item) => item.id === livraisonEnModification.lot_id);
   if (!lot) return;
+  const ancienneLivraison = lot.livraisons.find(
+    (item) => item.id === livraisonEnModification.id
+  );
+  const maximumAutorise =
+    calculerSujetsRestants(lot) + Number(ancienneLivraison?.quantite || 0);
+  if (livraisonEnModification.quantite > maximumAutorise) {
+    toast.error(`Le maximum disponible est de ${maximumAutorise} sujets.`);
+    return;
+  }
 
   setSaving(true);
   const { data, error } = await supabase
@@ -551,9 +555,12 @@ function calculerSujetsRestants(lot: LotVolaille) {
   const totalMortalites = Array.isArray(lot.mortalites)
     ? lot.mortalites.reduce((sum, m) => sum + (m.nombre ?? 0), 0)
     : 0;
+  const totalLivraisons = Array.isArray(lot.livraisons)
+    ? lot.livraisons.reduce((sum, livraison) => sum + Number(livraison.quantite || 0), 0)
+    : 0;
   const totalAutoconsommation = lot.autoconsommation ?? 0;
 
-  return quantiteInitiale - totalMortalites - totalAutoconsommation;
+  return quantiteInitiale - totalMortalites - totalAutoconsommation - totalLivraisons;
 }
 
 function calculerAgeLot(lot: LotVolaille) {
@@ -692,6 +699,16 @@ const handleSaveLivraison = async () => {
         quantite: Number(livraison.quantite),
         poids: Number(livraison.poids),
       }));
+    const lotCourant = lots.find((lot) => lot.id === selectedLot.id) || selectedLot;
+    const totalNouvellesLivraisons = livraisonsValides.reduce(
+      (total, livraison) => total + Number(livraison.quantite || 0),
+      0
+    );
+    const sujetsDisponibles = calculerSujetsRestants(lotCourant);
+    if (totalNouvellesLivraisons > sujetsDisponibles) {
+      toast.error(`Le maximum disponible est de ${sujetsDisponibles} sujets.`);
+      return false;
+    }
 
     const { data, error } = await supabase
       .from('livraisons_volailles')
@@ -708,21 +725,10 @@ const handleSaveLivraison = async () => {
         quantite: Number(livraison.quantite) || 0,
         poids: Number(livraison.poids) || 0,
       }));
-      setLots((prevLots) => prevLots.map((lot) => (
-        lot.id === selectedLot.id
-          ? { ...lot, livraisons: [...lot.livraisons, ...nouvellesLivraisons] }
-          : lot
-      )));
-      setDetailLot((current) => {
-        if (!current || current.id !== selectedLot.id) {
-          return current;
-        }
-
-        return {
-          ...current,
-          livraisons: [...current.livraisons, ...nouvellesLivraisons],
-        };
-      });
+      appliquerLivraisonsLocales(selectedLot.id, [
+        ...(lotCourant.livraisons || []),
+        ...nouvellesLivraisons,
+      ]);
       toast.success(
         nouvellesLivraisons.length > 1
           ? `${nouvellesLivraisons.length} livraisons enregistrées.`
@@ -823,8 +829,9 @@ const handleSaveAutoconsommation = async () => {
     return;
   }
 
+  const lotCourant = lots.find((lot) => lot.id === selectedLot.id) || selectedLot;
   const maximumDisponible =
-    (selectedLot.quantite || 0) - (selectedLot.nb_morts || 0);
+    calculerSujetsRestants(lotCourant) + Number(lotCourant.autoconsommation || 0);
   if (autoconsommation > maximumDisponible) {
     toast.error(`Le maximum disponible est de ${maximumDisponible} sujets.`);
     return;
@@ -844,13 +851,7 @@ const handleSaveAutoconsommation = async () => {
     console.error("Erreur lors de l'enregistrement de l'autoconsommation", error);
     toast.error("L'autoconsommation n'a pas pu être enregistrée.");
   } else if (data && data.length > 0) {
-    const updatedLot = data[0];
-
-    setLots((prevLots) =>
-      prevLots.map((lot) =>
-        lot.id === updatedLot.id ? { ...lot, ...updatedLot } : lot
-      )
-    );
+    await rechargerLots();
 
     setShowAutoconsommationModal(false);
     setSelectedLot(null);

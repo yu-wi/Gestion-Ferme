@@ -9,6 +9,7 @@ set search_path = public
 as $$
 declare
   v_nb_morts integer;
+  v_quantite_livree integer;
   v_poids_livre numeric;
 begin
   select coalesce(sum(nombre), 0)::integer
@@ -21,13 +22,19 @@ begin
   from public.livraisons_volailles
   where lot_id = p_lot_id;
 
+  select coalesce(sum(quantite), 0)::integer
+  into v_quantite_livree
+  from public.livraisons_volailles
+  where lot_id = p_lot_id;
+
   update public.lots_volailles
   set
     nb_morts = v_nb_morts,
     sujets_restants =
       coalesce(quantite, 0)
       - v_nb_morts
-      - coalesce(autoconsommation, 0),
+      - coalesce(autoconsommation, 0)
+      - v_quantite_livree,
     total_poids_livre = v_poids_livre
   where id = p_lot_id;
 end;
@@ -93,7 +100,12 @@ begin
   new.sujets_restants =
     coalesce(new.quantite, 0)
     - coalesce(new.nb_morts, 0)
-    - coalesce(new.autoconsommation, 0);
+    - coalesce(new.autoconsommation, 0)
+    - coalesce((
+        select sum(quantite)::integer
+        from public.livraisons_volailles
+        where lot_id = new.id
+      ), 0);
 
   return new;
 end;

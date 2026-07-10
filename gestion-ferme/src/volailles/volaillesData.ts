@@ -78,6 +78,7 @@ export async function chargerLotsAvecMouvements(isActive?: boolean): Promise<Lot
         poids: Number(livraison.poids) || 0,
       }));
     const nbMorts = mortalites.reduce((total, mortalite) => total + mortalite.nombre, 0);
+    const quantiteLivree = livraisons.reduce((total, livraison) => total + livraison.quantite, 0);
     const totalPoidsLivre = livraisons.reduce((total, livraison) => total + livraison.poids, 0);
     const derniereLivraison = livraisons
       .map((livraison) => livraison.date)
@@ -102,7 +103,7 @@ export async function chargerLotsAvecMouvements(isActive?: boolean): Promise<Lot
       mortalites,
       livraisons,
       nb_morts: nbMorts,
-      sujets_restants: (Number(lot.quantite) || 0) - nbMorts - (Number(lot.autoconsommation) || 0),
+      sujets_restants: (Number(lot.quantite) || 0) - nbMorts - (Number(lot.autoconsommation) || 0) - quantiteLivree,
       total_poids_livre: totalPoidsLivre,
     };
   });

@@ -265,15 +265,6 @@ export default function VolaillesResume() {
         console.error("Erreur mortalité SICA :", error);
         toast.error("La mortalité n'a pas pu être enregistrée.");
       } else {
-        const lot = sicaLots.find((item) => item.id === selected.id);
-        if (lot) {
-          const nbMorts = (Number(lot.nb_morts) || 0) + count;
-          const sujetsRestants = Math.max(0, (lot.sujets_restants ?? lot.quantite ?? 0) - count);
-          await supabase
-            .from("lots_volailles")
-            .update({ nb_morts: nbMorts, sujets_restants: sujetsRestants })
-            .eq("id", selected.id);
-        }
         toast.success("Mortalité enregistrée.");
         setMortalityModalOpen(false);
         await reloadLots();

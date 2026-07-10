@@ -8,7 +8,8 @@ select
   lot.sujets_restants,
   coalesce(lot.quantite, 0)
     - coalesce(mortalites.total, 0)
-    - coalesce(lot.autoconsommation, 0) as sujets_restants_calcules,
+    - coalesce(lot.autoconsommation, 0)
+    - coalesce(livraisons.total_quantite, 0) as sujets_restants_calcules,
   lot.total_poids_livre,
   coalesce(livraisons.total_poids, 0) as poids_livre_calcule,
   case
@@ -17,6 +18,7 @@ select
         coalesce(lot.quantite, 0)
         - coalesce(mortalites.total, 0)
         - coalesce(lot.autoconsommation, 0)
+        - coalesce(livraisons.total_quantite, 0)
       and lot.total_poids_livre = coalesce(livraisons.total_poids, 0)
     then 'OK'
     else 'A VERIFIER'
@@ -28,7 +30,7 @@ left join (
   group by lot_id
 ) mortalites on mortalites.lot_id = lot.id
 left join (
-  select lot_id, sum(poids) as total_poids
+  select lot_id, sum(quantite)::integer as total_quantite, sum(poids) as total_poids
   from public.livraisons_volailles
   group by lot_id
 ) livraisons on livraisons.lot_id = lot.id

@@ -29,6 +29,7 @@ facture_date?: string;
 resultat_brut?: number;
 nb_morts?: number;
 sujets_restants?: number;
+total_poids_livre?: number;
 }
 
 function dateLocaleIso() {

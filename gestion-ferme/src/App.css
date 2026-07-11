@@ -6354,6 +6354,20 @@
   background: #fbfdfc;
 }
 
+.settings-form-compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+}
+
+.settings-warning {
+  margin: 16px 18px 0;
+  border: 1px solid #f3d38c;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #8a4b00;
+  background: #fff8e8;
+  font-size: 13px;
+}
+
 .settings-form label {
   display: grid;
   gap: 6px;

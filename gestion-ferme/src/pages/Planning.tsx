@@ -73,6 +73,20 @@ type SicaDeliverySchedule = {
   delivery_date: string;
 };
 
+type PoultrySettings = {
+  sica_analysis_day: number;
+  sica_delivery_day: number;
+  direct_poulet_ready_day: number;
+  direct_pintade_ready_day: number;
+};
+
+const DEFAULT_POULTRY_SETTINGS: PoultrySettings = {
+  sica_analysis_day: 46,
+  sica_delivery_day: 70,
+  direct_poulet_ready_day: 70,
+  direct_pintade_ready_day: 90,
+};
+
 const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat("fr-FR", {
   month: "long",
   year: "numeric",
@@ -199,6 +213,7 @@ export default function Planning() {
   const [sicaLots, setSicaLots] = useState<SicaLot[]>([]);
   const [directLots, setDirectLots] = useState<DirectLot[]>([]);
   const [deliverySchedules, setDeliverySchedules] = useState<SicaDeliverySchedule[]>([]);
+  const [poultrySettings, setPoultrySettings] = useState<PoultrySettings>(DEFAULT_POULTRY_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<PlanningEventType | "all" | "autres">("all");
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -218,7 +233,7 @@ export default function Planning() {
   useEffect(() => {
     const loadPlanning = async () => {
       setLoading(true);
-      const [eventsResult, sicaResult, directResult, schedulesResult] = await Promise.all([
+      const [eventsResult, sicaResult, directResult, schedulesResult, settingsResult] = await Promise.all([
         supabase.from("evenements").select("id, title, start, end, category"),
         supabase
           .from("lots_volailles")
@@ -234,6 +249,10 @@ export default function Planning() {
           .from("sica_delivery_schedule")
           .select("id, lot_id, delivery_date")
           .order("delivery_date", { ascending: true }),
+        supabase
+          .from("app_settings")
+          .select("key, value")
+          .eq("category", "volailles"),
       ]);
 
       if (eventsResult.error) console.error("Erreur planning :", eventsResult.error);
@@ -244,11 +263,23 @@ export default function Planning() {
       if (schedulesResult.error && schedulesResult.error.code !== "42P01" && schedulesResult.error.code !== "PGRST205") {
         console.error("Erreur dates livraison SICA :", schedulesResult.error);
       }
+      if (settingsResult.error && settingsResult.error.code !== "42P01" && settingsResult.error.code !== "PGRST205") {
+        console.error("Erreur paramètres volailles :", settingsResult.error);
+      }
 
       setManualEvents((eventsResult.data || []) as ManualEvent[]);
       setSicaLots((sicaResult.data || []) as SicaLot[]);
       setDirectLots((directResult.data || []) as DirectLot[]);
       setDeliverySchedules((schedulesResult.data || []) as SicaDeliverySchedule[]);
+      if (!settingsResult.error) {
+        const nextSettings = { ...DEFAULT_POULTRY_SETTINGS };
+        (settingsResult.data || []).forEach((setting) => {
+          const key = String(setting.key || "") as keyof PoultrySettings;
+          const value = Number(setting.value);
+          if (key in nextSettings && Number.isFinite(value)) nextSettings[key] = value;
+        });
+        setPoultrySettings(nextSettings);
+      }
       setLoading(false);
     };
 
@@ -264,6 +295,18 @@ export default function Planning() {
   }, [selectedEvent]);
 
   const allEvents = useMemo<PlanningEvent[]>(() => {
+    const sicaRules = POULTRY_TRACKING_RULES.map((rule) => {
+      if (rule.key === "analyse") return { ...rule, offset: poultrySettings.sica_analysis_day };
+      if (rule.key === "livraison") return { ...rule, offset: poultrySettings.sica_delivery_day };
+      return rule;
+    });
+    const directPouletRules = DIRECT_POULET_RULES.map((rule) =>
+      rule.key === "pret-vente" ? { ...rule, offset: poultrySettings.direct_poulet_ready_day } : rule
+    );
+    const directPintadeRules = DIRECT_PINTADE_RULES.map((rule) =>
+      rule.key === "pret-vente" ? { ...rule, offset: poultrySettings.direct_pintade_ready_day } : rule
+    );
+
     const manual = manualEvents.flatMap((event) => {
       const date = readIsoDate(event.start);
       if (!date) return [];
@@ -285,7 +328,7 @@ export default function Planning() {
 
     const sica = sicaLots.flatMap((lot) => {
       if (!lot.date_arrivee) return [];
-      return POULTRY_TRACKING_RULES.map((rule) => {
+      return sicaRules.map((rule) => {
         const schedule = deliverySchedules.find((item) => item.lot_id === lot.id);
         const plannedDate = addDays(lot.date_arrivee!, rule.offset);
         const date = rule.key === "livraison" && schedule?.delivery_date
@@ -312,7 +355,7 @@ export default function Planning() {
 
     const direct = directLots.flatMap((lot) => {
       if (!lot.arrival_date) return [];
-      const rules = lot.species === "pintade" ? DIRECT_PINTADE_RULES : DIRECT_POULET_RULES;
+      const rules = lot.species === "pintade" ? directPintadeRules : directPouletRules;
       return rules.map((rule) => {
         const date = addDays(lot.arrival_date!, rule.offset);
         return {
@@ -333,7 +376,7 @@ export default function Planning() {
     });
 
     return [...manual, ...sica, ...direct].sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [deliverySchedules, directLots, manualEvents, sicaLots]);
+  }, [deliverySchedules, directLots, manualEvents, poultrySettings, sicaLots]);
 
   const saveSicaDeliveryDate = async () => {
     if (!selectedEvent?.editableDelivery || !selectedEvent.lotId || !deliveryDateEdit) {

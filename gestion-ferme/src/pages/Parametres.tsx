@@ -22,11 +22,32 @@ const emptyForm = {
 
 type FeedReferenceForm = typeof emptyForm;
 
+type PoultrySettingKey =
+  | "mortality_alert_threshold"
+  | "sica_analysis_day"
+  | "sica_delivery_day"
+  | "direct_poulet_ready_day"
+  | "direct_pintade_ready_day";
+
+type PoultrySettingsForm = Record<PoultrySettingKey, string>;
+
+const defaultPoultrySettings: PoultrySettingsForm = {
+  mortality_alert_threshold: "15",
+  sica_analysis_day: "46",
+  sica_delivery_day: "70",
+  direct_poulet_ready_day: "70",
+  direct_pintade_ready_day: "90",
+};
+
+const poultrySettingLabels: Record<PoultrySettingKey, string> = {
+  mortality_alert_threshold: "Seuil alerte mortalité (%)",
+  sica_analysis_day: "Jour analyse sanitaire SICA",
+  sica_delivery_day: "Jour livraison prévue SICA",
+  direct_poulet_ready_day: "Jour prêt à vendre poulets",
+  direct_pintade_ready_day: "Jour prêt à vendre pintades",
+};
+
 const settingsRoadmap = [
-  {
-    title: "Volailles",
-    detail: "Seuil mortalité, âges des alertes planning, règles de vigilance.",
-  },
   {
     title: "Inventaire",
     detail: "Prix de valorisation, grilles de poids et règles de calcul.",
@@ -52,6 +73,8 @@ export default function Parametres() {
   const [references, setReferences] = useState<FeedReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [settingsReady, setSettingsReady] = useState(true);
+  const [poultrySettings, setPoultrySettings] = useState<PoultrySettingsForm>(defaultPoultrySettings);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FeedReferenceForm>(emptyForm);
 
@@ -71,17 +94,37 @@ export default function Parametres() {
 
   const loadReferences = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("feed_reference")
-      .select("id, feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht")
-      .order("age_min_days", { ascending: true });
+    const [referenceResult, settingsResult] = await Promise.all([
+      supabase
+        .from("feed_reference")
+        .select("id, feed_type, daily_consumption_g, age_min_days, age_max_days, feed_price_ht")
+        .order("age_min_days", { ascending: true }),
+      supabase
+        .from("app_settings")
+        .select("key, value")
+        .eq("category", "volailles"),
+    ]);
 
-    if (error) {
-      console.error("Erreur chargement paramètres alimentation :", error);
+    if (referenceResult.error) {
+      console.error("Erreur chargement paramètres alimentation :", referenceResult.error);
       toast.error("Les paramètres d'alimentation n'ont pas pu être chargés.");
       setReferences([]);
     } else {
-      setReferences(((data || []) as unknown as Record<string, unknown>[]).map(normalizeReference));
+      setReferences(((referenceResult.data || []) as unknown as Record<string, unknown>[]).map(normalizeReference));
+    }
+
+    if (settingsResult.error) {
+      console.warn("Paramètres généraux non disponibles :", settingsResult.error);
+      setSettingsReady(false);
+      setPoultrySettings(defaultPoultrySettings);
+    } else {
+      setSettingsReady(true);
+      const loaded = { ...defaultPoultrySettings };
+      (settingsResult.data || []).forEach((row) => {
+        const key = String(row.key || "") as PoultrySettingKey;
+        if (key in loaded) loaded[key] = String(row.value || loaded[key]);
+      });
+      setPoultrySettings(loaded);
     }
     setLoading(false);
   };
@@ -92,6 +135,10 @@ export default function Parametres() {
 
   const updateField = (field: keyof FeedReferenceForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updatePoultrySetting = (field: PoultrySettingKey, value: string) => {
+    setPoultrySettings((current) => ({ ...current, [field]: value }));
   };
 
   const resetForm = () => {
@@ -207,6 +254,39 @@ export default function Parametres() {
     setSaving(false);
   };
 
+  const savePoultrySettings = async () => {
+    const entries = Object.entries(poultrySettings) as Array<[PoultrySettingKey, string]>;
+    const invalid = entries.some(([, value]) => {
+      const numberValue = Number(value);
+      return !Number.isFinite(numberValue) || numberValue < 0;
+    });
+    if (invalid) {
+      toast.error("Vérifiez les valeurs volailles : elles doivent être positives.");
+      return;
+    }
+
+    setSaving(true);
+    const payload = entries.map(([key, value]) => ({
+      key,
+      value: String(Number(value)),
+      label: poultrySettingLabels[key],
+      category: "volailles",
+    }));
+    const { error } = await supabase
+      .from("app_settings")
+      .upsert(payload, { onConflict: "key" });
+
+    if (error) {
+      console.error("Erreur sauvegarde paramètres volailles :", error);
+      toast.error("Les paramètres volailles n'ont pas pu être enregistrés. Vérifiez le script Supabase.");
+      setSettingsReady(false);
+    } else {
+      setSettingsReady(true);
+      toast.success("Paramètres volailles enregistrés.");
+    }
+    setSaving(false);
+  };
+
   return (
     <div className="settings-page">
       <header className="settings-heading">
@@ -231,10 +311,82 @@ export default function Parametres() {
           <small>Par sac de 25 kg</small>
         </article>
         <article>
-          <span>Premier bloc</span>
-          <strong>Alimentation</strong>
-          <small>Modifiable dès maintenant</small>
+          <span>Réglages volailles</span>
+          <strong>{settingsReady ? "Actifs" : "À installer"}</strong>
+          <small>Seuils et âges de suivi</small>
         </article>
+      </section>
+
+      <section className="settings-panel">
+        <div className="settings-panel-heading">
+          <div>
+            <span>✚</span>
+            <div>
+              <h2>Volailles</h2>
+              <p>Réglages utilisés pour les alertes, le planning et les vigilances de production.</p>
+            </div>
+          </div>
+        </div>
+
+        {!settingsReady && (
+          <div className="settings-warning">
+            Exécutez le fichier <strong>supabase/app-settings.sql</strong> dans Supabase pour enregistrer ces paramètres.
+          </div>
+        )}
+
+        <div className="settings-form settings-form-compact">
+          <label>
+            Seuil mortalité (%)
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={poultrySettings.mortality_alert_threshold}
+              onChange={(event) => updatePoultrySetting("mortality_alert_threshold", event.target.value)}
+            />
+          </label>
+          <label>
+            Analyse SICA (jour)
+            <input
+              type="number"
+              min="0"
+              value={poultrySettings.sica_analysis_day}
+              onChange={(event) => updatePoultrySetting("sica_analysis_day", event.target.value)}
+            />
+          </label>
+          <label>
+            Livraison SICA (jour)
+            <input
+              type="number"
+              min="0"
+              value={poultrySettings.sica_delivery_day}
+              onChange={(event) => updatePoultrySetting("sica_delivery_day", event.target.value)}
+            />
+          </label>
+          <label>
+            Poulet prêt à vendre (jour)
+            <input
+              type="number"
+              min="0"
+              value={poultrySettings.direct_poulet_ready_day}
+              onChange={(event) => updatePoultrySetting("direct_poulet_ready_day", event.target.value)}
+            />
+          </label>
+          <label>
+            Pintade prête à vendre (jour)
+            <input
+              type="number"
+              min="0"
+              value={poultrySettings.direct_pintade_ready_day}
+              onChange={(event) => updatePoultrySetting("direct_pintade_ready_day", event.target.value)}
+            />
+          </label>
+          <div className="settings-form-actions">
+            <button type="button" onClick={savePoultrySettings} disabled={saving}>
+              Enregistrer
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="settings-panel">

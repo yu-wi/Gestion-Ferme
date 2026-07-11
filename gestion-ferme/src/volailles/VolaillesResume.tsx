@@ -67,6 +67,7 @@ const directSpeciesLabel = (species: DirectLot["species"]) =>
   species === "pintade" ? "Pintades" : "Poulets";
 
 const POIDS_SAC_KG = 25;
+const DEFAULT_MORTALITY_ALERT_THRESHOLD = 15;
 
 const todayIso = () => {
   const date = new Date();
@@ -107,6 +108,7 @@ export default function VolaillesResume() {
   const [saving, setSaving] = useState(false);
   const [feedTypes, setFeedTypes] = useState<string[]>(["starter", "croissance", "finition"]);
   const [feedReferences, setFeedReferences] = useState<FeedReference[]>([]);
+  const [mortalityAlertThreshold, setMortalityAlertThreshold] = useState(DEFAULT_MORTALITY_ALERT_THRESHOLD);
   const [mortalityModalOpen, setMortalityModalOpen] = useState(false);
   const [feedModalOpen, setFeedModalOpen] = useState(false);
   const [mortalityLotKey, setMortalityLotKey] = useState("");
@@ -121,7 +123,7 @@ export default function VolaillesResume() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [sicaResult, directResult, feedReferenceResult] = await Promise.all([
+      const [sicaResult, directResult, feedReferenceResult, settingsResult] = await Promise.all([
         supabase
           .from("lots_volailles")
           .select("id, nom, batiment, date_arrivee, quantite, sujets_restants, nb_morts, is_active")
@@ -136,6 +138,11 @@ export default function VolaillesResume() {
           .from("feed_reference")
           .select("feed_type, daily_consumption_g, age_min_days, age_max_days")
           .order("age_min_days"),
+        supabase
+          .from("app_settings")
+          .select("key, value")
+          .eq("key", "mortality_alert_threshold")
+          .maybeSingle(),
       ]);
 
       if (sicaResult.error) {
@@ -166,6 +173,11 @@ export default function VolaillesResume() {
           new Set((feedReferenceResult.data || []).map((item) => String(item.feed_type || "").trim()).filter(Boolean))
         );
         if (types.length) setFeedTypes(types);
+      }
+
+      if (!settingsResult.error && settingsResult.data) {
+        const value = Number(settingsResult.data.value);
+        if (Number.isFinite(value)) setMortalityAlertThreshold(value);
       }
 
       setLoading(false);
@@ -356,7 +368,7 @@ export default function VolaillesResume() {
       });
 
       const taux = lot.quantite > 0 ? ((lot.nb_morts || 0) / lot.quantite) * 100 : 0;
-      if (taux > 15) {
+      if (taux > mortalityAlertThreshold) {
         items.push({
           id: `mortalite-${lot.id}`,
           title: "Mortalité à surveiller",
@@ -384,7 +396,7 @@ export default function VolaillesResume() {
     });
 
     return items.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 6);
-  }, [directLots, sicaLots]);
+  }, [directLots, mortalityAlertThreshold, sicaLots]);
 
   if (loading) {
     return <div className="dashboard-loading">Chargement du résumé volailles...</div>;

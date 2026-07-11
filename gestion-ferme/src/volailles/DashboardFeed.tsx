@@ -88,6 +88,12 @@ const comparerAliments = (a: string, b: string) => {
   const rangB = indexB === -1 ? ORDRE_ALIMENTS.length : indexB;
   return rangA - rangB || a.localeCompare(b, "fr");
 };
+const memeAliment = (a: string, b: string) =>
+  normaliserAliment(a) === normaliserAliment(b);
+const libelleAliment = (value: string) => {
+  const normalized = normaliserAliment(value);
+  return ORDRE_ALIMENTS.includes(normalized) ? normalized : value.trim();
+};
 const aujourdHui = () => {
   const date = new Date();
   const annee = date.getFullYear();
@@ -243,6 +249,7 @@ export default function DashboardFeed() {
       setReferences(
         (refsResult.data || []).map((item) => ({
           ...item,
+          feed_type: libelleAliment(String(item.feed_type || "")),
           daily_consumption_g: Number(item.daily_consumption_g) || 0,
           age_min_days: Number(item.age_min_days) || 0,
           age_max_days: Number(item.age_max_days) || 0,
@@ -262,7 +269,7 @@ export default function DashboardFeed() {
               ? "vente_directe"
               : "sica",
           date: String(item.date || ""),
-          feed_type: String(item.feed_type || ""),
+          feed_type: libelleAliment(String(item.feed_type || "")),
           quantite_kg: Number(item.quantite_kg) || 0,
           note: item.note == null ? null : String(item.note),
         })) as Consommation[]
@@ -270,6 +277,7 @@ export default function DashboardFeed() {
       setLivraisons(
         (livraisonsResult.data || []).map((item) => ({
           ...item,
+          feed_type: libelleAliment(String(item.feed_type || "")),
           quantite_kg: Number(item.quantite_kg) || 0,
           prix_total_ht:
             item.prix_total_ht == null ? null : Number(item.prix_total_ht) || 0,
@@ -286,11 +294,15 @@ export default function DashboardFeed() {
   const typesAliment = useMemo(
     () =>
       Array.from(
-        new Set([
+        new Map([
           ...references.map((item) => item.feed_type),
           ...consommations.map((item) => item.feed_type),
           ...livraisons.map((item) => item.feed_type),
-        ])
+        ]
+          .map(libelleAliment)
+          .filter(Boolean)
+          .map((feedType) => [normaliserAliment(feedType), feedType]))
+          .values()
       ).sort(comparerAliments),
     [references, consommations, livraisons]
   );
@@ -348,10 +360,10 @@ export default function DashboardFeed() {
     () =>
       typesAliment.map((feedType) => {
         const entrees = livraisons
-          .filter((item) => item.feed_type === feedType)
+          .filter((item) => memeAliment(item.feed_type, feedType))
           .reduce((total, item) => total + item.quantite_kg, 0);
         const sorties = consommations
-          .filter((item) => item.feed_type === feedType)
+          .filter((item) => memeAliment(item.feed_type, feedType))
           .reduce((total, item) => total + item.quantite_kg, 0);
         return {
           feedType,
@@ -391,9 +403,12 @@ export default function DashboardFeed() {
       new Set([...typesAliment, ...Array.from(besoins.keys())])
     )
       .map((feedType) => {
-        const besoinSacs = enSacs(besoins.get(feedType) || 0);
+        const besoinKg = Array.from(besoins.entries())
+          .filter(([type]) => memeAliment(type, feedType))
+          .reduce((total, [, quantite]) => total + quantite, 0);
+        const besoinSacs = enSacs(besoinKg);
         const stockSacs = enSacs(
-          stock.find((item) => item.feedType === feedType)?.stock || 0
+          stock.find((item) => memeAliment(item.feedType, feedType))?.stock || 0
         );
         const aCommanderSacs = Math.ceil(
           Math.max(0, besoinSacs - stockSacs)
@@ -411,7 +426,7 @@ export default function DashboardFeed() {
 
   const autonomieStock = useMemo(() => {
     const stockRestant = new Map(
-      stock.map((item) => [item.feedType, Math.max(0, item.stock)])
+      stock.map((item) => [normaliserAliment(item.feedType), Math.max(0, item.stock)])
     );
     let consommationTrouvee = false;
 
@@ -440,7 +455,8 @@ export default function DashboardFeed() {
       });
 
       for (const [feedType, besoinKg] of besoinsDuJour) {
-        const disponibleKg = stockRestant.get(feedType) || 0;
+        const stockKey = normaliserAliment(feedType);
+        const disponibleKg = stockRestant.get(stockKey) || 0;
         if (disponibleKg < besoinKg) {
           const dateRupture = new Date();
           dateRupture.setHours(0, 0, 0, 0);
@@ -456,7 +472,7 @@ export default function DashboardFeed() {
 
           return { dateRupture, dateFinStock, dateCommande, feedType };
         }
-        stockRestant.set(feedType, disponibleKg - besoinKg);
+        stockRestant.set(stockKey, disponibleKg - besoinKg);
       }
     }
 
@@ -560,7 +576,7 @@ export default function DashboardFeed() {
         source_type:
           ligne.source_type === "vente_directe" ? "vente_directe" : "sica",
         date: String(ligne.date || ""),
-        feed_type: String(ligne.feed_type || ""),
+        feed_type: libelleAliment(String(ligne.feed_type || "")),
         quantite_kg: Number(ligne.quantite_kg) || 0,
         note: ligne.note == null ? null : String(ligne.note),
       } as Consommation;
@@ -628,6 +644,7 @@ export default function DashboardFeed() {
     } else if (data) {
       const livraison = {
         ...data,
+        feed_type: libelleAliment(String(data.feed_type || "")),
         quantite_kg: Number(data.quantite_kg) || 0,
         prix_total_ht:
           data.prix_total_ht == null ? null : Number(data.prix_total_ht) || 0,

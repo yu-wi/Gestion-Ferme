@@ -149,6 +149,7 @@ export default function VenteDirecte() {
   const [editingOrderBatch, setEditingOrderBatch] = useState("");
   const [editingDeliveryBatch, setEditingDeliveryBatch] = useState("");
   const [speciesFilter, setSpeciesFilter] = useState<"" | DirectLot["species"]>("");
+  const [selectedDeliveryLotId, setSelectedDeliveryLotId] = useState("");
   const [lotForm, setLotForm] = useState({
     name: "",
     species: "poulet" as DirectLot["species"],
@@ -267,6 +268,7 @@ export default function VenteDirecte() {
   const activeLots = lots.filter((lot) => lot.status !== "termine");
   const archivedLots = lots.filter((lot) => lot.status === "termine");
   const visibleLots = historiqueMode ? archivedLots : activeLots;
+  const readySaleLots = activeLots.filter((lot) => lot.status === "pret");
   const activeLotsAffiches = activeLots.filter(
     (lot) => !speciesFilter || lot.species === speciesFilter
   );
@@ -334,6 +336,17 @@ export default function VenteDirecte() {
       ).map(([key, lines]) => ({ key, lines })),
     [deliveries]
   );
+  const deliveredByLot = useMemo(
+    () =>
+      deliveries.reduce((map, delivery) => {
+        map.set(
+          delivery.lot_id,
+          (map.get(delivery.lot_id) || 0) + delivery.quantity_delivered
+        );
+        return map;
+      }, new Map<string, number>()),
+    [deliveries]
+  );
   const invoicedTotal = deliveries.reduce(
     (total, delivery) => total + Number(delivery.amount_invoiced || 0),
     0
@@ -343,7 +356,12 @@ export default function VenteDirecte() {
     0
   );
   const outstandingTotal = Math.max(0, invoicedTotal - paidTotal);
-  const displayedDeliveryGroups = deliveryGroups.slice(0, 4);
+  const selectedDeliveryLot = readySaleLots.find(
+    (lot) => lot.id === selectedDeliveryLotId
+  ) || readySaleLots[0];
+  const selectedLotDeliveries = selectedDeliveryLot
+    ? deliveries.filter((delivery) => delivery.lot_id === selectedDeliveryLot.id)
+    : [];
 
   const customerById = useMemo(
     () => new Map(customers.map((customer) => [customer.id, customer])),
@@ -353,6 +371,16 @@ export default function VenteDirecte() {
     () => new Map(lots.map((lot) => [lot.id, lot])),
     [lots]
   );
+
+  useEffect(() => {
+    if (!readySaleLots.length) {
+      if (selectedDeliveryLotId) setSelectedDeliveryLotId("");
+      return;
+    }
+    if (!selectedDeliveryLotId || !readySaleLots.some((lot) => lot.id === selectedDeliveryLotId)) {
+      setSelectedDeliveryLotId(readySaleLots[0].id);
+    }
+  }, [readySaleLots, selectedDeliveryLotId]);
 
   const saveLot = async () => {
     const initialQuantity = Number(lotForm.initial_quantity);
@@ -593,7 +621,7 @@ export default function VenteDirecte() {
     }
   };
 
-  const prepareDelivery = (group?: { key: string; lines: DirectOrder[] }) => {
+  const prepareDelivery = (group?: { key: string; lines: DirectOrder[] }, lotId?: string) => {
     const first = group?.lines[0];
     setEditingDeliveryBatch("");
     setDeliveryForm({
@@ -613,7 +641,7 @@ export default function VenteDirecte() {
             unit_price: line.unit_price ? String(line.unit_price) : "",
             complimentary: false,
           }))
-        : [emptyDeliveryLine()]
+        : [{ ...emptyDeliveryLine(), lot_id: lotId || "" }]
     );
     setDeliveryModal(true);
   };
@@ -817,6 +845,14 @@ export default function VenteDirecte() {
       }))
     );
     setDeliveryModal(true);
+  };
+
+  const groupFromDelivery = (delivery: DirectDelivery) => {
+    const key = delivery.batch_id || delivery.id;
+    return {
+      key,
+      lines: deliveries.filter((line) => (line.batch_id || line.id) === key),
+    };
   };
 
   const deleteDeliveryGroup = async (group: {
@@ -1120,6 +1156,8 @@ export default function VenteDirecte() {
                   <th>Emplacement</th>
                   <th>Âge</th>
                   <th>Effectif</th>
+                  <th>Vendu</th>
+                  <th>Disponible</th>
                   <th>Mortalité</th>
                   <th>Statut</th>
                   <th>Actions</th>
@@ -1129,12 +1167,16 @@ export default function VenteDirecte() {
                 {activeLotsAffiches.map((lot) => {
                   const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
                   const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
+                  const delivered = deliveredByLot.get(lot.id) || 0;
+                  const deliveredRate = lot.initial_quantity > 0 ? (delivered / lot.initial_quantity) * 100 : 0;
                   return (
                     <tr key={lot.id}>
                       <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
                       <td>{lot.location || "—"}</td>
                       <td>{age} jours</td>
-                      <td>{formatNombre(lot.remaining_quantity)}</td>
+                      <td>{formatNombre(lot.initial_quantity)}</td>
+                      <td className="direct-sale-sold-cell">{formatNombre(delivered)} <small>({formatNombre(deliveredRate, 0)}%)</small></td>
+                      <td className="poultry-success-text">{formatNombre(lot.remaining_quantity)}</td>
                       <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
                       <td>
                         <select
@@ -1160,7 +1202,7 @@ export default function VenteDirecte() {
                   );
                 })}
                 {activeLotsAffiches.length === 0 && (
-                  <tr><td colSpan={7}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+                  <tr><td colSpan={9}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
                 )}
               </tbody>
             </table>
@@ -1216,41 +1258,90 @@ export default function VenteDirecte() {
           {orderGroups.length > 4 && <button type="button" className="direct-sale-view-all" onClick={() => setListModal("orders")}>Voir toutes les commandes →</button>}
         </article>
 
-        <article className="direct-sale-panel">
+        <article className="direct-sale-panel direct-sale-delivery-by-lot-panel">
           <div className="direct-sale-panel-heading">
-            <div><h2>Livraisons et règlements</h2><span>Facturation et paiements reçus.</span></div>
-            <button type="button" className="direct-sale-secondary" onClick={() => prepareDelivery()}>＋ Livraison</button>
+            <div><h2>Livraisons et règlements par lot</h2><span>Sélectionnez un lot prêt à vendre pour gérer les livraisons.</span></div>
           </div>
-          <div className="direct-sale-list">
-            {displayedDeliveryGroups.map((group) => {
-              const first = group.lines[0];
-              const invoiced = group.lines.reduce((total, line) => total + line.amount_invoiced, 0);
-              const paid = group.lines.reduce((total, line) => total + line.amount_paid, 0);
-              const quantity = group.lines.reduce((total, line) => total + line.quantity_delivered, 0);
-              const outstanding = Math.max(0, invoiced - paid);
-              return (
-                <div className="direct-sale-delivery-row direct-sale-delivery-row-compact" key={group.key}>
-                  <div>
-                    <strong>{customerById.get(first.customer_id)?.name || "Client"}</strong>
-                    <small>{group.lines.length} produit(s) · {formatDate(first.delivery_date)} · {formatNombre(quantity)} sujets</small>
+          {readySaleLots.length === 0 ? (
+            <div className="direct-sale-empty">Aucun lot au statut prêt à vendre.</div>
+          ) : (
+            <>
+              <div className="direct-sale-lot-selector" aria-label="Choisir un lot prêt à vendre">
+                {readySaleLots.map((lot) => (
+                  <button
+                    key={lot.id}
+                    type="button"
+                    className={selectedDeliveryLot?.id === lot.id ? "direct-sale-lot-selector-active" : ""}
+                    onClick={() => setSelectedDeliveryLotId(lot.id)}
+                  >
+                    <strong>{lot.name} - {lot.location || "Emplacement libre"}</strong>
+                    <span>{formatNombre(lot.remaining_quantity)} dispo.</span>
+                  </button>
+                ))}
+              </div>
+              {selectedDeliveryLot && (
+                <div className="direct-sale-lot-delivery-card">
+                  <div className="direct-sale-lot-delivery-heading">
+                    <div>
+                      <strong>Lot {selectedDeliveryLot.name} - {selectedDeliveryLot.location || "Emplacement libre"}</strong>
+                      <span className={`direct-sale-table-status direct-sale-status-${selectedDeliveryLot.status}`}>{lotStatusLabel[selectedDeliveryLot.status]}</span>
+                    </div>
+                    <small>{formatNombre(selectedDeliveryLot.remaining_quantity)} sujets disponibles</small>
                   </div>
-                  <div className="direct-sale-money">
-                    <strong>{formatMontant(invoiced)}</strong>
-                    <small>{outstanding > 0 ? `Reste ${formatMontant(outstanding)}` : "Payée"}</small>
+                  <div className="direct-sale-table-wrap">
+                    <table className="direct-sale-delivery-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Client</th>
+                          <th>Quantité</th>
+                          <th>Prix unit.</th>
+                          <th>Montant</th>
+                          <th>Statut</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedLotDeliveries.map((delivery) => {
+                          const group = groupFromDelivery(delivery);
+                          const outstanding = Math.max(0, delivery.amount_invoiced - delivery.amount_paid);
+                          return (
+                            <tr key={delivery.id}>
+                              <td>{formatDate(delivery.delivery_date)}</td>
+                              <td>{customerById.get(delivery.customer_id)?.name || "Client"}</td>
+                              <td>{formatNombre(delivery.quantity_delivered)}</td>
+                              <td>{formatMontant(delivery.unit_price)}</td>
+                              <td>{formatMontant(delivery.amount_invoiced)}</td>
+                              <td>
+                                <span className={outstanding > 0 ? "direct-sale-payment-waiting" : "direct-sale-payment-paid"}>
+                                  {outstanding > 0 ? `Reste ${formatMontant(outstanding)}` : "Payée"}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="direct-sale-row-actions direct-sale-table-row-actions">
+                                  {outstanding > 0 ? (
+                                    <button type="button" title="Marquer comme réglée" aria-label={`Marquer la livraison du lot ${selectedDeliveryLot.name} comme réglée`} onClick={() => validatePayment(group)} disabled={saving}>€</button>
+                                  ) : <span className="direct-sale-paid">✓</span>}
+                                  <button type="button" title="Modifier" onClick={() => openDeliveryForm(group)}>✎</button>
+                                  <button type="button" title="Supprimer" onClick={() => deleteDeliveryGroup(group)}>⌫</button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {selectedLotDeliveries.length === 0 && (
+                          <tr><td colSpan={7}><div className="direct-sale-empty">Aucune livraison enregistrée pour ce lot.</div></td></tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="direct-sale-row-actions">
-                    {outstanding > 0 ? (
-                      <button type="button" title="Marquer comme réglée" aria-label={`Marquer la livraison de ${customerById.get(first.customer_id)?.name || "ce client"} comme réglée`} onClick={() => validatePayment(group)} disabled={saving}>€</button>
-                    ) : <span className="direct-sale-paid">✓</span>}
-                    <button type="button" title="Modifier" onClick={() => openDeliveryForm(group)}>✎</button>
-                    <button type="button" title="Supprimer" onClick={() => deleteDeliveryGroup(group)}>⌫</button>
-                  </div>
+                  <button type="button" className="direct-sale-add-lot-delivery" onClick={() => prepareDelivery(undefined, selectedDeliveryLot.id)}>
+                    ＋ Ajouter une livraison pour ce lot
+                  </button>
                 </div>
-              );
-            })}
-            {deliveryGroups.length === 0 && <div className="direct-sale-empty">Aucune livraison enregistrée.</div>}
-          </div>
-          {deliveryGroups.length > 4 && <button type="button" className="direct-sale-view-all" onClick={() => setListModal("deliveries")}>Voir toutes les livraisons et règlements →</button>}
+              )}
+            </>
+          )}
         </article>
       </section>
 

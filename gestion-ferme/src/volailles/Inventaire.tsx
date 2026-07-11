@@ -61,6 +61,33 @@ type InventoryValueDetailRow = {
   value: number;
 };
 
+type InventoryDeltaTone = "up" | "down" | "flat";
+
+type InventoryDeltaMetric = {
+  key: string;
+  label: string;
+  previousLabel: string;
+  currentLabel: string;
+  variationLabel: string;
+  tone: InventoryDeltaTone;
+};
+
+type InventorySubjectEvolutionRow = {
+  key: string;
+  label: string;
+  previousLabel: string;
+  currentLabel: string;
+  variationLabel: string;
+  tone: InventoryDeltaTone;
+};
+
+type InventoryDeltaSummary = {
+  currentMonthLabel: string;
+  previousMonthLabel: string;
+  metrics: InventoryDeltaMetric[];
+  subjectRows: InventorySubjectEvolutionRow[];
+};
+
 const MONTH_LABELS = [
   "31 janv.",
   "28 fev.",
@@ -199,6 +226,17 @@ const profileLabel = (profile: PoultryValueProfile) => {
   if (profile === "directPoulet") return "Poulet vente directe";
   if (profile === "pintade") return "Pintade";
   return "Poulet SICA";
+};
+
+const getDeltaTone = (delta: number): InventoryDeltaTone => {
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
+};
+
+const formatSignedNumber = (value: number, decimals = 0) => {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${formatNombre(Math.abs(value), decimals)}`;
 };
 
 function PoultrySubnav() {
@@ -424,6 +462,90 @@ export default function Inventaire() {
   const latestValueRow = [...valueRows].reverse().find((row) => row.totalValue > 0);
   const dernierInventaire = snapshots[0];
   const latestSnapshotDate = dernierInventaire?.snapshot_date;
+
+  const deltaSummary = useMemo<InventoryDeltaSummary | null>(() => {
+    const monthsWithSnapshots = months.filter((month) => {
+      const monthSnapshots = latestSnapshotsByMonth.get(month.key) || [];
+      return monthSnapshots.length > 0;
+    });
+    const currentMonth = monthsWithSnapshots[monthsWithSnapshots.length - 1];
+    if (!currentMonth) return null;
+
+    const previousMonth = monthsWithSnapshots[monthsWithSnapshots.length - 2];
+    const previousKey = previousMonth?.key;
+
+    const feedTotal = (monthKey?: string) =>
+      monthKey ? feedRows.reduce((total, row) => total + (row.values[monthKey] || 0), 0) : 0;
+    const subjectTotal = (monthKey?: string, category?: InventoryCategory) =>
+      monthKey
+        ? poultryRows
+            .filter((row) => !category || row.category === category)
+            .reduce((total, row) => total + (row.values[monthKey] || 0), 0)
+        : 0;
+    const valueTotal = (monthKey?: string) =>
+      monthKey ? valueRows.find((row) => row.monthKey === monthKey)?.totalValue || 0 : 0;
+
+    const currentFeed = feedTotal(currentMonth.key);
+    const previousFeed = feedTotal(previousKey);
+    const currentSubjects = subjectTotal(currentMonth.key);
+    const previousSubjects = subjectTotal(previousKey);
+    const currentValue = valueTotal(currentMonth.key);
+    const previousValue = valueTotal(previousKey);
+
+    const buildMetric = (
+      key: string,
+      label: string,
+      current: number,
+      previous: number,
+      unit: "sacs" | "sujets" | "€",
+      decimals = 0
+    ): InventoryDeltaMetric => {
+      const delta = current - previous;
+      const suffix = unit === "€" ? " €" : ` ${unit}`;
+      return {
+        key,
+        label,
+        previousLabel: previousKey ? `${formatNombre(previous, decimals)}${suffix}` : "Aucun mois précédent",
+        currentLabel: `${formatNombre(current, decimals)}${suffix}`,
+        variationLabel: previousKey ? `${formatSignedNumber(delta, decimals)}${suffix}` : "Première valeur",
+        tone: previousKey ? getDeltaTone(delta) : "flat",
+      };
+    };
+
+    const buildSubjectRow = (
+      key: string,
+      label: string,
+      category?: InventoryCategory
+    ): InventorySubjectEvolutionRow => {
+      const current = subjectTotal(currentMonth.key, category);
+      const previous = subjectTotal(previousKey, category);
+      const delta = current - previous;
+      return {
+        key,
+        label,
+        previousLabel: previousKey ? `${formatNombre(previous)} sujets` : "Aucun mois précédent",
+        currentLabel: `${formatNombre(current)} sujets`,
+        variationLabel: previousKey ? `${formatSignedNumber(delta)} sujets` : "Première valeur",
+        tone: previousKey ? getDeltaTone(delta) : "flat",
+      };
+    };
+
+    return {
+      currentMonthLabel: currentMonth.label,
+      previousMonthLabel: previousMonth?.label || "aucun mois précédent",
+      metrics: [
+        buildMetric("feed", "Stock aliments", currentFeed, previousFeed, "sacs"),
+        buildMetric("subjects", "Sujets restants", currentSubjects, previousSubjects, "sujets"),
+        buildMetric("value", "Valeur estimée", currentValue, previousValue, "€", 2),
+      ],
+      subjectRows: [
+        buildSubjectRow("sica", "Lots SICA Madras", "sica"),
+        buildSubjectRow("direct", "Vente directe", "direct"),
+        buildSubjectRow("total", "Total tous lots"),
+      ],
+    };
+  }, [feedRows, latestSnapshotsByMonth, months, poultryRows, valueRows]);
+
   const latestValueDetails = useMemo<InventoryValueDetailRow[]>(() => {
     if (!latestSnapshotDate) return [];
     return snapshots
@@ -574,6 +696,7 @@ export default function Inventaire() {
         <section className="inventory-empty">Chargement de l’inventaire...</section>
       ) : tab === "annuel" ? (
         <>
+          <InventoryDeltaSection summary={deltaSummary} />
           <InventoryTable
             title="Stock d’aliments"
             icon="▣"
@@ -610,6 +733,67 @@ export default function Inventaire() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function InventoryDeltaSection({ summary }: { summary: InventoryDeltaSummary | null }) {
+  if (!summary) {
+    return (
+      <section className="inventory-panel inventory-delta-panel">
+        <div className="inventory-panel-heading">
+          <div>
+            <span>↕</span>
+            <h2>Lecture des écarts</h2>
+          </div>
+        </div>
+        <div className="inventory-empty">Aucun inventaire disponible pour comparer les écarts.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="inventory-panel inventory-delta-panel">
+      <div className="inventory-panel-heading">
+        <div>
+          <span>↕</span>
+          <h2>Lecture des écarts</h2>
+        </div>
+        <p>
+          Comparaison entre {summary.previousMonthLabel} et {summary.currentMonthLabel}.
+        </p>
+      </div>
+
+      <div className="inventory-delta-grid">
+        {summary.metrics.map((metric) => (
+          <article key={metric.key} className={`inventory-delta-card inventory-delta-${metric.tone}`}>
+            <span>{metric.label}</span>
+            <strong>{metric.currentLabel}</strong>
+            <div>
+              <small>Mois précédent</small>
+              <b>{metric.previousLabel}</b>
+            </div>
+            <em>{metric.variationLabel}</em>
+          </article>
+        ))}
+      </div>
+
+      <div className="inventory-subject-evolution">
+        <div>
+          <h3>Évolution des sujets restants</h3>
+          <p>Lecture séparée entre les lots SICA Madras et la vente directe.</p>
+        </div>
+        <div className="inventory-subject-rows">
+          {summary.subjectRows.map((row) => (
+            <article key={row.key} className={`inventory-subject-row inventory-delta-${row.tone}`}>
+              <span>{row.label}</span>
+              <strong>{row.currentLabel}</strong>
+              <small>Avant : {row.previousLabel}</small>
+              <em>{row.variationLabel}</em>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

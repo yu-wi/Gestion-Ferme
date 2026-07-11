@@ -13,6 +13,7 @@ import Ovins from './pages/Ovins';
 import Accueil from './pages/Accueil'; 
 import Planning from './pages/Planning';
 import Sauvegardes from './pages/Sauvegardes';
+import Parametres from './pages/Parametres';
 import VolaillesResume from './volailles/VolaillesResume';
 
 import AlimentationPage from './volailles/alimentationPage'
@@ -48,6 +49,7 @@ function App() {
                   <Route index element={<Accueil userName={userName} />} />
                   <Route path="planning" element={<Planning />} />
                   <Route path="sauvegardes" element={<Sauvegardes />} />
+                  <Route path="parametres" element={<Parametres />} />
                   <Route path="volailles" element={<VolaillesResume />} />
                   <Route path="/volailles/sica" element={<Volailles />} />
                   <Route path="aquaponie" element={<Aquaponie />} />

@@ -1037,11 +1037,11 @@ export default function VenteDirecte() {
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
         <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/alimentation">Alimentation</Link>
         <Link to="/volailles/sica">Lots SICA Madras</Link>
         <Link to="/volailles/sica/historique">Historique SICA</Link>
         <Link to="/volailles/vente-directe" className={!historiqueMode ? "poultry-tab-active" : undefined}>Vente directe</Link>
         <Link to="/volailles/vente-directe/historique" className={historiqueMode ? "poultry-tab-active" : undefined}>Historique vente directe</Link>
-        <Link to="/volailles/alimentation">Alimentation</Link>
         <Link to="/volailles/analyse/sica">Analyse SICA</Link>
         <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
         <Link to="/volailles/inventaire">Inventaire</Link>
@@ -1210,7 +1210,7 @@ export default function VenteDirecte() {
         </section>
       </section>
 
-      <section className="direct-sale-grid">
+      <section className="direct-sale-grid direct-sale-operations-stack">
         <article className="direct-sale-panel">
           <div className="direct-sale-panel-heading">
             <div><h2>Commandes clients</h2><span>Préparation et dates de livraison.</span></div>
@@ -1295,7 +1295,6 @@ export default function VenteDirecte() {
                           <th>Date</th>
                           <th>Client</th>
                           <th>Quantité</th>
-                          <th>Prix unit.</th>
                           <th>Montant</th>
                           <th>Statut</th>
                           <th>Actions</th>
@@ -1310,7 +1309,6 @@ export default function VenteDirecte() {
                               <td>{formatDate(delivery.delivery_date)}</td>
                               <td>{customerById.get(delivery.customer_id)?.name || "Client"}</td>
                               <td>{formatNombre(delivery.quantity_delivered)}</td>
-                              <td>{formatMontant(delivery.unit_price)}</td>
                               <td>{formatMontant(delivery.amount_invoiced)}</td>
                               <td>
                                 <span className={outstanding > 0 ? "direct-sale-payment-waiting" : "direct-sale-payment-paid"}>
@@ -1330,7 +1328,7 @@ export default function VenteDirecte() {
                           );
                         })}
                         {selectedLotDeliveries.length === 0 && (
-                          <tr><td colSpan={7}><div className="direct-sale-empty">Aucune livraison enregistrée pour ce lot.</div></td></tr>
+                          <tr><td colSpan={6}><div className="direct-sale-empty">Aucune livraison enregistrée pour ce lot.</div></td></tr>
                         )}
                       </tbody>
                     </table>

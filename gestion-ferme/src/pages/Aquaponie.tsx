@@ -221,6 +221,7 @@ export default function Aquaponie() {
   const totalWaterCapacity =
     bassins.reduce((total, bassin) => total + Number(bassin.water_capacity_l || 0), 0) +
     cuves.reduce((total, cuve) => total + Number(cuve.water_capacity_l || 0), 0);
+  const mesuresGraphique = useMemo(() => mesures.slice(0, 12).reverse(), [mesures]);
 
   const closeModal = () => {
     setModal(null);
@@ -608,27 +609,35 @@ export default function Aquaponie() {
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
             <MeasureValue label="Oxygène" value={latestMeasure?.oxygen_mg_l} suffix="mg/L" />
           </div>
-          <div className="aquaponie-table-wrap">
-            <table className="aquaponie-table">
-              <thead><tr><th>Date</th><th>Catégorie</th><th>Support</th><th>Temp.</th><th>pH</th><th>NO2</th><th>NO3</th><th>EC</th><th>O2</th><th>Actions</th></tr></thead>
-              <tbody>
-                {mesures.slice(0, 30).map((mesure) => (
-                  <tr key={mesure.id}>
-                    <td>{formatDateCourte(new Date(`${mesure.measure_date}T00:00:00`))}</td>
-                    <td>{mesure.target_type === "cuve" ? "Cuve" : "Bassin"}</td>
-                    <td>{mesure.target_type === "cuve" ? (mesure.tank_id ? tankById.get(mesure.tank_id)?.name || "Cuve" : "Toutes les cuves") : (mesure.basin_id ? basinById.get(mesure.basin_id)?.name || "Bassin" : "Tous les bassins")}</td>
-                    <td>{mesure.temperature_c ?? "–"}</td>
-                    <td>{mesure.ph ?? "–"}</td>
-                    <td>{mesure.no2 ?? "–"}</td>
-                    <td>{mesure.no3 ?? "–"}</td>
-                    <td>{mesure.conductivity ?? "–"}</td>
-                    <td>{mesure.oxygen_mg_l ?? "–"}</td>
-                    <td><RowActions onEdit={() => openMeasure(mesure)} onDelete={() => deleteRow("aquaponie_water_measures", mesure.id, "cette mesure", (id) => setMesures((current) => current.filter((item) => item.id !== id)))} /></td>
-                  </tr>
-                ))}
-                {!mesures.length && <tr><td colSpan={10}><EmptyState label="Aucune mesure enregistrée." /></td></tr>}
-              </tbody>
-            </table>
+          <div className="aquaponie-chart-grid">
+            <WaterMetricChart title="Température" suffix="°C" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.temperature_c }))} min={20} max={34} color="#0b78a4" />
+            <WaterMetricChart title="pH" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.ph }))} min={5.5} max={8.5} color="#16853d" />
+            <WaterMetricChart title="NO2" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.no2 }))} min={0} max={1} color="#dc2626" />
+            <WaterMetricChart title="NO3" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.no3 }))} min={0} max={100} color="#e89500" />
+            <WaterMetricChart title="EC" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.conductivity }))} min={0} max={2500} color="#7c3aed" />
+            <WaterMetricChart title="Oxygène" suffix="mg/L" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.oxygen_mg_l }))} min={0} max={10} color="#2563eb" />
+          </div>
+          <div className="aquaponie-measure-timeline">
+            <h3>Derniers relevés</h3>
+            {mesures.slice(0, 8).map((mesure) => (
+              <article key={mesure.id} className="aquaponie-measure-row">
+                <div>
+                  <strong>{formatDateCourte(new Date(`${mesure.measure_date}T00:00:00`))}</strong>
+                  <small>
+                    {mesure.target_type === "cuve" ? "Cuve" : "Bassin"} · {mesure.target_type === "cuve" ? (mesure.tank_id ? tankById.get(mesure.tank_id)?.name || "Cuve" : "Toutes les cuves") : (mesure.basin_id ? basinById.get(mesure.basin_id)?.name || "Bassin" : "Tous les bassins")}
+                  </small>
+                </div>
+                <p>
+                  <span>Temp. {mesure.temperature_c ?? "–"}</span>
+                  <span>pH {mesure.ph ?? "–"}</span>
+                  <span>NO2 {mesure.no2 ?? "–"}</span>
+                  <span>NO3 {mesure.no3 ?? "–"}</span>
+                  <span>O2 {mesure.oxygen_mg_l ?? "–"}</span>
+                </p>
+                <RowActions onEdit={() => openMeasure(mesure)} onDelete={() => deleteRow("aquaponie_water_measures", mesure.id, "cette mesure", (id) => setMesures((current) => current.filter((item) => item.id !== id)))} />
+              </article>
+            ))}
+            {!mesures.length && <EmptyState label="Aucune mesure enregistrée." />}
           </div>
         </section>
       )}
@@ -795,6 +804,58 @@ function CultureCard({ culture, onEdit }: { culture: AquaCulture; onEdit: () => 
 
 function MeasureValue({ label, value, suffix = "" }: { label: string; value?: number | null; suffix?: string }) {
   return <div><small>{label}</small><strong>{value == null ? "–" : `${formatNombre(value, 2)} ${suffix}`}</strong></div>;
+}
+
+function WaterMetricChart({
+  title,
+  suffix = "",
+  values,
+  min,
+  max,
+  color,
+}: {
+  title: string;
+  suffix?: string;
+  values: Array<{ date: string; value: number | null }>;
+  min: number;
+  max: number;
+  color: string;
+}) {
+  const points = values.filter((item): item is { date: string; value: number } => item.value != null);
+  const latest = points.length > 0 ? points[points.length - 1] : undefined;
+  const width = 240;
+  const height = 92;
+  const padding = 12;
+  const range = Math.max(1, max - min);
+  const polyline = points
+    .map((item, index) => {
+      const x = points.length === 1 ? width / 2 : padding + (index / (points.length - 1)) * (width - padding * 2);
+      const normalized = Math.min(1, Math.max(0, (item.value - min) / range));
+      const y = height - padding - normalized * (height - padding * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <article className="aquaponie-chart-card">
+      <div>
+        <strong>{title}</strong>
+        <span>{latest ? `${formatNombre(latest.value, 2)} ${suffix}` : "Aucune donnée"}</span>
+      </div>
+      {points.length >= 2 ? (
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Évolution ${title}`}>
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} />
+          <polyline points={polyline} style={{ stroke: color }} />
+          {points.map((item, index) => {
+            const [x, y] = polyline.split(" ")[index].split(",").map(Number);
+            return <circle key={`${item.date}-${index}`} cx={x} cy={y} r="3.5" style={{ fill: color }} />;
+          })}
+        </svg>
+      ) : (
+        <div className="aquaponie-chart-empty">Au moins deux relevés sont nécessaires.</div>
+      )}
+    </article>
+  );
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

@@ -903,14 +903,7 @@ const handleEnregistrerVente = async () => {
   }
 };
 
-const totalInitial = lots.reduce((sum, lot) => sum + (lot.quantite || 0), 0);
 const totalRestants = lots.reduce((sum, lot) => sum + calculerSujetsRestants(lot), 0);
-const totalMorts = lots.reduce((sum, lot) => {
-  const mortalites = Array.isArray(lot.mortalites) ? lot.mortalites : [];
-  return sum + mortalites.reduce((mortSum, mort) => mortSum + (mort.nombre || 0), 0);
-}, 0);
-const tauxMortaliteGlobal =
-  totalInitial > 0 ? (totalMorts / totalInitial) * 100 : 0;
 const batiments = Array.from(
   lots.reduce((map, lot) => {
     const nomBatiment = lot.batiment?.trim() || "Non renseigné";
@@ -1002,22 +995,24 @@ return (
 
    <nav className="poultry-tabs" aria-label="Sections volailles">
      <Link to="/volailles">Résumé</Link>
+     <Link to="/volailles/alimentation">Alimentation</Link>
      <a href="#vue-ensemble" className="poultry-tab-active">Lots SICA Madras</a>
      <Link to="/volailles/sica/historique">Historique SICA</Link>
      <Link to="/volailles/vente-directe">Vente directe</Link>
      <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-     <Link to="/volailles/alimentation">Alimentation</Link>
      <Link to="/volailles/analyse/sica">Analyse SICA</Link>
      <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
      <Link to="/volailles/inventaire">Inventaire</Link>
    </nav>
 
-   <section id="vue-ensemble" className="poultry-kpis poultry-kpis-compact">
-     <PoultryKpi icon="▣" tone="green" label="Lots SICA Madras" value={formatNombre(lots.length)} note={`${formatNombre(totalRestants)} sujets`} />
-     <PoultryKpi icon="♥" tone="red" label="Taux de mortalité" value={`${formatNombre(tauxMortaliteGlobal, 2)} %`} note={`${formatNombre(totalMorts)} mortalités`} />
+   <section className="poultry-quick-actions poultry-quick-actions-top">
+     <h2>Actions rapides</h2>
+     <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
+     <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
+     <Link to="/volailles/sica/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique SICA</small></div></Link>
    </section>
 
-   <section className="poultry-overview-grid">
+   <section id="vue-ensemble" className="poultry-overview-grid">
      <article id="batiments" className="poultry-panel poultry-buildings">
        <div className="poultry-panel-heading">
          <h2>Répartition par bâtiment</h2>
@@ -1207,14 +1202,6 @@ return (
          </table>
        </div>
      </article>
-
-     <aside className="poultry-quick-actions">
-       <h2>Actions rapides</h2>
-       <button type="button" onClick={() => { reinitialiserFormulaireLot(); setNouveauLotModalOpen(true); }}><span>＋</span><div><strong>Nouveau lot</strong><small>Créer un nouveau lot</small></div></button>
-       <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
-       <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
-       <Link to="/volailles/sica/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique SICA</small></div></Link>
-     </aside>
    </section>
  </div>
 
@@ -1690,31 +1677,6 @@ return (
 
  </>
 );
-}
-
-function PoultryKpi({
-  icon,
-  tone,
-  label,
-  value,
-  note,
-}: {
-  icon: string;
-  tone: "green" | "blue" | "orange" | "red";
-  label: string;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article className="poultry-kpi">
-      <span className={`poultry-kpi-icon poultry-kpi-${tone}`}>{icon}</span>
-      <div>
-        <small>{label}</small>
-        <strong>{value}</strong>
-        <em>{note}</em>
-      </div>
-    </article>
-  );
 }
 
 

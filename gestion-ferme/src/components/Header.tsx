@@ -127,6 +127,17 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
             <span>Planning</span>
           </NavLink>
 
+          <NavLink
+            to="/sauvegardes"
+            onClick={fermerMenu}
+            className={({ isActive }) =>
+              `app-nav-link${isActive ? " app-nav-link-active" : ""}`
+            }
+          >
+            <span className="app-nav-icon">⇩</span>
+            <span>Sauvegardes</span>
+          </NavLink>
+
           <div className="app-nav-section">Production</div>
           <div className="app-nav-group">
             <div

@@ -12,6 +12,7 @@ import Cultures from './pages/Cultures';
 import Ovins from './pages/Ovins';
 import Accueil from './pages/Accueil'; 
 import Planning from './pages/Planning';
+import Sauvegardes from './pages/Sauvegardes';
 import VolaillesResume from './volailles/VolaillesResume';
 
 import AlimentationPage from './volailles/alimentationPage'
@@ -46,6 +47,7 @@ function App() {
                 <Routes>
                   <Route index element={<Accueil userName={userName} />} />
                   <Route path="planning" element={<Planning />} />
+                  <Route path="sauvegardes" element={<Sauvegardes />} />
                   <Route path="volailles" element={<VolaillesResume />} />
                   <Route path="/volailles/sica" element={<Volailles />} />
                   <Route path="aquaponie" element={<Aquaponie />} />

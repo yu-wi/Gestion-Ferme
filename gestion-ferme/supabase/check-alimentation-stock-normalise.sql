@@ -72,3 +72,11 @@ select
 from mouvements
 order by date desc, origine
 limit 30;
+
+-- Resultat exact utilise par l'interface si la fonction est installee.
+select
+  feed_type,
+  round(entrees_kg / 25, 2) as sacs_livres,
+  round(consommations_kg / 25, 2) as sacs_consommes,
+  round(stock_kg / 25, 2) as sacs_restants
+from public.calculer_stock_aliment();

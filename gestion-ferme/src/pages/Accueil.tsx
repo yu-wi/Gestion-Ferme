@@ -48,6 +48,13 @@ type FeedMovement = {
   date?: string;
 };
 
+type FeedStockSummary = {
+  feed_type: string;
+  entrees_kg: number;
+  consommations_kg: number;
+  stock_kg: number;
+};
+
 type MeteoJour = {
   date: string;
   code: number;
@@ -135,6 +142,7 @@ export default function Accueil({ userName }: AccueilProps) {
   const [lots, setLots] = useState<LotDashboard[]>([]);
   const [consommations, setConsommations] = useState<FeedMovement[]>([]);
   const [livraisonsAliment, setLivraisonsAliment] = useState<FeedMovement[]>([]);
+  const [stockAlimentServeurKg, setStockAlimentServeurKg] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
@@ -206,6 +214,17 @@ export default function Accueil({ userName }: AccueilProps) {
         console.error("Erreur consommations :", consommationsRes.error);
       if (livraisonsRes.error)
         console.error("Erreur livraisons d'aliment :", livraisonsRes.error);
+      const stockRes = await supabase.rpc("calculer_stock_aliment");
+      if (stockRes.error) {
+        setStockAlimentServeurKg(null);
+      } else {
+        setStockAlimentServeurKg(
+          ((stockRes.data || []) as FeedStockSummary[]).reduce(
+            (total, item) => total + (Number(item.stock_kg) || 0),
+            0
+          )
+        );
+      }
       if (tasksRes.error) {
         console.error("Erreur tâches :", tasksRes.error);
         setTaskTableReady(false);
@@ -327,9 +346,10 @@ export default function Accueil({ userName }: AccueilProps) {
     (total, lot) => total + (Number(lot.resultat_brut) || 0),
     0
   );
-  const stockKg =
+  const stockKgLocal =
     livraisonsAliment.reduce((total, item) => total + item.quantite_kg, 0) -
     consommations.reduce((total, item) => total + item.quantite_kg, 0);
+  const stockKg = stockAlimentServeurKg ?? stockKgLocal;
   const consommationDuJourKg = consommations
     .filter((item) => item.date === new Date().toISOString().split("T")[0])
     .reduce((total, item) => total + item.quantite_kg, 0);

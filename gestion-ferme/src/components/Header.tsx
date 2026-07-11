@@ -176,6 +176,16 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   Résumé
                 </NavLink>
                 <NavLink
+                  to="/volailles/alimentation"
+                  onClick={fermerMenu}
+                  className={({ isActive }) =>
+                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                  }
+                >
+                  <span>•</span>
+                  Alimentation
+                </NavLink>
+                <NavLink
                   to="/volailles/sica"
                   onClick={fermerMenu}
                   className={({ isActive }) =>
@@ -214,16 +224,6 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 >
                   <span>•</span>
                   Historique vente directe
-                </NavLink>
-                <NavLink
-                  to="/volailles/alimentation"
-                  onClick={fermerMenu}
-                  className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
-                  }
-                >
-                  <span>•</span>
-                  Alimentation
                 </NavLink>
                 <NavLink
                   to="/volailles/analyse/sica"

@@ -60,6 +60,13 @@ type StockRow = {
   stock: number;
 };
 
+type StockServeurRow = {
+  feed_type: string;
+  entrees_kg: number;
+  consommations_kg: number;
+  stock_kg: number;
+};
+
 type PrevisionRow = {
   feedType: string;
   besoinSacs: number;
@@ -128,6 +135,7 @@ export default function DashboardFeed() {
   const [references, setReferences] = useState<FeedReference[]>([]);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [livraisons, setLivraisons] = useState<LivraisonStock[]>([]);
+  const [stockServeur, setStockServeur] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [directConsumptionReady, setDirectConsumptionReady] = useState(true);
@@ -222,6 +230,21 @@ export default function DashboardFeed() {
     }
     setDirectConsumptionReady(consommationEtendueDisponible);
 
+    const stockResult = await supabase.rpc("calculer_stock_aliment");
+    if (!stockResult.error) {
+      setStockServeur(
+        ((stockResult.data || []) as StockServeurRow[]).map((item) => ({
+          feedType: libelleAliment(String(item.feed_type || "")),
+          entrees: Number(item.entrees_kg) || 0,
+          consommations: Number(item.consommations_kg) || 0,
+          stock: Number(item.stock_kg) || 0,
+        }))
+      );
+    } else {
+      setStockServeur([]);
+      console.info("Calcul serveur du stock indisponible, calcul local utilisé.", stockResult.error);
+    }
+
     const error =
       lotsResult.error ||
       directLotsResult.error ||
@@ -298,13 +321,14 @@ export default function DashboardFeed() {
           ...references.map((item) => item.feed_type),
           ...consommations.map((item) => item.feed_type),
           ...livraisons.map((item) => item.feed_type),
+          ...stockServeur.map((item) => item.feedType),
         ]
           .map(libelleAliment)
           .filter(Boolean)
           .map((feedType) => [normaliserAliment(feedType), feedType]))
           .values()
       ).sort(comparerAliments),
-    [references, consommations, livraisons]
+    [references, consommations, livraisons, stockServeur]
   );
 
   useEffect(() => {
@@ -357,8 +381,12 @@ export default function DashboardFeed() {
   }, [suggestionConsommation, consommationEnModification]);
 
   const stock = useMemo<StockRow[]>(
-    () =>
-      typesAliment.map((feedType) => {
+    () => {
+      if (stockServeur.length > 0) {
+        return [...stockServeur].sort((a, b) => comparerAliments(a.feedType, b.feedType));
+      }
+
+      return typesAliment.map((feedType) => {
         const entrees = livraisons
           .filter((item) => memeAliment(item.feed_type, feedType))
           .reduce((total, item) => total + item.quantite_kg, 0);
@@ -371,8 +399,9 @@ export default function DashboardFeed() {
           consommations: sorties,
           stock: entrees - sorties,
         };
-      }),
-    [typesAliment, livraisons, consommations]
+      });
+    },
+    [typesAliment, livraisons, consommations, stockServeur]
   );
 
   const prevision = useMemo<PrevisionRow[]>(() => {
@@ -516,6 +545,22 @@ export default function DashboardFeed() {
       toast.error("Complétez le lot, la date, l'aliment et la quantité.");
       return;
     }
+    const stockAlimentKg =
+      stock.find((item) => memeAliment(item.feedType, consommationType))?.stock ||
+      0;
+    const ancienneQuantiteKg =
+      consommationEnModification &&
+      memeAliment(consommationEnModification.feed_type, consommationType)
+        ? consommationEnModification.quantite_kg
+        : 0;
+    const quantiteDemandeeKg = nombreSacs * POIDS_SAC_KG;
+    const stockDisponibleKg = stockAlimentKg + ancienneQuantiteKg;
+    if (quantiteDemandeeKg > stockDisponibleKg) {
+      toast.error(
+        `Stock insuffisant : ${sacsEntiers(enSacs(stockDisponibleKg))} sac(s) disponible(s) en ${consommationType}.`
+      );
+      return;
+    }
     if (
       lotConsommationSelectionne?.source === "vente_directe" &&
       !directConsumptionReady
@@ -584,6 +629,7 @@ export default function DashboardFeed() {
         consommation,
         ...items.filter((item) => item.id !== consommation.id),
       ]);
+      await chargerDonnees();
       setConsommationSacs("");
       setConsommationNote("");
       setConsommationEnModification(null);
@@ -653,6 +699,7 @@ export default function DashboardFeed() {
         livraison,
         ...items.filter((item) => item.id !== livraison.id),
       ]);
+      await chargerDonnees();
       setLivraisonSacs("");
       setLivraisonPrix("");
       setLivraisonEnModification(null);
@@ -717,6 +764,7 @@ export default function DashboardFeed() {
       toast.error("La consommation n'a pas pu être supprimée.");
     } else {
       setConsommations((items) => items.filter((ligne) => ligne.id !== item.id));
+      await chargerDonnees();
       if (consommationEnModification?.id === item.id) {
         annulerModificationConsommation();
       }
@@ -736,6 +784,7 @@ export default function DashboardFeed() {
       toast.error("La livraison n'a pas pu être supprimée.");
     } else {
       setLivraisons((items) => items.filter((ligne) => ligne.id !== item.id));
+      await chargerDonnees();
       if (livraisonEnModification?.id === item.id) {
         annulerModificationLivraison();
       }
@@ -1054,19 +1103,18 @@ export default function DashboardFeed() {
           </div>
           <div className="feed-tracking-table-wrap">
             <table className="feed-tracking-table">
-              <thead><tr><th>Lot</th><th>Origine</th><th>Dernière saisie</th><th>Consommation</th><th>Statut</th><th>Action</th></tr></thead>
+              <thead><tr><th>Lot</th><th>Origine</th><th>Consommation</th><th>Statut</th><th>Action</th></tr></thead>
               <tbody>
                 {consumptionFollowUp.map((row) => (
                   <tr key={`${row.lot.source}-${row.lot.id}`}>
                     <td><strong>{row.lot.nom}</strong></td>
                     <td>{row.lot.source === "vente_directe" ? "Vente directe" : "SICA"}</td>
-                    <td>{row.date ? formatDate(row.date) : "–"}</td>
                     <td>{row.sacs > 0 ? `${sacsEntiers(row.sacs)} sac${sacsEntiers(row.sacs) > 1 ? "s" : ""}` : "–"}</td>
                     <td><span className={`feed-status feed-status-${row.status}`}>{row.status === "renseigne" ? "✓ Renseigné" : "! À renseigner"}</span></td>
                     <td><button type="button" title={row.latestConsumption ? "Modifier la consommation" : "Saisir une consommation"} onClick={() => { if (row.latestConsumption) { modifierConsommation(row.latestConsumption); } else { annulerModificationConsommation(); setConsommationLotId(`${row.lot.source}:${row.lot.id}`); setConsommationDate(aujourdHui()); setConsommationModalOpen(true); } }}>✎</button></td>
                   </tr>
                 ))}
-                {!consumptionFollowUp.length && <tr><td colSpan={6}><div className="feed-empty">Aucun lot ne correspond aux filtres.</div></td></tr>}
+                {!consumptionFollowUp.length && <tr><td colSpan={5}><div className="feed-empty">Aucun lot ne correspond aux filtres.</div></td></tr>}
               </tbody>
             </table>
           </div>

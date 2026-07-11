@@ -161,4 +161,62 @@ $$;
 
 grant execute on function public.supprimer_lot_vente_directe(uuid) to authenticated;
 
+create or replace function public.calculer_stock_aliment()
+returns table (
+  feed_type text,
+  entrees_kg numeric,
+  consommations_kg numeric,
+  stock_kg numeric
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with mouvements as (
+    select
+      lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC')) as feed_key,
+      case
+        when lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC')) in ('starter', 'croissance', 'finition')
+          then lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC'))
+        else trim(feed_type)
+      end as feed_label,
+      quantite_kg as entree_kg,
+      0::numeric as sortie_kg
+    from public.livraisons_aliment
+
+    union all
+
+    select
+      lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC')) as feed_key,
+      case
+        when lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC')) in ('starter', 'croissance', 'finition')
+          then lower(translate(trim(feed_type), 'àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'aaaeeeeiioouuucAAAEEEEIIOOUUUC'))
+        else trim(feed_type)
+      end as feed_label,
+      0::numeric as entree_kg,
+      quantite_kg as sortie_kg
+    from public.consommations_aliment
+  )
+  select
+    min(feed_label) as feed_type,
+    coalesce(sum(entree_kg), 0) as entrees_kg,
+    coalesce(sum(sortie_kg), 0) as consommations_kg,
+    coalesce(sum(entree_kg), 0) - coalesce(sum(sortie_kg), 0) as stock_kg
+  from mouvements
+  where feed_key <> ''
+  group by feed_key
+  order by
+    case feed_key
+      when 'starter' then 1
+      when 'croissance' then 2
+      when 'finition' then 3
+      else 4
+    end,
+    feed_key;
+$$;
+
+revoke all on function public.calculer_stock_aliment() from public, anon;
+grant execute on function public.calculer_stock_aliment() to authenticated;
+
 notify pgrst, 'reload schema';

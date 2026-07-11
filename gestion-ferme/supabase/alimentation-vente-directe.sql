@@ -6,7 +6,7 @@ alter column lot_id drop not null;
 
 alter table public.consommations_aliment
 add column if not exists direct_sale_lot_id uuid
-references public.direct_sale_lots(id) on delete cascade;
+references public.direct_sale_lots(id) on delete set null;
 
 alter table public.consommations_aliment
 add column if not exists source_type text not null default 'sica'

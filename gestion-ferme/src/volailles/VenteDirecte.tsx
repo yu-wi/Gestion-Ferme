@@ -500,7 +500,9 @@ export default function VenteDirecte() {
 
   const deleteLot = async (lot: DirectLot) => {
     if (!window.confirm(`Supprimer définitivement le lot ${lot.name} ?`)) return;
-    const { error } = await supabase.from("direct_sale_lots").delete().eq("id", lot.id);
+    const { error } = await supabase.rpc("supprimer_lot_vente_directe", {
+      p_lot_id: lot.id,
+    });
     if (error) toast.error("Ce lot est encore lié à une commande ou une livraison.");
     else {
       toast.success("Lot supprimé.");

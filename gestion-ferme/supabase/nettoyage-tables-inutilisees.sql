@@ -79,7 +79,16 @@ set search_path = public
 as $$
 begin
   delete from public.charges where lot_id = p_lot_id;
-  delete from public.consommations_aliment where lot_id = p_lot_id;
+  update public.consommations_aliment
+  set
+    lot_id = null,
+    source_type = 'sica',
+    note = concat_ws(
+      E'\n',
+      nullif(note, ''),
+      'Historique conserve apres suppression du lot SICA ' || p_lot_id::text
+    )
+  where lot_id = p_lot_id;
   delete from public.mortalites_volailles where lot_id = p_lot_id;
   delete from public.livraisons_volailles where lot_id = p_lot_id;
   delete from public.lots_volailles where id = p_lot_id;

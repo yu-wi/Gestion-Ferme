@@ -3,7 +3,7 @@
 
 create table if not exists public.consommations_aliment (
   id uuid primary key default gen_random_uuid(),
-  lot_id uuid not null references public.lots_volailles(id) on delete cascade,
+  lot_id uuid references public.lots_volailles(id) on delete set null,
   date date not null default current_date,
   feed_type text not null check (length(trim(feed_type)) > 0),
   quantite_kg numeric not null check (quantite_kg > 0),

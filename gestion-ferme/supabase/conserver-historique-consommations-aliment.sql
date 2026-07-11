@@ -16,6 +16,38 @@ alter table public.consommations_aliment
 add column if not exists source_type text not null default 'sica'
 check (source_type in ('sica', 'vente_directe'));
 
+update public.consommations_aliment consommation
+set
+  lot_id = null,
+  source_type = 'sica',
+  note = concat_ws(
+    E'\n',
+    nullif(consommation.note, ''),
+    'Historique conserve apres suppression d''un lot SICA'
+  )
+where consommation.lot_id is not null
+  and not exists (
+    select 1
+    from public.lots_volailles lot
+    where lot.id = consommation.lot_id
+  );
+
+update public.consommations_aliment consommation
+set
+  direct_sale_lot_id = null,
+  source_type = 'vente_directe',
+  note = concat_ws(
+    E'\n',
+    nullif(consommation.note, ''),
+    'Historique conserve apres suppression d''un lot Vente directe'
+  )
+where consommation.direct_sale_lot_id is not null
+  and not exists (
+    select 1
+    from public.direct_sale_lots lot
+    where lot.id = consommation.direct_sale_lot_id
+  );
+
 do $$
 declare
   constraint_name text;

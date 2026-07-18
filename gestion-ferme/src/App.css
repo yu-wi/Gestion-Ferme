@@ -4618,6 +4618,34 @@
   background: #ffe6e6;
 }
 
+.feed-date-kpi-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.feed-date-kpi-actions button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e5df;
+  border-radius: 999px;
+  color: #0a7c3a;
+  background: #e5f6ec;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feed-date-kpi-actions button:disabled {
+  color: #9db0a8;
+  background: #f3f7f5;
+  cursor: not-allowed;
+}
+
 .feed-tracking-filters {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(140px, .8fr) minmax(140px, .8fr);

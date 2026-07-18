@@ -109,6 +109,16 @@ const aujourdHui = () => {
   return `${annee}-${mois}-${jour}`;
 };
 
+const ajouterJoursIso = (value: string, jours: number) => {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + jours);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+};
+
 const ageEntreDates = (dateArrivee: string, dateCible: string) => {
   const arrivee = new Date(`${dateArrivee}T00:00:00`);
   const cible = new Date(`${dateCible}T00:00:00`);
@@ -159,6 +169,7 @@ export default function DashboardFeed() {
 
   const [consommationLotId, setConsommationLotId] = useState("");
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
+  const [suiviConsommationDate, setSuiviConsommationDate] = useState(aujourdHui());
   const [consommationType, setConsommationType] = useState("");
   const [consommationSacs, setConsommationSacs] = useState("");
   const [consommationSecondType, setConsommationSecondType] = useState("");
@@ -983,12 +994,12 @@ export default function DashboardFeed() {
   const consommationDuJour = consommations
     .filter((item) => item.date === aujourdHui())
     .reduce((total, item) => total + item.quantite_kg, 0);
-  const consommationsAujourdhui = consommations.filter(
-    (item) => item.date === aujourdHui()
+  const consommationsDuSuivi = consommations.filter(
+    (item) => item.date === suiviConsommationDate
   );
   const consumptionFollowUp = lots
     .map<ConsumptionFollowUpRow>((lot) => {
-      const lotConsumptions = consommationsAujourdhui.filter(
+      const lotConsumptions = consommationsDuSuivi.filter(
         (item) =>
           item.source_type === lot.source &&
           (lot.source === "vente_directe"
@@ -1021,8 +1032,8 @@ export default function DashboardFeed() {
         row.status === consumptionStatusFilter;
       return matchSearch && matchSource && matchStatus;
     });
-  const lotsRenseignesAujourdhui = lots.filter((lot) =>
-    consommationsAujourdhui.some(
+  const lotsRenseignesSuivi = lots.filter((lot) =>
+    consommationsDuSuivi.some(
       (item) =>
         item.source_type === lot.source &&
         (lot.source === "vente_directe"
@@ -1030,8 +1041,14 @@ export default function DashboardFeed() {
           : item.lot_id === lot.id)
     )
   ).length;
-  const lotsARenseigner = Math.max(0, lots.length - lotsRenseignesAujourdhui);
-  const derniereConsommation = consommations[0]?.date || null;
+  const lotsARenseigner = Math.max(0, lots.length - lotsRenseignesSuivi);
+  const suiviEstAujourdhui = suiviConsommationDate >= aujourdHui();
+  const changerDateSuivi = (jours: number) => {
+    setSuiviConsommationDate((date) => {
+      const prochaineDate = ajouterJoursIso(date, jours);
+      return prochaineDate > aujourdHui() ? aujourdHui() : prochaineDate;
+    });
+  };
   const debutMois = aujourdHui().slice(0, 8) + "01";
   const livraisonsMois = livraisons.filter(
     (item) => item.date >= debutMois && item.date <= aujourdHui()
@@ -1140,13 +1157,23 @@ export default function DashboardFeed() {
       <section className="feed-history-grid feed-tracking-grid">
         <section className="feed-panel feed-tracking-panel">
           <div className="feed-tracking-heading">
-            <div><span className="feed-tracking-icon">▣</span><div><h2>Suivi des consommations d’aliment</h2><p>Saisie des consommations par lot pour aujourd’hui.</p></div></div>
-            <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>⊕ Enregistrer</button>
+            <div><span className="feed-tracking-icon">▣</span><div><h2>Suivi des consommations d’aliment</h2><p>Saisie des consommations par lot pour le {formatDate(suiviConsommationDate)}.</p></div></div>
+            <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationDate(suiviConsommationDate); setConsommationModalOpen(true); }}>⊕ Enregistrer</button>
           </div>
           <div className="feed-tracking-kpis">
             <FeedMiniKpi tone="red" label="Lots à renseigner" value={String(lotsARenseigner)} note={`sur ${lots.length}`} icon="!" />
-            <FeedMiniKpi tone="green" label="Renseignés aujourd’hui" value={String(lotsRenseignesAujourdhui)} note={`sur ${lots.length}`} icon="✓" />
-            <FeedMiniKpi tone="green" label="Dernière saisie" value={derniereConsommation ? formatDate(derniereConsommation) : "Aucune"} note="Consommation" icon="□" />
+            <FeedMiniKpi tone="green" label="Renseignés ce jour" value={String(lotsRenseignesSuivi)} note={`sur ${lots.length}`} icon="✓" />
+            <article className="feed-mini-kpi feed-date-kpi">
+              <div>
+                <small>Dernière saisie</small>
+                <strong>{formatDate(suiviConsommationDate)}</strong>
+                <em>Données affichées</em>
+              </div>
+              <div className="feed-date-kpi-actions" aria-label="Changer la journée affichée">
+                <button type="button" onClick={() => changerDateSuivi(-1)} title="Jour précédent">‹</button>
+                <button type="button" onClick={() => changerDateSuivi(1)} disabled={suiviEstAujourdhui} title="Jour suivant">›</button>
+              </div>
+            </article>
           </div>
           <div className="feed-tracking-filters">
             <input type="search" value={consumptionSearch} onChange={(event) => setConsumptionSearch(event.target.value)} placeholder="Rechercher un lot..." />
@@ -1171,7 +1198,7 @@ export default function DashboardFeed() {
                     <td>{row.lot.source === "vente_directe" ? "Vente directe" : "SICA"}</td>
                     <td>{row.sacs > 0 ? `${sacsEntiers(row.sacs)} sac${sacsEntiers(row.sacs) > 1 ? "s" : ""}` : "–"}</td>
                     <td><span className={`feed-status feed-status-${row.status}`}>{row.status === "renseigne" ? "✓ Renseigné" : "! À renseigner"}</span></td>
-                    <td><button type="button" title={row.latestConsumption ? "Modifier la consommation" : "Saisir une consommation"} onClick={() => { if (row.latestConsumption) { modifierConsommation(row.latestConsumption); } else { annulerModificationConsommation(); setConsommationLotId(`${row.lot.source}:${row.lot.id}`); setConsommationDate(aujourdHui()); setConsommationModalOpen(true); } }}>✎</button></td>
+                    <td><button type="button" title={row.latestConsumption ? "Modifier la consommation" : "Saisir une consommation"} onClick={() => { if (row.latestConsumption) { modifierConsommation(row.latestConsumption); } else { annulerModificationConsommation(); setConsommationLotId(`${row.lot.source}:${row.lot.id}`); setConsommationDate(suiviConsommationDate); setConsommationModalOpen(true); } }}>✎</button></td>
                   </tr>
                 ))}
                 {!consumptionFollowUp.length && <tr><td colSpan={5}><div className="feed-empty">Aucun lot ne correspond aux filtres.</div></td></tr>}

@@ -145,17 +145,6 @@ const toNumberOrNull = (value: string) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const measureAlertCount = (measure?: WaterMeasure) => {
-  if (!measure) return 0;
-  let alerts = 0;
-  if (measure.ph != null && (measure.ph < 6.5 || measure.ph > 7.5)) alerts += 1;
-  if (measure.temperature_c != null && (measure.temperature_c < 24 || measure.temperature_c > 30)) alerts += 1;
-  if (measure.no2 != null && measure.no2 > 0.5) alerts += 1;
-  if (measure.no3 != null && measure.no3 > 80) alerts += 1;
-  if (measure.oxygen_mg_l != null && measure.oxygen_mg_l < 5) alerts += 1;
-  return alerts;
-};
-
 export default function Aquaponie() {
   const [activeTab, setActiveTab] = useState<AquaTab>("resume");
   const [bassins, setBassins] = useState<Basin[]>([]);
@@ -212,15 +201,7 @@ export default function Aquaponie() {
   const tankById = useMemo(() => new Map(cuves.map((cuve) => [cuve.id, cuve])), [cuves]);
   const cultureById = useMemo(() => new Map(cultures.map((culture) => [culture.id, culture])), [cultures]);
   const latestMeasure = mesures[0];
-  const alertCount = measureAlertCount(latestMeasure) + bassins.filter((bassin) => bassin.status !== "stable").length;
   const activeCultures = cultures.filter((culture) => culture.status !== "recolte");
-  const harvestWeight = recoltes.reduce((total, recolte) => total + Number(recolte.weight_kg || 0), 0);
-  const totalWaterCurrent =
-    bassins.reduce((total, bassin) => total + Number(bassin.water_current_l || 0), 0) +
-    cuves.reduce((total, cuve) => total + Number(cuve.water_current_l || 0), 0);
-  const totalWaterCapacity =
-    bassins.reduce((total, bassin) => total + Number(bassin.water_capacity_l || 0), 0) +
-    cuves.reduce((total, cuve) => total + Number(cuve.water_capacity_l || 0), 0);
   const mesuresGraphique = useMemo(() => mesures.slice(0, 12).reverse(), [mesures]);
 
   const closeModal = () => {
@@ -512,14 +493,6 @@ export default function Aquaponie() {
         </section>
       )}
 
-      <section className="aquaponie-kpis">
-        <AquaKpi tone="green" icon="▣" label="Bassins actifs" value={formatNombre(bassins.length)} note={`${formatNombre(bassins.reduce((total, bassin) => total + Number(bassin.fish_count || 0), 0))} poissons`} />
-        <AquaKpi tone="blue" icon="≈" label="Volume d'eau" value={`${formatNombre(totalWaterCurrent)} L`} note={`Capacité ${formatNombre(totalWaterCapacity)} L`} />
-        <AquaKpi tone="blue" icon="≋" label="Qualité de l'eau" value={latestMeasure ? "Mesurée" : "À renseigner"} note={latestMeasure ? formatDateCourte(new Date(`${latestMeasure.measure_date}T00:00:00`)) : "Aucune mesure"} />
-        <AquaKpi tone="green" icon="🌱" label="Cultures" value={formatNombre(activeCultures.length)} note="En cours" />
-        <AquaKpi tone="orange" icon="!" label="Alertes" value={formatNombre(alertCount)} note="À surveiller" />
-      </section>
-
       {activeTab === "resume" && (
         <section className="aquaponie-overview">
           <article className="aquaponie-panel">
@@ -664,10 +637,6 @@ export default function Aquaponie() {
       {activeTab === "recoltes" && (
         <section className="aquaponie-panel">
           <PanelHeading title="Récoltes" action="Saisir une récolte" onClick={() => openHarvest()} />
-          <div className="aquaponie-harvest-kpis">
-            <AquaKpi tone="green" icon="🌱" label="Kg récoltés" value={`${formatNombre(harvestWeight, 2)} kg`} note="Total enregistré" />
-            <AquaKpi tone="orange" icon="€" label="Valeur" value={`${formatNombre(recoltes.reduce((total, item) => total + Number(item.value_eur || 0), 0), 2)} €`} note="Montants renseignés" />
-          </div>
           <div className="aquaponie-table-wrap">
             <table className="aquaponie-table">
               <thead><tr><th>Date</th><th>Culture</th><th>Poids</th><th>Destination</th><th>Valeur</th><th>Actions</th></tr></thead>
@@ -768,15 +737,6 @@ export default function Aquaponie() {
         </AquaModal>
       )}
     </div>
-  );
-}
-
-function AquaKpi({ icon, tone, label, value, note }: { icon: string; tone: string; label: string; value: string; note: string }) {
-  return (
-    <article className="aquaponie-kpi">
-      <span className={`aquaponie-kpi-icon aquaponie-kpi-${tone}`}>{icon}</span>
-      <div><small>{label}</small><strong>{value}</strong><em>{note}</em></div>
-    </article>
   );
 }
 

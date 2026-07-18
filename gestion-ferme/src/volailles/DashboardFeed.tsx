@@ -161,6 +161,8 @@ export default function DashboardFeed() {
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
   const [consommationType, setConsommationType] = useState("");
   const [consommationSacs, setConsommationSacs] = useState("");
+  const [consommationSecondType, setConsommationSecondType] = useState("");
+  const [consommationSecondSacs, setConsommationSecondSacs] = useState("");
   const [consommationNote, setConsommationNote] = useState("");
   const [consommationEnModification, setConsommationEnModification] =
     useState<Consommation | null>(null);
@@ -534,6 +536,9 @@ export default function DashboardFeed() {
 
   const enregistrerConsommation = async () => {
     const nombreSacs = Number(consommationSacs);
+    const secondTypeRenseigne = consommationSecondType.trim() !== "";
+    const secondSacsRenseigne = consommationSecondSacs.trim() !== "";
+    const nombreSecondSacs = Number(consommationSecondSacs);
     if (
       saving ||
       !consommationLotId ||
@@ -545,21 +550,42 @@ export default function DashboardFeed() {
       toast.error("Complétez le lot, la date, l'aliment et la quantité.");
       return;
     }
-    const stockAlimentKg =
-      stock.find((item) => memeAliment(item.feedType, consommationType))?.stock ||
-      0;
-    const ancienneQuantiteKg =
-      consommationEnModification &&
-      memeAliment(consommationEnModification.feed_type, consommationType)
-        ? consommationEnModification.quantite_kg
-        : 0;
-    const quantiteDemandeeKg = nombreSacs * POIDS_SAC_KG;
-    const stockDisponibleKg = stockAlimentKg + ancienneQuantiteKg;
-    if (quantiteDemandeeKg > stockDisponibleKg) {
-      toast.error(
-        `Stock insuffisant : ${sacsEntiers(enSacs(stockDisponibleKg))} sac(s) disponible(s) en ${consommationType}.`
-      );
-      return;
+    if (!consommationEnModification && (secondTypeRenseigne || secondSacsRenseigne)) {
+      if (!secondTypeRenseigne || !Number.isFinite(nombreSecondSacs) || nombreSecondSacs <= 0) {
+        toast.error("Complétez le deuxième aliment ou laissez-le vide.");
+        return;
+      }
+      if (memeAliment(consommationType, consommationSecondType)) {
+        toast.error("Choisissez deux aliments différents pour la transition.");
+        return;
+      }
+    }
+    const demandes = [
+      {
+        type: consommationType,
+        sacs: nombreSacs,
+        ancienneQuantiteKg:
+          consommationEnModification &&
+          memeAliment(consommationEnModification.feed_type, consommationType)
+            ? consommationEnModification.quantite_kg
+            : 0,
+      },
+      ...(!consommationEnModification && secondTypeRenseigne
+        ? [{ type: consommationSecondType, sacs: nombreSecondSacs, ancienneQuantiteKg: 0 }]
+        : []),
+    ];
+    for (const demande of demandes) {
+      const stockAlimentKg =
+        stock.find((item) => memeAliment(item.feedType, demande.type))?.stock ||
+        0;
+      const stockDisponibleKg = stockAlimentKg + demande.ancienneQuantiteKg;
+      const quantiteDemandeeKg = demande.sacs * POIDS_SAC_KG;
+      if (quantiteDemandeeKg > stockDisponibleKg) {
+        toast.error(
+          `Stock insuffisant : ${sacsEntiers(enSacs(stockDisponibleKg))} sac(s) disponible(s) en ${demande.type}.`
+        );
+        return;
+      }
     }
     if (
       lotConsommationSelectionne?.source === "vente_directe" &&
@@ -593,6 +619,29 @@ export default function DashboardFeed() {
       lot_id: lotConsommationSelectionne?.id || null,
       ...valeursCommunes,
     };
+    const valeursSecondaires = !consommationEnModification && secondTypeRenseigne
+      ? directConsumptionReady ? {
+        lot_id:
+          lotConsommationSelectionne?.source === "sica"
+            ? lotConsommationSelectionne.id
+            : null,
+        direct_sale_lot_id:
+          lotConsommationSelectionne?.source === "vente_directe"
+            ? lotConsommationSelectionne.id
+            : null,
+        source_type: lotConsommationSelectionne?.source || "sica",
+        date: consommationDate,
+        feed_type: consommationSecondType,
+        quantite_kg: nombreSecondSacs * POIDS_SAC_KG,
+        note: consommationNote.trim() || null,
+      } : {
+        lot_id: lotConsommationSelectionne?.id || null,
+        date: consommationDate,
+        feed_type: consommationSecondType,
+        quantite_kg: nombreSecondSacs * POIDS_SAC_KG,
+        note: consommationNote.trim() || null,
+      }
+      : null;
     const resultat = consommationEnModification
       ? await supabase
           .from("consommations_aliment")
@@ -600,6 +649,11 @@ export default function DashboardFeed() {
           .eq("id", consommationEnModification.id)
           .select("*")
           .single()
+      : valeursSecondaires
+      ? await supabase
+          .from("consommations_aliment")
+          .insert([valeurs, valeursSecondaires])
+          .select("*")
       : await supabase
           .from("consommations_aliment")
           .insert(valeurs)
@@ -611,8 +665,8 @@ export default function DashboardFeed() {
       console.error("Erreur consommation aliment:", error);
       toast.error("La consommation n'a pas pu être enregistrée.");
     } else if (data) {
-      const ligne = data as unknown as Record<string, unknown>;
-      const consommation = {
+      const lignes = (Array.isArray(data) ? data : [data]) as unknown as Array<Record<string, unknown>>;
+      const nouvellesConsommations = lignes.map((ligne) => ({
         id: String(ligne.id || ""),
         lot_id: ligne.lot_id ? String(ligne.lot_id) : null,
         direct_sale_lot_id: ligne.direct_sale_lot_id
@@ -624,13 +678,15 @@ export default function DashboardFeed() {
         feed_type: libelleAliment(String(ligne.feed_type || "")),
         quantite_kg: Number(ligne.quantite_kg) || 0,
         note: ligne.note == null ? null : String(ligne.note),
-      } as Consommation;
+      } as Consommation));
       setConsommations((items) => [
-        consommation,
-        ...items.filter((item) => item.id !== consommation.id),
+        ...nouvellesConsommations,
+        ...items.filter((item) => !nouvellesConsommations.some((consommation) => consommation.id === item.id)),
       ]);
       await chargerDonnees();
       setConsommationSacs("");
+      setConsommationSecondType("");
+      setConsommationSecondSacs("");
       setConsommationNote("");
       setConsommationEnModification(null);
       setConsommationModalOpen(false);
@@ -723,6 +779,8 @@ export default function DashboardFeed() {
     setConsommationDate(item.date);
     setConsommationType(item.feed_type);
     setConsommationSacs(String(sacsEntiers(enSacs(item.quantite_kg))));
+    setConsommationSecondType("");
+    setConsommationSecondSacs("");
     setConsommationNote(item.note || "");
     setConsommationModalOpen(true);
   };
@@ -732,6 +790,8 @@ export default function DashboardFeed() {
     setConsommationLotId("");
     setConsommationDate(aujourdHui());
     setConsommationSacs("");
+    setConsommationSecondType("");
+    setConsommationSecondSacs("");
     setConsommationNote("");
   };
 
@@ -1159,7 +1219,58 @@ export default function DashboardFeed() {
         </section>
       </section>
 
-      {consommationModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2><p>Enregistrer les sacs consommés par un lot.</p></div></div><div className="poultry-form-grid"><label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}><option value="">Choisir un lot</option><optgroup label="Lots SICA Madras">{lots.filter((lot) => lot.source === "sica").map((lot) => <option key={`sica-${lot.id}`} value={`sica:${lot.id}`}>{lot.nom}</option>)}</optgroup><optgroup label="Lots Vente directe">{lots.filter((lot) => lot.source === "vente_directe").map((lot) => <option key={`vente-${lot.id}`} value={`vente_directe:${lot.id}`}>{lot.nom}</option>)}</optgroup></select></label><label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label><label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label></div>{suggestionConsommation && <div className="feed-suggestion"><div><strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong><span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span></div><button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button></div>}<div className="poultry-form-stack feed-note-field"><label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button></div></div></div>}
+      {consommationModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <div className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">▥</span>
+              <div>
+                <h2>{consommationEnModification ? "Modifier la consommation" : "Saisir une consommation"}</h2>
+                <p>Enregistrer les sacs consommés par un lot.</p>
+              </div>
+            </div>
+            <div className="poultry-form-grid">
+              <label>Lot<select value={consommationLotId} onChange={(event) => setConsommationLotId(event.target.value)}>
+                <option value="">Choisir un lot</option>
+                <optgroup label="Lots SICA Madras">{lots.filter((lot) => lot.source === "sica").map((lot) => <option key={`sica-${lot.id}`} value={`sica:${lot.id}`}>{lot.nom}</option>)}</optgroup>
+                <optgroup label="Lots Vente directe">{lots.filter((lot) => lot.source === "vente_directe").map((lot) => <option key={`vente-${lot.id}`} value={`vente_directe:${lot.id}`}>{lot.nom}</option>)}</optgroup>
+              </select></label>
+              <label>Date<input type="date" value={consommationDate} onChange={(event) => setConsommationDate(event.target.value)} /></label>
+              <label>Type d’aliment<select value={consommationType} onChange={(event) => setConsommationType(event.target.value)}>
+                <option value="">Choisir un aliment</option>
+                {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select></label>
+              <label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label>
+            </div>
+            {!consommationEnModification && (
+              <div className="poultry-form-grid">
+                <label>Deuxième aliment facultatif<select value={consommationSecondType} onChange={(event) => setConsommationSecondType(event.target.value)}>
+                  <option value="">Aucun</option>
+                  {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+                </select></label>
+                <label>Sacs du deuxième aliment<input type="number" min={1} step={1} value={consommationSecondSacs} onChange={(event) => setConsommationSecondSacs(event.target.value)} placeholder="Ex. 2" /></label>
+              </div>
+            )}
+            {suggestionConsommation && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong>
+                  <span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span>
+                </div>
+                <button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button>
+              </div>
+            )}
+            <div className="poultry-form-stack feed-note-field">
+              <label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-primary" onClick={enregistrerConsommation} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer la consommation"}</button>
+              <button type="button" className="poultry-modal-secondary" onClick={() => { setConsommationModalOpen(false); annulerModificationConsommation(); }}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {livraisonModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2><p>Enregistrer une entrée de sacs de 25 kg.</p></div></div><div className="poultry-form-grid"><label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label><label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label></div><div className="poultry-form-stack feed-note-field"><label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button></div></div></div>}
 

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
-import { dateDepuisArrivee, REGLES_SUIVI_VOLAILLES } from "../outils/evenementsVolailles";
+import { dateDepuisArrivee, genererEvenementsVolailles, REGLES_SUIVI_VOLAILLES } from "../outils/evenementsVolailles";
 import { formatNombre } from "../outils/formatNombre";
 
 type SicaLot = {
@@ -111,6 +111,10 @@ export default function VolaillesResume() {
   const [mortalityAlertThreshold, setMortalityAlertThreshold] = useState(DEFAULT_MORTALITY_ALERT_THRESHOLD);
   const [mortalityModalOpen, setMortalityModalOpen] = useState(false);
   const [feedModalOpen, setFeedModalOpen] = useState(false);
+  const [feedDeliveryModalOpen, setFeedDeliveryModalOpen] = useState(false);
+  const [newLotChoiceModalOpen, setNewLotChoiceModalOpen] = useState(false);
+  const [newSicaLotModalOpen, setNewSicaLotModalOpen] = useState(false);
+  const [newDirectLotModalOpen, setNewDirectLotModalOpen] = useState(false);
   const [mortalityLotKey, setMortalityLotKey] = useState("");
   const [mortalityDate, setMortalityDate] = useState(todayIso());
   const [mortalityCount, setMortalityCount] = useState("");
@@ -118,7 +122,22 @@ export default function VolaillesResume() {
   const [feedDate, setFeedDate] = useState(todayIso());
   const [feedType, setFeedType] = useState("");
   const [feedBags, setFeedBags] = useState("");
+  const [feedSecondType, setFeedSecondType] = useState("");
+  const [feedSecondBags, setFeedSecondBags] = useState("");
   const [feedNote, setFeedNote] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(todayIso());
+  const [deliveryType, setDeliveryType] = useState("");
+  const [deliveryBags, setDeliveryBags] = useState("");
+  const [deliveryPrice, setDeliveryPrice] = useState("");
+  const [newSicaName, setNewSicaName] = useState("");
+  const [newSicaQuantity, setNewSicaQuantity] = useState("");
+  const [newSicaArrivalDate, setNewSicaArrivalDate] = useState(todayIso());
+  const [newSicaBuilding, setNewSicaBuilding] = useState("");
+  const [newDirectName, setNewDirectName] = useState("");
+  const [newDirectSpecies, setNewDirectSpecies] = useState<DirectLot["species"]>("poulet");
+  const [newDirectQuantity, setNewDirectQuantity] = useState("");
+  const [newDirectArrivalDate, setNewDirectArrivalDate] = useState(todayIso());
+  const [newDirectLocation, setNewDirectLocation] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -244,8 +263,35 @@ export default function VolaillesResume() {
     setFeedDate(todayIso());
     setFeedType(feedTypes[0] || "");
     setFeedBags("");
+    setFeedSecondType("");
+    setFeedSecondBags("");
     setFeedNote("");
     setFeedModalOpen(true);
+  };
+
+  const openFeedDeliveryShortcut = () => {
+    setDeliveryDate(todayIso());
+    setDeliveryType(feedTypes[0] || "");
+    setDeliveryBags("");
+    setDeliveryPrice("");
+    setFeedDeliveryModalOpen(true);
+  };
+
+  const openNewSicaLot = () => {
+    setNewSicaName("");
+    setNewSicaQuantity("");
+    setNewSicaArrivalDate(todayIso());
+    setNewSicaBuilding("");
+    setNewSicaLotModalOpen(true);
+  };
+
+  const openNewDirectLot = () => {
+    setNewDirectName("");
+    setNewDirectSpecies("poulet");
+    setNewDirectQuantity("");
+    setNewDirectArrivalDate(todayIso());
+    setNewDirectLocation("");
+    setNewDirectLotModalOpen(true);
   };
 
   useEffect(() => {
@@ -309,13 +355,26 @@ export default function VolaillesResume() {
   const saveFeedConsumption = async () => {
     const selected = allLots.find((lot) => `${lot.source}:${lot.id}` === feedLotKey);
     const bags = Number(feedBags);
+    const secondTypeRenseigne = feedSecondType.trim() !== "";
+    const secondBagsRenseigne = feedSecondBags.trim() !== "";
+    const secondBags = Number(feedSecondBags);
     if (!selected || !feedDate || !feedType || !Number.isFinite(bags) || bags <= 0) {
       toast.error("Complétez le lot, la date, l'aliment et le nombre de sacs.");
       return;
     }
+    if (secondTypeRenseigne || secondBagsRenseigne) {
+      if (!secondTypeRenseigne || !Number.isFinite(secondBags) || secondBags <= 0) {
+        toast.error("Complétez le deuxième aliment ou laissez-le vide.");
+        return;
+      }
+      if (feedType.trim().toLowerCase() === feedSecondType.trim().toLowerCase()) {
+        toast.error("Choisissez deux aliments différents pour la transition.");
+        return;
+      }
+    }
 
     setSaving(true);
-    const { error } = await supabase.from("consommations_aliment").insert({
+    const primaryPayload = {
       lot_id: selected.source === "sica" ? selected.id : null,
       direct_sale_lot_id: selected.source === "vente_directe" ? selected.id : null,
       source_type: selected.source,
@@ -323,13 +382,117 @@ export default function VolaillesResume() {
       feed_type: feedType,
       quantite_kg: bags * POIDS_SAC_KG,
       note: feedNote.trim() || null,
-    });
+    };
+    const payloads = secondTypeRenseigne
+      ? [
+          primaryPayload,
+          {
+            ...primaryPayload,
+            feed_type: feedSecondType,
+            quantite_kg: secondBags * POIDS_SAC_KG,
+          },
+        ]
+      : [primaryPayload];
+    const { error } = await supabase.from("consommations_aliment").insert(payloads);
     if (error) {
       console.error("Erreur consommation depuis résumé :", error);
       toast.error("La consommation n'a pas pu être enregistrée.");
     } else {
       toast.success("Consommation enregistrée.");
+      setFeedSecondType("");
+      setFeedSecondBags("");
       setFeedModalOpen(false);
+    }
+    setSaving(false);
+  };
+
+  const saveFeedDelivery = async () => {
+    const bags = Number(deliveryBags);
+    const price = deliveryPrice.trim() ? Number(deliveryPrice) : null;
+    if (!deliveryDate || !deliveryType || !Number.isFinite(bags) || bags <= 0 || (price != null && (!Number.isFinite(price) || price < 0))) {
+      toast.error("Complétez la date, l'aliment et le nombre de sacs.");
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase.from("livraisons_aliment").insert({
+      date: deliveryDate,
+      feed_type: deliveryType,
+      quantite_kg: bags * POIDS_SAC_KG,
+      fournisseur: null,
+      prix_total_ht: price,
+      note: null,
+    });
+    if (error) {
+      console.error("Erreur livraison aliment depuis résumé :", error);
+      toast.error("La livraison d'aliment n'a pas pu être enregistrée.");
+    } else {
+      toast.success("Livraison d'aliment ajoutée au stock.");
+      setFeedDeliveryModalOpen(false);
+    }
+    setSaving(false);
+  };
+
+  const saveNewSicaLot = async () => {
+    const quantity = Number(newSicaQuantity);
+    if (!newSicaName.trim() || !newSicaArrivalDate || !newSicaBuilding.trim() || !Number.isInteger(quantity) || quantity <= 0) {
+      toast.error("Complétez le numéro du lot, le bâtiment, la date et l'effectif.");
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase.from("lots_volailles").insert({
+      nom: newSicaName.trim(),
+      quantite: quantity,
+      date_arrivee: newSicaArrivalDate,
+      batiment: newSicaBuilding.trim(),
+      mortalites: [],
+      evenements: genererEvenementsVolailles(newSicaArrivalDate).map(({ title, date }) => ({
+        title,
+        date: date.toISOString(),
+      })),
+      couleur: "#15803d",
+      sujets_restants: quantity,
+      nb_morts: 0,
+      is_active: true,
+    });
+    if (error) {
+      console.error("Erreur création lot SICA depuis résumé :", error);
+      toast.error("Le lot SICA n'a pas pu être créé.");
+    } else {
+      toast.success("Lot SICA créé.");
+      setNewSicaLotModalOpen(false);
+      await reloadLots();
+    }
+    setSaving(false);
+  };
+
+  const saveNewDirectLot = async () => {
+    const quantity = Number(newDirectQuantity);
+    if (!newDirectName.trim() || !newDirectArrivalDate || !newDirectLocation.trim() || !Number.isInteger(quantity) || quantity <= 0) {
+      toast.error("Complétez le numéro du lot, l'emplacement, la date et l'effectif.");
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase.from("direct_sale_lots").insert({
+      name: newDirectName.trim(),
+      species: newDirectSpecies,
+      arrival_date: newDirectArrivalDate,
+      initial_quantity: quantity,
+      remaining_quantity: quantity,
+      mortality_count: 0,
+      status: "elevage",
+      location: newDirectLocation.trim(),
+      notes: null,
+    });
+    if (error) {
+      console.error("Erreur création lot vente directe depuis résumé :", error);
+      toast.error("Le lot Vente directe n'a pas pu être créé.");
+    } else {
+      toast.success("Lot Vente directe créé.");
+      setNewDirectLotModalOpen(false);
+      await reloadLots();
     }
     setSaving(false);
   };
@@ -428,8 +591,8 @@ export default function VolaillesResume() {
         <div className="poultry-shortcuts">
           <button type="button" onClick={openMortalityShortcut}><span>＋</span><div><strong>Saisir mortalité</strong><small>SICA ou vente directe</small></div></button>
           <button type="button" onClick={openFeedShortcut}><span>▣</span><div><strong>Saisir alimentation</strong><small>Consommation quotidienne</small></div></button>
-          <Link to="/volailles/alimentation"><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></Link>
-          <Link to="/volailles/sica"><span>＋</span><div><strong>Nouveau lot SICA</strong><small>Créer un lot coopérative</small></div></Link>
+          <button type="button" onClick={openFeedDeliveryShortcut}><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></button>
+          <button type="button" onClick={() => setNewLotChoiceModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>SICA ou vente directe</small></div></button>
         </div>
       </section>
 
@@ -549,6 +712,13 @@ export default function VolaillesResume() {
               </select></label>
               <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedBags} onChange={(event) => setFeedBags(event.target.value)} /></label>
             </div>
+            <div className="poultry-form-grid">
+              <label>Deuxième aliment facultatif<select value={feedSecondType} onChange={(event) => setFeedSecondType(event.target.value)}>
+                <option value="">Aucun</option>
+                {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select></label>
+              <label>Sacs du deuxième aliment<input type="number" min="1" step="1" value={feedSecondBags} onChange={(event) => setFeedSecondBags(event.target.value)} placeholder="Ex. 2" /></label>
+            </div>
             {feedSuggestion && (
               <div className="feed-suggestion">
                 <div>
@@ -566,6 +736,99 @@ export default function VolaillesResume() {
             <div className="poultry-modal-actions">
               <button type="button" className="poultry-modal-secondary" onClick={() => setFeedModalOpen(false)} disabled={saving}>Annuler</button>
               <button type="button" className="poultry-modal-primary" onClick={saveFeedConsumption} disabled={saving}>{saving ? "Enregistrement..." : "Enregistrer"}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {feedDeliveryModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => setFeedDeliveryModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">🚚</span>
+              <div><h2>Ajouter une livraison d'aliment</h2><p>Enregistrer une entrée de sacs de 25 kg dans le stock.</p></div>
+            </div>
+            <div className="poultry-form-grid">
+              <label>Date<input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} /></label>
+              <label>Aliment<select value={deliveryType} onChange={(event) => setDeliveryType(event.target.value)}>
+                <option value="">Choisir un aliment</option>
+                {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select></label>
+              <label>Sacs livrés (25 kg)<input type="number" min="1" step="1" value={deliveryBags} onChange={(event) => setDeliveryBags(event.target.value)} /></label>
+              <label>Prix total HT facultatif (€)<input type="number" min="0" step="0.01" value={deliveryPrice} onChange={(event) => setDeliveryPrice(event.target.value)} /></label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-secondary" onClick={() => setFeedDeliveryModalOpen(false)} disabled={saving}>Annuler</button>
+              <button type="button" className="poultry-modal-primary" onClick={saveFeedDelivery} disabled={saving}>{saving ? "Enregistrement..." : "Ajouter au stock"}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {newLotChoiceModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => setNewLotChoiceModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">＋</span>
+              <div><h2>Nouveau lot</h2><p>Choisissez le type de lot à créer.</p></div>
+            </div>
+            <div className="poultry-shortcuts">
+              <button type="button" onClick={() => { setNewLotChoiceModalOpen(false); openNewSicaLot(); }}>
+                <span>▣</span><div><strong>Lot SICA Madras</strong><small>Coopérative</small></div>
+              </button>
+              <button type="button" onClick={() => { setNewLotChoiceModalOpen(false); openNewDirectLot(); }}>
+                <span>◎</span><div><strong>Lot Vente directe</strong><small>Poulets ou pintades</small></div>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {newSicaLotModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => setNewSicaLotModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">▣</span>
+              <div><h2>Nouveau lot SICA Madras</h2><p>Créer un lot de production coopérative.</p></div>
+            </div>
+            <div className="poultry-form-grid">
+              <label>N° lot<input type="text" value={newSicaName} onChange={(event) => setNewSicaName(event.target.value)} placeholder="Ex. 2426" /></label>
+              <label>Bâtiment<input type="text" value={newSicaBuilding} onChange={(event) => setNewSicaBuilding(event.target.value)} placeholder="Ex. 972AFV" /></label>
+              <label>Date d'arrivée<input type="date" value={newSicaArrivalDate} onChange={(event) => setNewSicaArrivalDate(event.target.value)} /></label>
+              <label>Effectif<input type="number" min="1" step="1" value={newSicaQuantity} onChange={(event) => setNewSicaQuantity(event.target.value)} /></label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-secondary" onClick={() => setNewSicaLotModalOpen(false)} disabled={saving}>Annuler</button>
+              <button type="button" className="poultry-modal-primary" onClick={saveNewSicaLot} disabled={saving}>{saving ? "Enregistrement..." : "Créer le lot"}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {newDirectLotModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => setNewDirectLotModalOpen(false)} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">◎</span>
+              <div><h2>Nouveau lot Vente directe</h2><p>Créer un lot destiné à la vente directe.</p></div>
+            </div>
+            <div className="poultry-form-grid">
+              <label>N° lot<input type="text" value={newDirectName} onChange={(event) => setNewDirectName(event.target.value)} placeholder="Ex. P2426" /></label>
+              <label>Espèce<select value={newDirectSpecies} onChange={(event) => setNewDirectSpecies(event.target.value as DirectLot["species"])}>
+                <option value="poulet">Poulets</option>
+                <option value="pintade">Pintades</option>
+              </select></label>
+              <label>Emplacement<input type="text" value={newDirectLocation} onChange={(event) => setNewDirectLocation(event.target.value)} placeholder="Ex. Loge 1" /></label>
+              <label>Date d'arrivée<input type="date" value={newDirectArrivalDate} onChange={(event) => setNewDirectArrivalDate(event.target.value)} /></label>
+              <label>Effectif<input type="number" min="1" step="1" value={newDirectQuantity} onChange={(event) => setNewDirectQuantity(event.target.value)} /></label>
+            </div>
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-secondary" onClick={() => setNewDirectLotModalOpen(false)} disabled={saving}>Annuler</button>
+              <button type="button" className="poultry-modal-primary" onClick={saveNewDirectLot} disabled={saving}>{saving ? "Enregistrement..." : "Créer le lot"}</button>
             </div>
           </section>
         </div>

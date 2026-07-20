@@ -3069,7 +3069,7 @@
 
 .poultry-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 235px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 16px;
   margin-top: 16px;
@@ -7526,6 +7526,16 @@
 .direct-sale-detail-table td:last-child {
   color: #16853d;
   font-weight: 900;
+}
+
+.direct-sale-detail-table .direct-sale-row-actions {
+  justify-content: flex-start;
+}
+
+.direct-sale-detail-table .direct-sale-row-actions button:last-child {
+  color: #d73333;
+  border-color: #f0d0d0;
+  background: #fff5f5;
 }
 
 .direct-sale-detail-actions {

@@ -333,11 +333,24 @@ export default function VolaillesResume() {
         setSaving(false);
         return;
       }
+      const remainingQuantity = Math.max(0, lot.remaining_quantity - count);
+      const { error: mortalityError } = await supabase.from("direct_sale_mortalities").insert({
+        lot_id: selected.id,
+        date: mortalityDate,
+        quantity: count,
+      });
+      if (mortalityError) {
+        console.error("Erreur détail mortalité vente directe :", mortalityError);
+        toast.error("La mortalité n'a pas pu être enregistrée.");
+        setSaving(false);
+        return;
+      }
       const { error } = await supabase
         .from("direct_sale_lots")
         .update({
           mortality_count: lot.mortality_count + count,
-          remaining_quantity: Math.max(0, lot.remaining_quantity - count),
+          remaining_quantity: remainingQuantity,
+          status: remainingQuantity === 0 ? "termine" : lot.status,
         })
         .eq("id", selected.id);
       if (error) {

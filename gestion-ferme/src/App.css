@@ -7528,6 +7528,22 @@
   font-weight: 900;
 }
 
+.direct-sale-detail-table .direct-sale-undocumented-row td {
+  background: #fff8e8;
+  color: #9a5b00;
+  font-weight: 800;
+}
+
+.direct-sale-detail-table .direct-sale-undocumented-row td:last-child span {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #fff0c2;
+  color: #9a5b00;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}
+
 .direct-sale-detail-table .direct-sale-row-actions {
   justify-content: flex-start;
 }

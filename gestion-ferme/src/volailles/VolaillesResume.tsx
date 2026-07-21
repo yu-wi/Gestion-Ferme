@@ -66,6 +66,12 @@ const formatDate = (value: string) =>
 const directSpeciesLabel = (species: DirectLot["species"]) =>
   species === "pintade" ? "Pintades" : "Poulets";
 
+const directStatusLabel: Record<DirectLot["status"], string> = {
+  elevage: "En élevage",
+  pret: "Prêt à vendre",
+  termine: "Clôturé",
+};
+
 const POIDS_SAC_KG = 25;
 const DEFAULT_MORTALITY_ALERT_THRESHOLD = 15;
 
@@ -138,6 +144,8 @@ export default function VolaillesResume() {
   const [newDirectQuantity, setNewDirectQuantity] = useState("");
   const [newDirectArrivalDate, setNewDirectArrivalDate] = useState(todayIso());
   const [newDirectLocation, setNewDirectLocation] = useState("");
+  const [sicaDetailLot, setSicaDetailLot] = useState<SicaLot | null>(null);
+  const [directDetailLot, setDirectDetailLot] = useState<DirectLot | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -632,12 +640,12 @@ export default function VolaillesResume() {
           </div>
           <div className="poultry-summary-list">
             {sicaLots.slice(0, 6).map((lot) => (
-              <Link key={lot.id} to="/volailles/sica" className="poultry-summary-row">
+              <button key={lot.id} type="button" className="poultry-summary-row" onClick={() => setSicaDetailLot(lot)}>
                 <span>▣</span>
                 <div><strong>{lot.nom}</strong><small>{lot.batiment || "Bâtiment non renseigné"} · Arrivé le {formatDate(lot.date_arrivee)}</small></div>
                 <b>{formatNombre(lot.sujets_restants ?? lot.quantite)} sujets</b>
                 <i>›</i>
-              </Link>
+              </button>
             ))}
             {sicaLots.length === 0 && <div className="poultry-empty">Aucun lot SICA actif.</div>}
           </div>
@@ -651,12 +659,12 @@ export default function VolaillesResume() {
           </div>
           <div className="poultry-summary-list">
             {directLots.slice(0, 6).map((lot) => (
-              <Link key={lot.id} to="/volailles/vente-directe" className="poultry-summary-row">
+              <button key={lot.id} type="button" className="poultry-summary-row" onClick={() => setDirectDetailLot(lot)}>
                 <span>◎</span>
                 <div><strong>{lot.name}</strong><small>{directSpeciesLabel(lot.species)} · {lot.location || "Emplacement non renseigné"}</small></div>
                 <b>{formatNombre(lot.remaining_quantity)} sujets</b>
                 <i>›</i>
-              </Link>
+              </button>
             ))}
             {directLots.length === 0 && <div className="poultry-empty">Aucun lot vente directe actif.</div>}
           </div>
@@ -680,6 +688,74 @@ export default function VolaillesResume() {
         </article>
 
       </section>
+
+      {sicaDetailLot && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-large poultry-lot-detail">
+            <ModalCloseButton onClick={() => setSicaDetailLot(null)} disabled={saving} />
+            <div className="poultry-modal-header poultry-detail-heading">
+              <span className="poultry-modal-icon">▣</span>
+              <div>
+                <h2>Lot {sicaDetailLot.nom}</h2>
+                <p>{sicaDetailLot.batiment || "Bâtiment non renseigné"} · Arrivé le {formatDate(sicaDetailLot.date_arrivee)} · {ageEntreDates(sicaDetailLot.date_arrivee, todayIso())} jours</p>
+              </div>
+            </div>
+            <div className="poultry-detail-kpis">
+              <div><span>□</span><small>Effectif initial</small><strong>{formatNombre(sicaDetailLot.quantite)}</strong></div>
+              <div><span>✓</span><small>Sujets restants</small><strong>{formatNombre(sicaDetailLot.sujets_restants ?? sicaDetailLot.quantite)}</strong></div>
+              <div><span className="poultry-detail-danger">†</span><small>Mortalités</small><strong>{formatNombre(sicaDetailLot.nb_morts || 0)}</strong></div>
+              <div><span>%</span><small>Taux mortalité</small><strong>{formatNombre(sicaDetailLot.quantite > 0 ? ((sicaDetailLot.nb_morts || 0) / sicaDetailLot.quantite) * 100 : 0, 2)} %</strong></div>
+            </div>
+            <div className="poultry-detail-grid">
+              <section className="poultry-detail-section">
+                <h3><span>▣</span> Informations</h3>
+                <p><b>Bâtiment :</b> {sicaDetailLot.batiment || "Non renseigné"}</p>
+                <p><b>Date d'arrivée :</b> {formatDate(sicaDetailLot.date_arrivee)}</p>
+                <p><b>Statut :</b> Lot actif</p>
+              </section>
+              <section className="poultry-detail-section">
+                <h3><span>→</span> Gestion complète</h3>
+                <p>La fiche complète du lot reste disponible dans la page Lots SICA Madras pour les livraisons, ventes et historiques détaillés.</p>
+                <Link className="poultry-detail-action-link" to="/volailles/sica" onClick={() => setSicaDetailLot(null)}>Ouvrir Lots SICA Madras</Link>
+              </section>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {directDetailLot && (
+        <div className="poultry-modal-backdrop">
+          <section className="poultry-modal poultry-modal-large poultry-lot-detail">
+            <ModalCloseButton onClick={() => setDirectDetailLot(null)} disabled={saving} />
+            <div className="poultry-modal-header poultry-detail-heading">
+              <span className="poultry-modal-icon">◎</span>
+              <div>
+                <h2>Lot {directDetailLot.name}</h2>
+                <p>{directSpeciesLabel(directDetailLot.species)} · {directDetailLot.location || "Emplacement non renseigné"} · {ageEntreDates(directDetailLot.arrival_date, todayIso())} jours</p>
+              </div>
+            </div>
+            <div className="poultry-detail-kpis">
+              <div><span>□</span><small>Effectif initial</small><strong>{formatNombre(directDetailLot.initial_quantity)}</strong></div>
+              <div><span>✓</span><small>Sujets restants</small><strong>{formatNombre(directDetailLot.remaining_quantity)}</strong></div>
+              <div><span className="poultry-detail-danger">†</span><small>Mortalités</small><strong>{formatNombre(directDetailLot.mortality_count)}</strong></div>
+              <div><span>%</span><small>Taux mortalité</small><strong>{formatNombre(directDetailLot.initial_quantity > 0 ? (directDetailLot.mortality_count / directDetailLot.initial_quantity) * 100 : 0, 2)} %</strong></div>
+            </div>
+            <div className="poultry-detail-grid">
+              <section className="poultry-detail-section">
+                <h3><span>◎</span> Informations</h3>
+                <p><b>Espèce :</b> {directSpeciesLabel(directDetailLot.species)}</p>
+                <p><b>Emplacement :</b> {directDetailLot.location || "Non renseigné"}</p>
+                <p><b>Statut :</b> {directStatusLabel[directDetailLot.status]}</p>
+              </section>
+              <section className="poultry-detail-section">
+                <h3><span>→</span> Gestion complète</h3>
+                <p>La fiche complète du lot reste disponible dans la page Vente directe pour les commandes, livraisons, règlements et historiques détaillés.</p>
+                <Link className="poultry-detail-action-link" to="/volailles/vente-directe" onClick={() => setDirectDetailLot(null)}>Ouvrir Vente directe</Link>
+              </section>
+            </div>
+          </section>
+        </div>
+      )}
 
       {mortalityModalOpen && (
         <div className="poultry-modal-backdrop">

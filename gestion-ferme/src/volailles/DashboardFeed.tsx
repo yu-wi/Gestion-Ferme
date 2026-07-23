@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
-import { formatDateCourte } from "../outils/formatNombre";
+import { formatDateCourte, formatMontant, formatNombre } from "../outils/formatNombre";
 
 type Lot = {
   id: string;
@@ -72,6 +72,14 @@ type PrevisionRow = {
   besoinSacs: number;
   stockSacs: number;
   aCommanderSacs: number;
+};
+
+type LotFeedCostRow = {
+  feedType: string;
+  quantiteKg: number;
+  sacs: number;
+  prixSac: number;
+  cout: number;
 };
 
 const POIDS_SAC_KG = 25;
@@ -166,6 +174,7 @@ export default function DashboardFeed() {
   const [consumptionStatusFilter, setConsumptionStatusFilter] = useState<"tous" | "renseigne" | "a_renseigner">("tous");
   const [deliverySearch, setDeliverySearch] = useState("");
   const [deliveryFeedFilter, setDeliveryFeedFilter] = useState("tous");
+  const [selectedLotCostKey, setSelectedLotCostKey] = useState("");
 
   const [consommationLotId, setConsommationLotId] = useState("");
   const [consommationDate, setConsommationDate] = useState(aujourdHui());
@@ -342,6 +351,69 @@ export default function DashboardFeed() {
           .values()
       ).sort(comparerAliments),
     [references, consommations, livraisons, stockServeur]
+  );
+
+  useEffect(() => {
+    if (!selectedLotCostKey && lots.length) {
+      setSelectedLotCostKey(`${lots[0].source}:${lots[0].id}`);
+    }
+  }, [lots, selectedLotCostKey]);
+
+  const prixSacParAliment = useMemo(() => {
+    const prix = new Map<string, number>();
+    references.forEach((reference) => {
+      const key = normaliserAliment(reference.feed_type);
+      if (!key || prix.has(key)) return;
+      prix.set(key, Number(reference.feed_price_ht) || 0);
+    });
+    return prix;
+  }, [references]);
+
+  const selectedLotCost = useMemo(
+    () => lots.find((lot) => `${lot.source}:${lot.id}` === selectedLotCostKey) || null,
+    [lots, selectedLotCostKey]
+  );
+
+  const lotFeedCostRows = useMemo<LotFeedCostRow[]>(() => {
+    if (!selectedLotCost) return [];
+
+    const quantites = new Map<string, { feedType: string; quantiteKg: number }>();
+    consommations
+      .filter((consommation) =>
+        selectedLotCost.source === "vente_directe"
+          ? consommation.source_type === "vente_directe" &&
+            consommation.direct_sale_lot_id === selectedLotCost.id
+          : consommation.source_type !== "vente_directe" &&
+            consommation.lot_id === selectedLotCost.id
+      )
+      .forEach((consommation) => {
+        const key = normaliserAliment(consommation.feed_type);
+        const current = quantites.get(key) || {
+          feedType: consommation.feed_type,
+          quantiteKg: 0,
+        };
+        current.quantiteKg += Number(consommation.quantite_kg) || 0;
+        quantites.set(key, current);
+      });
+
+    return Array.from(quantites.values())
+      .map((item) => {
+        const sacs = enSacs(item.quantiteKg);
+        const prixSac = prixSacParAliment.get(normaliserAliment(item.feedType)) || 0;
+        return {
+          feedType: item.feedType,
+          quantiteKg: item.quantiteKg,
+          sacs,
+          prixSac,
+          cout: sacs * prixSac,
+        };
+      })
+      .sort((a, b) => comparerAliments(a.feedType, b.feedType));
+  }, [consommations, prixSacParAliment, selectedLotCost]);
+
+  const lotFeedCostTotal = lotFeedCostRows.reduce(
+    (total, row) => total + row.cout,
+    0
   );
 
   useEffect(() => {
@@ -1152,6 +1224,62 @@ export default function DashboardFeed() {
             {!!prevision.length && <tfoot><tr><td>Total</td><td>{Math.ceil(besoinTotalSacs)}</td><td>{sacsEntiers(enSacs(stockTotal))}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
           </table>
         </div>
+      </section>
+
+      <section className="feed-panel feed-lot-cost-panel">
+        <div className="feed-panel-heading">
+          <div>
+            <h2>Charge d’aliment par lot</h2>
+            <p>Récapitulatif des sacs consommés et du coût estimé par type d’aliment.</p>
+          </div>
+          <select value={selectedLotCostKey} onChange={(event) => setSelectedLotCostKey(event.target.value)}>
+            <option value="">Choisir un lot</option>
+            {lots.map((lot) => (
+              <option key={`${lot.source}:${lot.id}`} value={`${lot.source}:${lot.id}`}>
+                {lot.source === "vente_directe" ? "Vente directe" : "SICA"} · {lot.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedLotCost ? (
+          <div className="feed-table-wrap">
+            <table className="feed-table feed-lot-cost-table">
+              <thead>
+                <tr>
+                  <th>Aliment</th>
+                  <th>Sacs consommés</th>
+                  <th>Prix du sac</th>
+                  <th>Coût estimé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lotFeedCostRows.map((row, index) => (
+                  <tr key={row.feedType}>
+                    <td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{row.feedType}</td>
+                    <td>{formatNombre(row.sacs, 1)} sacs</td>
+                    <td>{formatMontant(row.prixSac)}</td>
+                    <td className="feed-cost-value">{formatMontant(row.cout)}</td>
+                  </tr>
+                ))}
+                {!lotFeedCostRows.length && (
+                  <tr><td colSpan={4}><div className="feed-empty">Aucune consommation enregistrée pour ce lot.</div></td></tr>
+                )}
+              </tbody>
+              {!!lotFeedCostRows.length && (
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td>{formatNombre(lotFeedCostRows.reduce((total, row) => total + row.sacs, 0), 1)} sacs</td>
+                    <td>–</td>
+                    <td>{formatMontant(lotFeedCostTotal)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        ) : (
+          <div className="feed-empty">Sélectionnez un lot pour afficher le récapitulatif.</div>
+        )}
       </section>
 
       <section className="feed-history-grid feed-tracking-grid">

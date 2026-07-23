@@ -66,6 +66,18 @@ type DirectMortality = {
   created_at: string;
 };
 
+type FeedReference = {
+  feed_type: string;
+  feed_price_ht: number | null;
+};
+
+type FeedConsumption = {
+  direct_sale_lot_id: string | null;
+  source_type: string | null;
+  feed_type: string;
+  quantite_kg: number;
+};
+
 type OrderLineForm = {
   lot_id: string;
   species: DirectOrder["species"];
@@ -119,6 +131,15 @@ const formatDate = (value: string) =>
 const speciesLabel = (species: DirectLot["species"]) =>
   species === "pintade" ? "Pintades" : "Poulets";
 
+const POIDS_SAC_KG = 25;
+
+const normaliserAliment = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
 const lotStatusLabel: Record<DirectLot["status"], string> = {
   elevage: "En élevage",
   pret: "Prêt à vendre",
@@ -133,6 +154,8 @@ export default function VenteDirecte() {
   const [orders, setOrders] = useState<DirectOrder[]>([]);
   const [deliveries, setDeliveries] = useState<DirectDelivery[]>([]);
   const [mortalities, setMortalities] = useState<DirectMortality[]>([]);
+  const [feedReferences, setFeedReferences] = useState<FeedReference[]>([]);
+  const [feedConsumptions, setFeedConsumptions] = useState<FeedConsumption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [databaseMissing, setDatabaseMissing] = useState(false);
@@ -186,7 +209,7 @@ export default function VenteDirecte() {
 
   const loadData = async () => {
     setLoading(true);
-    const [lotsResult, customersResult, ordersResult, deliveriesResult, mortalitiesResult] =
+    const [lotsResult, customersResult, ordersResult, deliveriesResult, mortalitiesResult, feedRefsResult, feedConsumptionsResult] =
       await Promise.all([
         supabase
           .from("direct_sale_lots")
@@ -208,6 +231,11 @@ export default function VenteDirecte() {
           .from("direct_sale_mortalities")
           .select("*")
           .order("date", { ascending: false }),
+        supabase.from("feed_reference").select("feed_type, feed_price_ht"),
+        supabase
+          .from("consommations_aliment")
+          .select("direct_sale_lot_id, source_type, feed_type, quantite_kg")
+          .eq("source_type", "vente_directe"),
       ]);
     const error =
       lotsResult.error ||
@@ -258,6 +286,19 @@ export default function VenteDirecte() {
           quantity: Number(mortality.quantity) || 0,
         })) as DirectMortality[]
       );
+      if (!feedRefsResult.error) {
+        setFeedReferences((feedRefsResult.data || []) as FeedReference[]);
+      }
+      if (!feedConsumptionsResult.error) {
+        setFeedConsumptions(
+          (feedConsumptionsResult.data || []).map((item) => ({
+            direct_sale_lot_id: item.direct_sale_lot_id ? String(item.direct_sale_lot_id) : null,
+            source_type: item.source_type ? String(item.source_type) : null,
+            feed_type: String(item.feed_type || ""),
+            quantite_kg: Number(item.quantite_kg) || 0,
+          }))
+        );
+      }
     }
     setLoading(false);
   };
@@ -1521,6 +1562,19 @@ export default function VenteDirecte() {
         const detailedMortalityCount = lotMortalities.reduce((total, mortality) => total + mortality.quantity, 0);
         const undocumentedMortalityCount = Math.max(0, lot.mortality_count - detailedMortalityCount);
         const hasMortalityHistory = lotMortalities.length > 0 || undocumentedMortalityCount > 0;
+        const prixAliment = new Map<string, number>();
+        feedReferences.forEach((reference) => {
+          const key = normaliserAliment(reference.feed_type);
+          if (!key || prixAliment.has(key)) return;
+          prixAliment.set(key, Number(reference.feed_price_ht) || 0);
+        });
+        const feedCost = feedConsumptions
+          .filter((consommation) => consommation.direct_sale_lot_id === lot.id)
+          .reduce((total, consommation) => {
+            const sacs = (Number(consommation.quantite_kg) || 0) / POIDS_SAC_KG;
+            const prixSac = prixAliment.get(normaliserAliment(consommation.feed_type)) || 0;
+            return total + sacs * prixSac;
+          }, 0);
         return (
           <DirectModal title={`Fiche du lot ${lot.name}`} subtitle={`${speciesLabel(lot.species)} · Arrivé le ${formatDate(lot.arrival_date)}`} icon={lot.species === "pintade" ? "◇" : "♧"} onClose={() => setLotDetailModal(false)}>
             <div className="direct-sale-detail-kpis">
@@ -1528,6 +1582,7 @@ export default function VenteDirecte() {
               <span>Restants<strong>{formatNombre(lot.remaining_quantity)}</strong></span>
               <span>Mortalités<strong>{formatNombre(lot.mortality_count)}</strong></span>
               <span>Livrés<strong>{formatNombre(delivered)}</strong></span>
+              <span>Charge aliment<strong>{formatMontant(feedCost)}</strong></span>
             </div>
             <div className="direct-sale-detail-grid">
               <section>

@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import toast from 'react-hot-toast';
 import ModalCloseButton from '../components/ModalCloseButton';
-import { formatNombre } from '../outils/formatNombre';
+import { formatMontant, formatNombre } from '../outils/formatNombre';
 import {
   dateDepuisArrivee,
   genererEvenementsVolailles,
@@ -31,6 +31,28 @@ nb_morts?: number;
 sujets_restants?: number;
 total_poids_livre?: number;
 }
+
+type FeedReference = {
+  feed_type: string;
+  feed_price_ht: number | null;
+};
+
+type FeedConsumption = {
+  lot_id: string | null;
+  direct_sale_lot_id?: string | null;
+  source_type?: string | null;
+  feed_type: string;
+  quantite_kg: number;
+};
+
+const POIDS_SAC_KG = 25;
+
+const normaliserAliment = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 function dateLocaleIso() {
   const date = new Date();
@@ -75,6 +97,8 @@ const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
 const [selectedLot, setSelectedLot] = useState<any>(null);
 const [detailLot, setDetailLot] = useState<LotVolaille | null>(null);
+const [feedReferences, setFeedReferences] = useState<FeedReference[]>([]);
+const [feedConsumptions, setFeedConsumptions] = useState<FeedConsumption[]>([]);
 const [livraisons, setLivraisons] = useState([
   { date: '', quantite: '', poids: '' },
 ]);
@@ -116,6 +140,32 @@ useEffect(() => {
    }
  };
  fetchLots();
+}, []);
+
+useEffect(() => {
+  const chargerChargesAliment = async () => {
+    const [refsResult, consommationsResult] = await Promise.all([
+      supabase.from("feed_reference").select("feed_type, feed_price_ht"),
+      supabase
+        .from("consommations_aliment")
+        .select("lot_id, direct_sale_lot_id, source_type, feed_type, quantite_kg"),
+    ]);
+    if (!refsResult.error) {
+      setFeedReferences((refsResult.data || []) as FeedReference[]);
+    }
+    if (!consommationsResult.error) {
+      setFeedConsumptions(
+        (consommationsResult.data || []).map((item) => ({
+          lot_id: item.lot_id ? String(item.lot_id) : null,
+          direct_sale_lot_id: item.direct_sale_lot_id ? String(item.direct_sale_lot_id) : null,
+          source_type: item.source_type ? String(item.source_type) : null,
+          feed_type: String(item.feed_type || ""),
+          quantite_kg: Number(item.quantite_kg) || 0,
+        }))
+      );
+    }
+  };
+  chargerChargesAliment();
 }, []);
 
  // Générer une couleur aléatoire
@@ -1253,6 +1303,19 @@ return (
   const tauxMortaliteLot = lotDetail.quantite > 0 ? (totalMortalitesLot / lotDetail.quantite) * 100 : 0;
   const ageJours = calculerAgeLot(lotDetail);
   const livraisonsExistantes = lotDetail.livraisons || [];
+  const prixAliment = new Map<string, number>();
+  feedReferences.forEach((reference) => {
+    const key = normaliserAliment(reference.feed_type);
+    if (!key || prixAliment.has(key)) return;
+    prixAliment.set(key, Number(reference.feed_price_ht) || 0);
+  });
+  const chargeAlimentLot = feedConsumptions
+    .filter((consommation) => consommation.source_type !== 'vente_directe' && consommation.lot_id === lotDetail.id)
+    .reduce((total, consommation) => {
+      const sacs = (Number(consommation.quantite_kg) || 0) / POIDS_SAC_KG;
+      const prixSac = prixAliment.get(normaliserAliment(consommation.feed_type)) || 0;
+      return total + sacs * prixSac;
+    }, 0);
 
   return (
     <div className="poultry-modal-backdrop">
@@ -1284,6 +1347,10 @@ return (
           <div>
             <span>%</span><small>Taux mortalité</small>
             <strong>{tauxMortaliteLot.toFixed(1)} %</strong>
+          </div>
+          <div>
+            <span>€</span><small>Charge aliment estimée</small>
+            <strong>{formatMontant(chargeAlimentLot)}</strong>
           </div>
         </div>
 

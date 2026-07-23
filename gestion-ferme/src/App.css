@@ -3527,7 +3527,7 @@
 
 .poultry-detail-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 24px;
 }
@@ -4382,6 +4382,18 @@
   font-size: 10px;
 }
 
+.feed-panel-heading select {
+  min-width: 260px;
+  min-height: 40px;
+  border: 1px solid #d8e3dd;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #173047;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .feed-stock-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4510,6 +4522,11 @@
 
 .feed-order-needed { color: #c25100 !important; font-weight: 800; }
 .feed-order-ok { color: #16853d !important; font-weight: 800; }
+.feed-cost-value { color: #16853d !important; font-weight: 900; }
+
+.feed-lot-cost-panel .feed-table tfoot td:last-child {
+  font-size: 13px;
+}
 
 .feed-history-grid {
   display: grid;
@@ -7476,7 +7493,7 @@
 
 .direct-sale-detail-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
 }

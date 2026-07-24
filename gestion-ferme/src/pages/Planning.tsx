@@ -105,9 +105,9 @@ const POULTRY_TRACKING_RULES: TrackingRule[] = [
   { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
-  { key: "vaccin-poulvac", title: "Vaccin POULVAC", offset: 4, type: "vaccination", tone: "violet", icon: "💉" },
-  { key: "vaccins-gumboro", title: "Vaccins Gumboro - AVINEW - Nobilis", offset: 13, type: "vaccination", tone: "violet", icon: "💉" },
-  { key: "rappel-gumboro", title: "Rappel Gumboro", offset: 20, type: "vaccination", tone: "violet", icon: "💉" },
+  { key: "ronaxan", title: "Ronaxan", offset: 5, type: "soin", tone: "blue", icon: "✚" },
+  { key: "vaccins-gumboro", title: "Vaccins Gumboro - AVINEW - Nobilis", offset: 14, type: "vaccination", tone: "violet", icon: "💉" },
+  { key: "rappel-vaccins", title: "Rappel vaccins", offset: 21, type: "vaccination", tone: "violet", icon: "💉" },
   { key: "analyse", title: "Analyse sanitaire", offset: 46, type: "analyse", tone: "orange", icon: "⌕" },
   { key: "livraison", title: "Livraison prévue", offset: 70, type: "livraison", tone: "blue", icon: "🚚" },
 ];
@@ -117,6 +117,7 @@ const DIRECT_POULET_RULES: TrackingRule[] = [
   { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
+  { key: "ronaxan", title: "Ronaxan", offset: 5, type: "soin", tone: "blue", icon: "✚" },
   { key: "pret-vente", title: "Lot prêt à vendre", offset: 70, type: "livraison", tone: "blue", icon: "🚚" },
 ];
 
@@ -125,6 +126,7 @@ const DIRECT_PINTADE_RULES: TrackingRule[] = [
   { key: "hydrostart-1", title: "Hydrostart", offset: 0, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-2", title: "Hydrostart", offset: 1, type: "soin", tone: "blue", icon: "💧" },
   { key: "hydrostart-3", title: "Hydrostart", offset: 2, type: "soin", tone: "blue", icon: "💧" },
+  { key: "ronaxan", title: "Ronaxan", offset: 5, type: "soin", tone: "blue", icon: "✚" },
   { key: "pret-vente", title: "Lot prêt à vendre", offset: 90, type: "livraison", tone: "blue", icon: "🚚" },
 ];
 

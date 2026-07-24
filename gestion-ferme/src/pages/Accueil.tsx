@@ -34,6 +34,17 @@ type LotDashboard = {
   is_active: boolean;
 };
 
+type DirectLotDashboard = {
+  id: string;
+  name: string;
+  species: "poulet" | "pintade";
+  arrival_date: string;
+  initial_quantity: number;
+  remaining_quantity: number;
+  mortality_count: number;
+  status: "elevage" | "pret" | "termine";
+};
+
 type FeedMovement = {
   feed_type: string;
   quantite_kg: number;
@@ -132,6 +143,7 @@ const meteoCode = (code: number) => {
 export default function Accueil({ userName }: AccueilProps) {
   const [events, setEvents] = useState<DashboardEvent[]>([]);
   const [lots, setLots] = useState<LotDashboard[]>([]);
+  const [directLots, setDirectLots] = useState<DirectLotDashboard[]>([]);
   const [consommations, setConsommations] = useState<FeedMovement[]>([]);
   const [livraisonsAliment, setLivraisonsAliment] = useState<FeedMovement[]>([]);
   const [stockAlimentServeurKg, setStockAlimentServeurKg] = useState<number | null>(null);
@@ -162,7 +174,7 @@ export default function Accueil({ userName }: AccueilProps) {
   });
   useEffect(() => {
     const chargerTableauDeBord = async () => {
-      const [eventRes, lotsRes, consommationsRes, livraisonsRes, tasksRes, notesRes] =
+      const [eventRes, lotsRes, directLotsRes, consommationsRes, livraisonsRes, tasksRes, notesRes] =
         await Promise.all([
           supabase.from("evenements").select("*"),
           supabase
@@ -171,6 +183,12 @@ export default function Accueil({ userName }: AccueilProps) {
               "id, nom, batiment, date_arrivee, quantite, sujets_restants, nb_morts, resultat_brut, is_active"
             )
             .order("date_arrivee", { ascending: false }),
+          supabase
+            .from("direct_sale_lots")
+            .select(
+              "id, name, species, arrival_date, initial_quantity, remaining_quantity, mortality_count, status"
+            )
+            .order("arrival_date", { ascending: false }),
           supabase
             .from("consommations_aliment")
             .select("feed_type, quantite_kg, date"),
@@ -191,6 +209,8 @@ export default function Accueil({ userName }: AccueilProps) {
 
       if (eventRes.error) console.error("Erreur événements :", eventRes.error);
       if (lotsRes.error) console.error("Erreur lots :", lotsRes.error);
+      if (directLotsRes.error && directLotsRes.error.code !== "42P01")
+        console.error("Erreur lots vente directe :", directLotsRes.error);
       if (consommationsRes.error)
         console.error("Erreur consommations :", consommationsRes.error);
       if (livraisonsRes.error)
@@ -248,6 +268,14 @@ export default function Accueil({ userName }: AccueilProps) {
 
       setEvents([...evenementsManuels, ...evenementsLots]);
       setLots(lotsData);
+      setDirectLots(
+        (directLotsRes.data || []).map((lot) => ({
+          ...lot,
+          initial_quantity: Number(lot.initial_quantity) || 0,
+          remaining_quantity: Number(lot.remaining_quantity) || 0,
+          mortality_count: Number(lot.mortality_count) || 0,
+        })) as DirectLotDashboard[]
+      );
       setConsommations(
         (consommationsRes.data || []).map((item) => ({
           ...item,
@@ -303,22 +331,36 @@ export default function Accueil({ userName }: AccueilProps) {
     () => lots.filter((lot) => lot.is_active),
     [lots]
   );
-  const sujetsInitiaux = lotsActifs.reduce(
-    (total, lot) => total + (Number(lot.quantite) || 0),
-    0
+  const directLotsActifs = useMemo(
+    () => directLots.filter((lot) => lot.status !== "termine"),
+    [directLots]
   );
-  const sujetsRestants = lotsActifs.reduce(
-    (total, lot) =>
-      total +
-      (lot.sujets_restants == null
-        ? Number(lot.quantite) || 0
-        : Number(lot.sujets_restants) || 0),
-    0
-  );
-  const mortalites = lotsActifs.reduce(
-    (total, lot) => total + (Number(lot.nb_morts) || 0),
-    0
-  );
+  const totalLotsActifs = lotsActifs.length + directLotsActifs.length;
+  const sujetsInitiaux =
+    lotsActifs.reduce((total, lot) => total + (Number(lot.quantite) || 0), 0) +
+    directLotsActifs.reduce(
+      (total, lot) => total + (Number(lot.initial_quantity) || 0),
+      0
+    );
+  const sujetsRestants =
+    lotsActifs.reduce(
+      (total, lot) =>
+        total +
+        (lot.sujets_restants == null
+          ? Number(lot.quantite) || 0
+          : Number(lot.sujets_restants) || 0),
+      0
+    ) +
+    directLotsActifs.reduce(
+      (total, lot) => total + (Number(lot.remaining_quantity) || 0),
+      0
+    );
+  const mortalites =
+    lotsActifs.reduce((total, lot) => total + (Number(lot.nb_morts) || 0), 0) +
+    directLotsActifs.reduce(
+      (total, lot) => total + (Number(lot.mortality_count) || 0),
+      0
+    );
   const stockKgLocal =
     livraisonsAliment.reduce((total, item) => total + item.quantite_kg, 0) -
     consommations.reduce((total, item) => total + item.quantite_kg, 0);
@@ -617,7 +659,7 @@ export default function Accueil({ userName }: AccueilProps) {
       <section className="dashboard-kpis">
         <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG)} sacs`} note="Disponible" />
         <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG)} sacs`} note="Suivi quotidien" />
-        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
+        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${totalLotsActifs}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
       </section>
 
       <section className="dashboard-workspace-grid">
@@ -708,7 +750,7 @@ export default function Accueil({ userName }: AccueilProps) {
             >
               <div className="production-ring-center">
                 <span>Lots actifs</span>
-                <strong>{lotsActifs.length}</strong>
+                <strong>{totalLotsActifs}</strong>
               </div>
             </div>
             <div className="production-legend">

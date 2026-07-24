@@ -1,18 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import frLocale from "@fullcalendar/core/locales/fr";
-import type { EventClickArg } from "@fullcalendar/core";
-import type { DateClickArg } from "@fullcalendar/interaction";
 import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
-import AddEventModal from "../outils/AddEventModal";
 import ModalCloseButton from "../components/ModalCloseButton";
 import {
-  CLES_EVENEMENTS_VOLAILLES,
   dateDepuisArrivee,
   genererEvenementsVolailles,
   REGLES_SUIVI_VOLAILLES,
@@ -144,11 +136,7 @@ export default function Accueil({ userName }: AccueilProps) {
   const [livraisonsAliment, setLivraisonsAliment] = useState<FeedMovement[]>([]);
   const [stockAlimentServeurKg, setStockAlimentServeurKg] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isEdit, setIsEdit] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [filterCategory, setFilterCategory] = useState("all");
   const [meteo, setMeteo] = useState<MeteoSainteLuce | null>(null);
   const [meteoOpen, setMeteoOpen] = useState(false);
   const [meteoErreur, setMeteoErreur] = useState(false);
@@ -172,13 +160,6 @@ export default function Accueil({ userName }: AccueilProps) {
     category: "",
     is_pinned: false,
   });
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    start: "",
-    end: "",
-    category: "volailles",
-  });
-
   useEffect(() => {
     const chargerTableauDeBord = async () => {
       const [eventRes, lotsRes, consommationsRes, livraisonsRes, tasksRes, notesRes] =
@@ -456,12 +437,12 @@ export default function Accueil({ userName }: AccueilProps) {
     };
   }, [sujetsInitiaux, sujetsRestants, mortalites]);
 
-  const resetModal = () => {
-    setNewEvent({ title: "", start: "", end: "", category: "volailles" });
-    setIsOpen(false);
-    setIsEdit(false);
-    setSelectedEventId(null);
-  };
+  const tachesPlanningDuJour = useMemo(() => {
+    const today = todayIso();
+    return events
+      .filter((event) => event.start?.slice(0, 10) === today)
+      .sort((a, b) => a.title.localeCompare(b.title, "fr"));
+  }, [events]);
 
   const openTaskModal = (task?: DashboardTask) => {
     if (task) {
@@ -609,97 +590,6 @@ export default function Accueil({ userName }: AccueilProps) {
     toast.success("Note supprimée.");
   };
 
-  const handleDateClick = (arg: DateClickArg) => {
-    const date = arg.date.toISOString();
-    setNewEvent({ title: "", start: date, end: date, category: "volailles" });
-    setIsEdit(false);
-    setIsOpen(true);
-  };
-
-  const handleEventClick = (clickInfo: EventClickArg) => {
-    const { id, title, start, end, extendedProps } = clickInfo.event;
-    if (
-      CLES_EVENEMENTS_VOLAILLES.some((key) =>
-        id.startsWith(`${key}-`)
-      )
-    ) {
-      return;
-    }
-    if (!start) return;
-    setSelectedEventId(id);
-    setNewEvent({
-      title,
-      start: start.toISOString(),
-      end: (end || start).toISOString(),
-      category: extendedProps.category || "volailles",
-    });
-    setIsEdit(true);
-    setIsOpen(true);
-  };
-
-  const handleAddOrUpdateEvent = async () => {
-    if (saving || !newEvent.title.trim() || !newEvent.start) return;
-    setSaving(true);
-
-    if (isEdit && selectedEventId) {
-      const { error } = await supabase
-        .from("evenements")
-        .update(newEvent)
-        .eq("id", selectedEventId);
-      if (error) {
-        toast.error("L'événement n'a pas pu être modifié.");
-      } else {
-        setEvents((items) =>
-          items.map((item) =>
-            item.id === selectedEventId ? { ...item, ...newEvent } : item
-          )
-        );
-        toast.success("Événement modifié.");
-        resetModal();
-      }
-    } else {
-      const id = uuidv4();
-      const { error } = await supabase
-        .from("evenements")
-        .insert({ id, ...newEvent });
-      if (error) {
-        toast.error("L'événement n'a pas pu être ajouté.");
-      } else {
-        setEvents((items) => [...items, { id, ...newEvent }]);
-        toast.success("Événement ajouté.");
-        resetModal();
-      }
-    }
-    setSaving(false);
-  };
-
-  const handleDeleteEvent = async () => {
-    if (saving || !selectedEventId) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("evenements")
-      .delete()
-      .eq("id", selectedEventId);
-    if (error) {
-      toast.error("L'événement n'a pas pu être supprimé.");
-    } else {
-      setEvents((items) => items.filter((item) => item.id !== selectedEventId));
-      toast.success("Événement supprimé.");
-      resetModal();
-    }
-    setSaving(false);
-  };
-
-  const evenementsFiltres = events
-    .filter(
-      (event) => filterCategory === "all" || event.category === filterCategory
-    )
-    .map((event) => ({
-      ...event,
-      className: `event-${event.category}`,
-      extendedProps: { category: event.category },
-    }));
-
   if (loading) {
     return <div className="dashboard-loading">Chargement du tableau de bord...</div>;
   }
@@ -736,7 +626,6 @@ export default function Accueil({ userName }: AccueilProps) {
         <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG)} sacs`} note="Disponible" />
         <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG)} sacs`} note="Suivi quotidien" />
         <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${lotsActifs.length}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
-        <KpiCard icon="€" tone="violet" label="Résultat brut archivé" value={`${formatNombre(resultatBrut, 2)} €`} note={`${lotsArchives.length} lots archivés`} />
       </section>
 
       <section className="dashboard-workspace-grid">
@@ -859,34 +748,33 @@ export default function Accueil({ userName }: AccueilProps) {
           </Link>
         </article>
 
-        <article className="dashboard-panel dashboard-calendar">
+        <article className="dashboard-panel dashboard-today-planning">
           <div className="panel-title-row">
-            <PanelTitle icon="□" title="Planning" />
-            <select
-              value={filterCategory}
-              onChange={(event) => setFilterCategory(event.target.value)}
-              className="dashboard-filter"
-            >
-              <option value="all">Tous</option>
-              <option value="volailles">Volailles</option>
-              <option value="aquaponie">Aquaponie</option>
-              <option value="cultures">Cultures</option>
-              <option value="ovins">Ovins</option>
-              <option value="administratif">Administratif</option>
-            </select>
+            <PanelTitle icon="✓" title="Tâches du jour" />
+            <Link className="dashboard-text-link dashboard-today-link" to="/planning">Planning →</Link>
           </div>
-          <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            locale={frLocale}
-            initialView="dayGridMonth"
-            firstDay={1}
-            timeZone="America/Martinique"
-            headerToolbar={{ left: "prev,next", center: "title", right: "today" }}
-            events={evenementsFiltres}
-            dateClick={handleDateClick}
-            eventClick={handleEventClick}
-            height="auto"
-          />
+          <p className="dashboard-section-subtitle">Événements prévus aujourd’hui dans le planning.</p>
+          <div className="dashboard-today-list">
+            {tachesPlanningDuJour.map((event) => (
+              <Link key={event.id} to="/planning" className={`dashboard-today-row dashboard-today-${event.category}`}>
+                <span>{event.category === "volailles" ? "♧" : event.category === "aquaponie" ? "≋" : event.category === "cultures" ? "⌁" : event.category === "ovins" ? "♘" : "□"}</span>
+                <div>
+                  <strong>{event.title}</strong>
+                  <small>{event.category}</small>
+                </div>
+                <b>›</b>
+              </Link>
+            ))}
+            {tachesPlanningDuJour.length === 0 && (
+              <div className="dashboard-alert-empty dashboard-today-empty">
+                <span>✓</span>
+                <div>
+                  <strong>Aucune tâche planning aujourd’hui</strong>
+                  <small>Rien de prévu pour le {dateDuJour()}.</small>
+                </div>
+              </div>
+            )}
+          </div>
         </article>
 
         <article className="dashboard-panel dashboard-lots">
@@ -970,17 +858,6 @@ export default function Accueil({ userName }: AccueilProps) {
           </article>
         </aside>
       </section>
-
-      <AddEventModal
-        isOpen={isOpen}
-        onClose={resetModal}
-        isEdit={isEdit}
-        newEvent={newEvent}
-        setNewEvent={setNewEvent}
-        onSubmit={handleAddOrUpdateEvent}
-        onDelete={handleDeleteEvent}
-        saving={saving}
-      />
 
       {taskModalOpen && (
         <div className="poultry-modal-backdrop">

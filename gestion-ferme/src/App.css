@@ -479,7 +479,7 @@
 
 .dashboard-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -915,6 +915,81 @@
   grid-column: 3;
   grid-row: 1 / span 1;
   min-width: 0;
+}
+
+.dashboard-today-planning {
+  grid-column: 3;
+  grid-row: 1 / span 1;
+  min-width: 0;
+}
+
+.dashboard-today-link {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.dashboard-today-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dashboard-today-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e2e9e5;
+  border-radius: 8px;
+  padding: 11px;
+  color: #173047;
+  background: #fff;
+}
+
+.dashboard-today-row > span,
+.dashboard-today-empty > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  color: #16853d;
+  background: #e7f6eb;
+  font-weight: 900;
+}
+
+.dashboard-today-row strong,
+.dashboard-today-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-today-row small {
+  margin-top: 2px;
+  color: #66788a;
+  text-transform: capitalize;
+}
+
+.dashboard-today-row > b {
+  color: #698096;
+  font-size: 22px;
+}
+
+.dashboard-today-row:hover {
+  border-color: #b9dbc5;
+  background: #f4fbf6;
+}
+
+.dashboard-today-volailles > span { color: #b26a08; background: #fff1d9; }
+.dashboard-today-aquaponie > span { color: #1473a5; background: #e5f4fb; }
+.dashboard-today-cultures > span { color: #16853d; background: #e7f6eb; }
+.dashboard-today-ovins > span { color: #7654c7; background: #efeafd; }
+.dashboard-today-administratif > span { color: #b91c1c; background: #fee2e2; }
+
+.dashboard-today-empty {
+  margin-top: 14px;
 }
 
 .dashboard-filter {
@@ -6598,7 +6673,8 @@
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-workspace-grid { grid-template-columns: 1fr; }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-calendar { grid-column: 1 / span 2; grid-row: auto; }
+  .dashboard-calendar,
+  .dashboard-today-planning { grid-column: 1 / span 2; grid-row: auto; }
   .dashboard-side-column { grid-column: 1 / span 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .planning-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .planning-main-grid { grid-template-columns: 1fr; }
@@ -7929,6 +8005,7 @@
   }
   .dashboard-grid { grid-template-columns: 1fr; }
   .dashboard-calendar,
+  .dashboard-today-planning,
   .dashboard-lots,
   .dashboard-side-column { grid-column: 1; }
   .dashboard-side-column { grid-template-columns: 1fr; }

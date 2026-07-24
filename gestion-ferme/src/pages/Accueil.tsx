@@ -303,10 +303,6 @@ export default function Accueil({ userName }: AccueilProps) {
     () => lots.filter((lot) => lot.is_active),
     [lots]
   );
-  const lotsArchives = useMemo(
-    () => lots.filter((lot) => !lot.is_active),
-    [lots]
-  );
   const sujetsInitiaux = lotsActifs.reduce(
     (total, lot) => total + (Number(lot.quantite) || 0),
     0
@@ -321,10 +317,6 @@ export default function Accueil({ userName }: AccueilProps) {
   );
   const mortalites = lotsActifs.reduce(
     (total, lot) => total + (Number(lot.nb_morts) || 0),
-    0
-  );
-  const resultatBrut = lotsArchives.reduce(
-    (total, lot) => total + (Number(lot.resultat_brut) || 0),
     0
   );
   const stockKgLocal =
@@ -726,26 +718,6 @@ export default function Accueil({ userName }: AccueilProps) {
               <Legend color="#4f83cc" label="Sujets initiaux" value={sujetsInitiaux} />
             </div>
           </div>
-        </article>
-
-        <article className="dashboard-panel dashboard-finance">
-          <PanelTitle icon="€" title="Résultats financiers" />
-          <div className="finance-grid">
-            <div className="finance-value">
-              <span>Résultat brut enregistré</span>
-              <strong>{resultatBrut.toFixed(2)} €</strong>
-            </div>
-            <div className="finance-value">
-              <span>Lots clôturés</span>
-              <strong>{lotsArchives.length}</strong>
-            </div>
-          </div>
-          <div className="dashboard-information">
-            Consultez l’analyse économique pour le détail par lot.
-          </div>
-          <Link className="dashboard-text-link" to="/volailles/analyse">
-            Ouvrir l’analyse →
-          </Link>
         </article>
 
         <article className="dashboard-panel dashboard-today-planning">

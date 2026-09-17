@@ -1402,15 +1402,6 @@ export default function DashboardFeed() {
               </select></label>
               <label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label>
             </div>
-            {suggestionConsommation && (
-              <div className="feed-suggestion">
-                <div>
-                  <strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong>
-                  <span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span>
-                </div>
-                <button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button>
-              </div>
-            )}
             {!consommationEnModification && (
               <div className="feed-transition-lines">
                 {afficherDeuxiemeAliment ? (
@@ -1441,6 +1432,15 @@ export default function DashboardFeed() {
                     ＋ Ajouter un deuxième aliment
                   </button>
                 )}
+              </div>
+            )}
+            {suggestionConsommation && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong>
+                  <span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span>
+                </div>
+                <button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button>
               </div>
             )}
             <div className="poultry-form-stack feed-note-field">

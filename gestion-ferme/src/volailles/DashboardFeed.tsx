@@ -44,6 +44,12 @@ type LivraisonStock = {
   note?: string | null;
 };
 
+type FeedDeliveryLine = {
+  feedType: string;
+  sacs: string;
+  prix: string;
+};
+
 type ConsumptionFollowUpRow = {
   lot: Lot;
   date: string | null;
@@ -88,6 +94,11 @@ const HORIZON_AUTONOMIE_JOURS = 180;
 const DELAI_COMMANDE_JOURS = 3;
 const ORDRE_ALIMENTS = ["starter", "croissance", "finition"];
 const enSacs = (quantiteKg: number) => quantiteKg / POIDS_SAC_KG;
+const nouvelleLigneLivraison = (): FeedDeliveryLine => ({
+  feedType: "",
+  sacs: "",
+  prix: "",
+});
 const sacsEntiers = (quantiteSacs: number) =>
   Math.max(0, Math.round(quantiteSacs));
 const normaliserAliment = (value: string) =>
@@ -192,6 +203,9 @@ export default function DashboardFeed() {
   const [livraisonType, setLivraisonType] = useState("");
   const [livraisonSacs, setLivraisonSacs] = useState("");
   const [livraisonPrix, setLivraisonPrix] = useState("");
+  const [livraisonLignes, setLivraisonLignes] = useState<FeedDeliveryLine[]>([
+    nouvelleLigneLivraison(),
+  ]);
   const [livraisonEnModification, setLivraisonEnModification] =
     useState<LivraisonStock | null>(null);
 
@@ -785,32 +799,42 @@ export default function DashboardFeed() {
   };
 
   const enregistrerLivraison = async () => {
-    const nombreSacs = Number(livraisonSacs);
-    const prix = livraisonPrix.trim() ? Number(livraisonPrix) : null;
+    const lignes = livraisonEnModification
+      ? [{ feedType: livraisonType, sacs: livraisonSacs, prix: livraisonPrix }]
+      : livraisonLignes;
+    const lignesValides = lignes.map((ligne) => ({
+      feedType: ligne.feedType,
+      sacs: Number(ligne.sacs),
+      prix: ligne.prix.trim() ? Number(ligne.prix) : null,
+    }));
     if (
       saving ||
       !livraisonDate ||
-      !livraisonType ||
-      !Number.isFinite(nombreSacs) ||
-      nombreSacs <= 0 ||
-      (prix != null && (!Number.isFinite(prix) || prix < 0))
+      lignesValides.length === 0 ||
+      lignesValides.some(
+        (ligne) =>
+          !ligne.feedType ||
+          !Number.isFinite(ligne.sacs) ||
+          ligne.sacs <= 0 ||
+          (ligne.prix != null && (!Number.isFinite(ligne.prix) || ligne.prix < 0))
+      )
     ) {
       toast.error("Complétez la date, l'aliment et une quantité positive.");
       return;
     }
 
     setSaving(true);
-    const valeurs = {
+    const payloads = lignesValides.map((ligne) => ({
       date: livraisonDate,
-      feed_type: livraisonType,
-      quantite_kg: nombreSacs * POIDS_SAC_KG,
+      feed_type: ligne.feedType,
+      quantite_kg: ligne.sacs * POIDS_SAC_KG,
       fournisseur: null,
-      prix_total_ht: prix,
-    };
+      prix_total_ht: ligne.prix,
+    }));
     const resultat = livraisonEnModification
       ? await supabase
           .from("livraisons_aliment")
-          .update(valeurs)
+          .update(payloads[0])
           .eq("id", livraisonEnModification.id)
           .select(
             "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
@@ -818,36 +842,38 @@ export default function DashboardFeed() {
           .single()
       : await supabase
           .from("livraisons_aliment")
-          .insert(valeurs)
+          .insert(payloads)
           .select(
             "id, date, feed_type, quantite_kg, fournisseur, prix_total_ht, note"
-          )
-          .single();
+          );
     const { data, error } = resultat;
 
     if (error) {
       console.error("Erreur livraison aliment:", error);
       toast.error("La livraison n'a pas pu être enregistrée.");
     } else if (data) {
-      const livraison = {
-        ...data,
-        feed_type: libelleAliment(String(data.feed_type || "")),
-        quantite_kg: Number(data.quantite_kg) || 0,
+      const livraisonsEnregistrees = (Array.isArray(data) ? data : [data]).map((item) => ({
+        ...item,
+        feed_type: libelleAliment(String(item.feed_type || "")),
+        quantite_kg: Number(item.quantite_kg) || 0,
         prix_total_ht:
-          data.prix_total_ht == null ? null : Number(data.prix_total_ht) || 0,
-      } as LivraisonStock;
+          item.prix_total_ht == null ? null : Number(item.prix_total_ht) || 0,
+      })) as LivraisonStock[];
       setLivraisons((items) => [
-        livraison,
-        ...items.filter((item) => item.id !== livraison.id),
+        ...livraisonsEnregistrees,
+        ...items.filter((item) => !livraisonsEnregistrees.some((livraison) => livraison.id === item.id)),
       ]);
       await chargerDonnees();
       setLivraisonSacs("");
       setLivraisonPrix("");
+      setLivraisonLignes([nouvelleLigneLivraison()]);
       setLivraisonEnModification(null);
       setLivraisonModalOpen(false);
       toast.success(
         livraisonEnModification
           ? "Livraison modifiée."
+          : livraisonsEnregistrees.length > 1
+          ? "Livraisons ajoutées au stock."
           : "Livraison ajoutée au stock."
       );
     }
@@ -890,14 +916,23 @@ export default function DashboardFeed() {
     setLivraisonPrix(
       item.prix_total_ht == null ? "" : String(item.prix_total_ht)
     );
+    setLivraisonLignes([
+      {
+        feedType: item.feed_type,
+        sacs: String(sacsEntiers(enSacs(item.quantite_kg))),
+        prix: item.prix_total_ht == null ? "" : String(item.prix_total_ht),
+      },
+    ]);
     setLivraisonModalOpen(true);
   };
 
   const annulerModificationLivraison = () => {
     setLivraisonEnModification(null);
     setLivraisonDate(aujourdHui());
+    setLivraisonType("");
     setLivraisonSacs("");
     setLivraisonPrix("");
+    setLivraisonLignes([nouvelleLigneLivraison()]);
   };
 
   const supprimerConsommation = async (item: Consommation) => {
@@ -1402,6 +1437,15 @@ export default function DashboardFeed() {
               </select></label>
               <label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label>
             </div>
+            {suggestionConsommation && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong>
+                  <span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span>
+                </div>
+                <button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button>
+              </div>
+            )}
             {!consommationEnModification && (
               <div className="feed-transition-lines">
                 {afficherDeuxiemeAliment ? (
@@ -1434,15 +1478,6 @@ export default function DashboardFeed() {
                 )}
               </div>
             )}
-            {suggestionConsommation && (
-              <div className="feed-suggestion">
-                <div>
-                  <strong>Suggestion : {Math.ceil(suggestionConsommation.sacs)} sacs de {suggestionConsommation.reference.feed_type}</strong>
-                  <span>{lotConsommationSelectionne?.source === "vente_directe" ? "Vente directe" : "SICA Madras"} · Lot âgé de {suggestionConsommation.age} jours · {suggestionConsommation.sujets} sujets.</span>
-                </div>
-                <button type="button" onClick={() => setConsommationSacs(String(Math.ceil(suggestionConsommation.sacs)))}>Utiliser</button>
-              </div>
-            )}
             <div className="poultry-form-stack feed-note-field">
               <label>Note facultative<input type="text" value={consommationNote} onChange={(event) => setConsommationNote(event.target.value)} /></label>
             </div>
@@ -1454,7 +1489,65 @@ export default function DashboardFeed() {
         </div>
       )}
 
-      {livraisonModalOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-medium"><ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2><p>Enregistrer une entrée de sacs de 25 kg.</p></div></div><div className="poultry-form-grid"><label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label><label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}><option value="">Choisir un aliment</option>{typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label></div><div className="poultry-form-stack feed-note-field"><label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button><button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button></div></div></div>}
+      {livraisonModalOpen && (
+        <div className="poultry-modal-backdrop">
+          <div className="poultry-modal poultry-modal-medium">
+            <ModalCloseButton onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }} disabled={saving} />
+            <div className="poultry-modal-header">
+              <span className="poultry-modal-icon">🚚</span>
+              <div>
+                <h2>{livraisonEnModification ? "Modifier la livraison" : "Ajouter une livraison au stock"}</h2>
+                <p>Enregistrer une ou plusieurs entrées de sacs de 25 kg.</p>
+              </div>
+            </div>
+            <div className="poultry-form-stack">
+              <label>Date<input type="date" value={livraisonDate} onChange={(event) => setLivraisonDate(event.target.value)} /></label>
+            </div>
+            {livraisonEnModification ? (
+              <>
+                <div className="poultry-form-grid">
+                  <label>Type d’aliment<select value={livraisonType} onChange={(event) => setLivraisonType(event.target.value)}>
+                    <option value="">Choisir un aliment</option>
+                    {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select></label>
+                  <label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label>
+                </div>
+                <div className="poultry-form-stack feed-note-field">
+                  <label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label>
+                </div>
+              </>
+            ) : (
+              <div className="direct-sale-product-lines feed-delivery-lines">
+                {livraisonLignes.map((ligne, index) => (
+                  <div className="direct-sale-product-line" key={index}>
+                    <div className="direct-sale-product-line-heading">
+                      <strong>Aliment {index + 1}</strong>
+                      {livraisonLignes.length > 1 && (
+                        <button type="button" onClick={() => setLivraisonLignes((lignes) => lignes.filter((_, lineIndex) => lineIndex !== index))}>⌫</button>
+                      )}
+                    </div>
+                    <div className="poultry-form-grid">
+                      <label>Type d’aliment<select value={ligne.feedType} onChange={(event) => setLivraisonLignes((lignes) => lignes.map((item, lineIndex) => lineIndex === index ? { ...item, feedType: event.target.value } : item))}>
+                        <option value="">Choisir un aliment</option>
+                        {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select></label>
+                      <label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={ligne.sacs} onChange={(event) => setLivraisonLignes((lignes) => lignes.map((item, lineIndex) => lineIndex === index ? { ...item, sacs: event.target.value } : item))} /></label>
+                      <label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={ligne.prix} onChange={(event) => setLivraisonLignes((lignes) => lignes.map((item, lineIndex) => lineIndex === index ? { ...item, prix: event.target.value } : item))} /></label>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" className="direct-sale-add-line" onClick={() => setLivraisonLignes((lignes) => [...lignes, nouvelleLigneLivraison()])}>
+                  ＋ Ajouter un autre aliment
+                </button>
+              </div>
+            )}
+            <div className="poultry-modal-actions">
+              <button type="button" className="poultry-modal-primary" onClick={enregistrerLivraison} disabled={saving}>{saving ? "Enregistrement..." : "▣ Ajouter au stock"}</button>
+              <button type="button" className="poultry-modal-secondary" onClick={() => { setLivraisonModalOpen(false); annulerModificationLivraison(); }}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {historyModal === "consommations" && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-large feed-history-modal"><ModalCloseButton onClick={() => setHistoryModal(null)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">▥</span><div><h2>Toutes les consommations</h2><p>{consommations.length} saisie(s) enregistrée(s).</p></div></div><div className="feed-full-history">{consommations.map((item) => { const lotId = item.source_type === "vente_directe" ? item.direct_sale_lot_id : item.lot_id; const lot = lots.find((candidate) => candidate.id === lotId && candidate.source === item.source_type); const lotLabel = lot?.nom || (lotId ? "Lot supprimé" : "Historique sans lot"); return <Mouvement key={item.id} titre={`${lotLabel} · ${item.feed_type}`} sousTitre={`${item.source_type === "vente_directe" ? "Vente directe" : "SICA Madras"} · ${formatDate(item.date)}`} valeur={`-${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierConsommation(item)} onDelete={() => supprimerConsommation(item)} saving={saving} />; })}</div></div></div>}
 

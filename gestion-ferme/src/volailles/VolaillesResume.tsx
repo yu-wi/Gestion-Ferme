@@ -44,6 +44,12 @@ type FeedReference = {
   age_max_days: number;
 };
 
+type FeedDeliveryLine = {
+  feedType: string;
+  sacs: string;
+  prix: string;
+};
+
 type AlertItem = {
   id: string;
   title: string;
@@ -73,6 +79,11 @@ const directStatusLabel: Record<DirectLot["status"], string> = {
 };
 
 const POIDS_SAC_KG = 25;
+const nouvelleLigneLivraison = (): FeedDeliveryLine => ({
+  feedType: "",
+  sacs: "",
+  prix: "",
+});
 const DEFAULT_MORTALITY_ALERT_THRESHOLD = 15;
 
 const todayIso = () => {
@@ -133,9 +144,9 @@ export default function VolaillesResume() {
   const [showSecondFeed, setShowSecondFeed] = useState(false);
   const [feedNote, setFeedNote] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(todayIso());
-  const [deliveryType, setDeliveryType] = useState("");
-  const [deliveryBags, setDeliveryBags] = useState("");
-  const [deliveryPrice, setDeliveryPrice] = useState("");
+  const [deliveryLines, setDeliveryLines] = useState<FeedDeliveryLine[]>([
+    nouvelleLigneLivraison(),
+  ]);
   const [newSicaName, setNewSicaName] = useState("");
   const [newSicaQuantity, setNewSicaQuantity] = useState("");
   const [newSicaArrivalDate, setNewSicaArrivalDate] = useState(todayIso());
@@ -281,9 +292,7 @@ export default function VolaillesResume() {
 
   const openFeedDeliveryShortcut = () => {
     setDeliveryDate(todayIso());
-    setDeliveryType(feedTypes[0] || "");
-    setDeliveryBags("");
-    setDeliveryPrice("");
+    setDeliveryLines([nouvelleLigneLivraison()]);
     setFeedDeliveryModalOpen(true);
   };
 
@@ -431,27 +440,42 @@ export default function VolaillesResume() {
   };
 
   const saveFeedDelivery = async () => {
-    const bags = Number(deliveryBags);
-    const price = deliveryPrice.trim() ? Number(deliveryPrice) : null;
-    if (!deliveryDate || !deliveryType || !Number.isFinite(bags) || bags <= 0 || (price != null && (!Number.isFinite(price) || price < 0))) {
+    const lignes = deliveryLines.map((line) => ({
+      feedType: line.feedType,
+      bags: Number(line.sacs),
+      price: line.prix.trim() ? Number(line.prix) : null,
+    }));
+    if (
+      !deliveryDate ||
+      lignes.length === 0 ||
+      lignes.some(
+        (line) =>
+          !line.feedType ||
+          !Number.isFinite(line.bags) ||
+          line.bags <= 0 ||
+          (line.price != null && (!Number.isFinite(line.price) || line.price < 0))
+      )
+    ) {
       toast.error("Complétez la date, l'aliment et le nombre de sacs.");
       return;
     }
 
     setSaving(true);
-    const { error } = await supabase.from("livraisons_aliment").insert({
+    const payloads = lignes.map((line) => ({
       date: deliveryDate,
-      feed_type: deliveryType,
-      quantite_kg: bags * POIDS_SAC_KG,
+      feed_type: line.feedType,
+      quantite_kg: line.bags * POIDS_SAC_KG,
       fournisseur: null,
-      prix_total_ht: price,
+      prix_total_ht: line.price,
       note: null,
-    });
+    }));
+    const { error } = await supabase.from("livraisons_aliment").insert(payloads);
     if (error) {
       console.error("Erreur livraison aliment depuis résumé :", error);
       toast.error("La livraison d'aliment n'a pas pu être enregistrée.");
     } else {
-      toast.success("Livraison d'aliment ajoutée au stock.");
+      toast.success(payloads.length > 1 ? "Livraisons d'aliment ajoutées au stock." : "Livraison d'aliment ajoutée au stock.");
+      setDeliveryLines([nouvelleLigneLivraison()]);
       setFeedDeliveryModalOpen(false);
     }
     setSaving(false);
@@ -804,6 +828,17 @@ export default function VolaillesResume() {
               </select></label>
               <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedBags} onChange={(event) => setFeedBags(event.target.value)} /></label>
             </div>
+            {feedSuggestion && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(feedSuggestion.sacs)} sacs de {feedSuggestion.reference.feed_type}</strong>
+                  <span>{selectedFeedLot?.label} · {feedSuggestion.age} jours · {formatNombre(selectedFeedLot?.restants || 0)} sujets restants</span>
+                </div>
+                <button type="button" onClick={() => setFeedBags(String(Math.ceil(feedSuggestion.sacs)))}>
+                  Utiliser
+                </button>
+              </div>
+            )}
             <div className="feed-transition-lines">
               {showSecondFeed ? (
                 <div className="direct-sale-product-line">
@@ -834,17 +869,6 @@ export default function VolaillesResume() {
                 </button>
               )}
             </div>
-            {feedSuggestion && (
-              <div className="feed-suggestion">
-                <div>
-                  <strong>Suggestion : {Math.ceil(feedSuggestion.sacs)} sacs de {feedSuggestion.reference.feed_type}</strong>
-                  <span>{selectedFeedLot?.label} · {feedSuggestion.age} jours · {formatNombre(selectedFeedLot?.restants || 0)} sujets restants</span>
-                </div>
-                <button type="button" onClick={() => setFeedBags(String(Math.ceil(feedSuggestion.sacs)))}>
-                  Utiliser
-                </button>
-              </div>
-            )}
             <div className="poultry-form-stack feed-note-field">
               <label>Note facultative<input type="text" value={feedNote} onChange={(event) => setFeedNote(event.target.value)} /></label>
             </div>
@@ -864,14 +888,31 @@ export default function VolaillesResume() {
               <span className="poultry-modal-icon">🚚</span>
               <div><h2>Ajouter une livraison d'aliment</h2><p>Enregistrer une entrée de sacs de 25 kg dans le stock.</p></div>
             </div>
-            <div className="poultry-form-grid">
+            <div className="poultry-form-stack">
               <label>Date<input type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} /></label>
-              <label>Aliment<select value={deliveryType} onChange={(event) => setDeliveryType(event.target.value)}>
-                <option value="">Choisir un aliment</option>
-                {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-              </select></label>
-              <label>Sacs livrés (25 kg)<input type="number" min="1" step="1" value={deliveryBags} onChange={(event) => setDeliveryBags(event.target.value)} /></label>
-              <label>Prix total HT facultatif (€)<input type="number" min="0" step="0.01" value={deliveryPrice} onChange={(event) => setDeliveryPrice(event.target.value)} /></label>
+            </div>
+            <div className="direct-sale-product-lines feed-delivery-lines">
+              {deliveryLines.map((line, index) => (
+                <div className="direct-sale-product-line" key={index}>
+                  <div className="direct-sale-product-line-heading">
+                    <strong>Aliment {index + 1}</strong>
+                    {deliveryLines.length > 1 && (
+                      <button type="button" onClick={() => setDeliveryLines((lines) => lines.filter((_, lineIndex) => lineIndex !== index))}>⌫</button>
+                    )}
+                  </div>
+                  <div className="poultry-form-grid">
+                    <label>Aliment<select value={line.feedType} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, feedType: event.target.value } : item))}>
+                      <option value="">Choisir un aliment</option>
+                      {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select></label>
+                    <label>Sacs livrés (25 kg)<input type="number" min="1" step="1" value={line.sacs} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, sacs: event.target.value } : item))} /></label>
+                    <label>Prix total HT facultatif (€)<input type="number" min="0" step="0.01" value={line.prix} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, prix: event.target.value } : item))} /></label>
+                  </div>
+                </div>
+              ))}
+              <button type="button" className="direct-sale-add-line" onClick={() => setDeliveryLines((lines) => [...lines, nouvelleLigneLivraison()])}>
+                ＋ Ajouter un autre aliment
+              </button>
             </div>
             <div className="poultry-modal-actions">
               <button type="button" className="poultry-modal-secondary" onClick={() => setFeedDeliveryModalOpen(false)} disabled={saving}>Annuler</button>

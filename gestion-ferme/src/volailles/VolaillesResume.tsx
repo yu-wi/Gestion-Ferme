@@ -130,6 +130,7 @@ export default function VolaillesResume() {
   const [feedBags, setFeedBags] = useState("");
   const [feedSecondType, setFeedSecondType] = useState("");
   const [feedSecondBags, setFeedSecondBags] = useState("");
+  const [showSecondFeed, setShowSecondFeed] = useState(false);
   const [feedNote, setFeedNote] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(todayIso());
   const [deliveryType, setDeliveryType] = useState("");
@@ -273,6 +274,7 @@ export default function VolaillesResume() {
     setFeedBags("");
     setFeedSecondType("");
     setFeedSecondBags("");
+    setShowSecondFeed(false);
     setFeedNote("");
     setFeedModalOpen(true);
   };
@@ -422,6 +424,7 @@ export default function VolaillesResume() {
       toast.success("Consommation enregistrée.");
       setFeedSecondType("");
       setFeedSecondBags("");
+      setShowSecondFeed(false);
       setFeedModalOpen(false);
     }
     setSaving(false);
@@ -801,12 +804,35 @@ export default function VolaillesResume() {
               </select></label>
               <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedBags} onChange={(event) => setFeedBags(event.target.value)} /></label>
             </div>
-            <div className="poultry-form-grid">
-              <label>Deuxième aliment facultatif<select value={feedSecondType} onChange={(event) => setFeedSecondType(event.target.value)}>
-                <option value="">Aucun</option>
-                {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-              </select></label>
-              <label>Sacs du deuxième aliment<input type="number" min="1" step="1" value={feedSecondBags} onChange={(event) => setFeedSecondBags(event.target.value)} placeholder="Ex. 2" /></label>
+            <div className="feed-transition-lines">
+              {showSecondFeed ? (
+                <div className="direct-sale-product-line">
+                  <div className="direct-sale-product-line-heading">
+                    <strong>Aliment de transition</strong>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSecondFeed(false);
+                        setFeedSecondType("");
+                        setFeedSecondBags("");
+                      }}
+                    >
+                      ⌫
+                    </button>
+                  </div>
+                  <div className="poultry-form-grid">
+                    <label>Aliment<select value={feedSecondType} onChange={(event) => setFeedSecondType(event.target.value)}>
+                      <option value="">Choisir un aliment</option>
+                      {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select></label>
+                    <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedSecondBags} onChange={(event) => setFeedSecondBags(event.target.value)} placeholder="Ex. 2" /></label>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="direct-sale-add-line" onClick={() => setShowSecondFeed(true)}>
+                  ＋ Ajouter un deuxième aliment
+                </button>
+              )}
             </div>
             {feedSuggestion && (
               <div className="feed-suggestion">

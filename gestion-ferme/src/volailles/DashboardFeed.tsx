@@ -183,6 +183,7 @@ export default function DashboardFeed() {
   const [consommationSacs, setConsommationSacs] = useState("");
   const [consommationSecondType, setConsommationSecondType] = useState("");
   const [consommationSecondSacs, setConsommationSecondSacs] = useState("");
+  const [afficherDeuxiemeAliment, setAfficherDeuxiemeAliment] = useState(false);
   const [consommationNote, setConsommationNote] = useState("");
   const [consommationEnModification, setConsommationEnModification] =
     useState<Consommation | null>(null);
@@ -770,6 +771,7 @@ export default function DashboardFeed() {
       setConsommationSacs("");
       setConsommationSecondType("");
       setConsommationSecondSacs("");
+      setAfficherDeuxiemeAliment(false);
       setConsommationNote("");
       setConsommationEnModification(null);
       setConsommationModalOpen(false);
@@ -864,6 +866,7 @@ export default function DashboardFeed() {
     setConsommationSacs(String(sacsEntiers(enSacs(item.quantite_kg))));
     setConsommationSecondType("");
     setConsommationSecondSacs("");
+    setAfficherDeuxiemeAliment(false);
     setConsommationNote(item.note || "");
     setConsommationModalOpen(true);
   };
@@ -875,6 +878,7 @@ export default function DashboardFeed() {
     setConsommationSacs("");
     setConsommationSecondType("");
     setConsommationSecondSacs("");
+    setAfficherDeuxiemeAliment(false);
     setConsommationNote("");
   };
 
@@ -1399,12 +1403,35 @@ export default function DashboardFeed() {
               <label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSacs} onChange={(event) => setConsommationSacs(event.target.value)} /></label>
             </div>
             {!consommationEnModification && (
-              <div className="poultry-form-grid">
-                <label>Deuxième aliment facultatif<select value={consommationSecondType} onChange={(event) => setConsommationSecondType(event.target.value)}>
-                  <option value="">Aucun</option>
-                  {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
-                </select></label>
-                <label>Sacs du deuxième aliment<input type="number" min={1} step={1} value={consommationSecondSacs} onChange={(event) => setConsommationSecondSacs(event.target.value)} placeholder="Ex. 2" /></label>
+              <div className="feed-transition-lines">
+                {afficherDeuxiemeAliment ? (
+                  <div className="direct-sale-product-line">
+                    <div className="direct-sale-product-line-heading">
+                      <strong>Aliment de transition</strong>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAfficherDeuxiemeAliment(false);
+                          setConsommationSecondType("");
+                          setConsommationSecondSacs("");
+                        }}
+                      >
+                        ⌫
+                      </button>
+                    </div>
+                    <div className="poultry-form-grid">
+                      <label>Type d’aliment<select value={consommationSecondType} onChange={(event) => setConsommationSecondType(event.target.value)}>
+                        <option value="">Choisir un aliment</option>
+                        {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select></label>
+                      <label>Nombre de sacs consommés (25 kg)<input type="number" min={1} step={1} value={consommationSecondSacs} onChange={(event) => setConsommationSecondSacs(event.target.value)} placeholder="Ex. 2" /></label>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="direct-sale-add-line" onClick={() => setAfficherDeuxiemeAliment(true)}>
+                    ＋ Ajouter un deuxième aliment
+                  </button>
+                )}
               </div>
             )}
             {suggestionConsommation && (

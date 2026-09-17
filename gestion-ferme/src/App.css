@@ -3829,7 +3829,7 @@
 
 .history-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-top: 26px;
 }
@@ -4020,7 +4020,7 @@
 
 .history-summary-grid {
   display: grid;
-  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
@@ -5444,28 +5444,6 @@
 .history-charge-list i { width: 9px; height: 9px; border-radius: 50%; }
 .history-charge-list b { font-weight: 650; }
 .history-charge-list em { font-style: normal; font-weight: 800; text-align: right; }
-
-.history-economy-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.history-economy-kpis > span {
-  display: flex;
-  min-height: 112px;
-  flex-direction: column;
-  justify-content: center;
-  border-radius: 7px;
-  padding: 16px;
-  background: #f2f8f3;
-}
-
-.history-economy-kpis > span:nth-child(2) { background: #fff1f1; }
-.history-economy-kpis small { color: #627386; font-size: 10px; }
-.history-economy-kpis strong { margin-top: 6px; font-size: 18px; }
-.history-economy-kpis em { margin-top: 8px; color: #16853d; font-size: 11px; font-style: normal; font-weight: 800; }
 
 .history-performance-good,
 .history-performance-alert {
@@ -8223,7 +8201,6 @@
   .lot-analysis-performance dl { grid-template-columns: 1fr; }
   .history-charges > div { flex-direction: column; gap: 22px; }
   .history-charge-list { width: 100%; min-width: 0; }
-  .history-economy-kpis { grid-template-columns: 1fr; }
   .history-analysis-callout { grid-template-columns: 46px 1fr; }
   .history-analysis-callout a { grid-column: 1 / -1; text-align: center; }
   .lot-analysis-heading > div:last-child { width: 100%; }

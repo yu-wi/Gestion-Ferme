@@ -1055,13 +1055,6 @@ return (
      <Link to="/volailles/inventaire">Inventaire</Link>
    </nav>
 
-   <section className="poultry-quick-actions poultry-quick-actions-top">
-     <h2>Actions rapides</h2>
-     <button type="button" onClick={() => setShowAutoconsommationModal(true)}><span aria-hidden="true">🍽</span><div><strong>Autoconsommation</strong><small>Enregistrer une sortie</small></div></button>
-     <Link to="/volailles/alimentation"><span aria-hidden="true">▤</span><div><strong>Suivi de l’alimentation</strong><small>Consommations et stock</small></div></Link>
-     <Link to="/volailles/sica/historique"><span aria-hidden="true">🗃</span><div><strong>Voir tous les lots</strong><small>Accéder à l’historique SICA</small></div></Link>
-   </section>
-
    <section id="vue-ensemble" className="poultry-overview-grid">
      <article id="batiments" className="poultry-panel poultry-buildings">
        <div className="poultry-panel-heading">

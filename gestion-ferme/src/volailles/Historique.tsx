@@ -162,8 +162,6 @@ export default function Historique() {
     (total, lot) => total + lot.chiffreAffaires,
     0
   );
-  const tauxMarge =
-    totalChiffreAffaires > 0 ? (totalResultat / totalChiffreAffaires) * 100 : 0;
   const lotAnalyse =
     lotsAffiches.find((lot) => lot.id === lotAnalyseId) || lotsAffiches[0];
   const lotsSansResultatNet = historique.filter(
@@ -320,6 +318,8 @@ export default function Historique() {
         <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={formatNombre(lotsAffiches.length)} note="Lots affichés" />
         <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
         <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
+        <HistoryKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(totalChiffreAffaires)} note="Lots affichés" />
+        <HistoryKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Charges enregistrées" />
         <HistoryKpi tone="orange" icon="€" label="Résultat net" value={formatMontant(totalResultat)} note="Après charges" />
       </section>
 
@@ -428,18 +428,6 @@ export default function Historique() {
               </div>
             </div>
           ) : <p className="history-empty">Aucune charge enregistrée.</p>}
-        </article>
-
-        <article className="history-panel history-economy">
-          <h2>Résultat économique</h2>
-          <div className="history-economy-kpis">
-            <span><small>Chiffre d’affaires</small><strong>{formatMontant(totalChiffreAffaires)}</strong></span>
-            <span><small>Total charges</small><strong>{formatMontant(totalCharges)}</strong></span>
-            <span><small>Marge nette</small><strong>{formatMontant(totalResultat)}</strong><em>{formatNombre(tauxMarge, 1)} %</em></span>
-          </div>
-          <p className={totalResultat >= 0 ? "history-performance-good" : "history-performance-alert"}>
-            {totalResultat >= 0 ? "Performance positive sur les lots affichés." : "Les charges dépassent le chiffre d’affaires sur la sélection."}
-          </p>
         </article>
       </section>
 

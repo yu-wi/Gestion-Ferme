@@ -804,6 +804,17 @@ export default function VolaillesResume() {
               </select></label>
               <label>Sacs consommés (25 kg)<input type="number" min="1" step="1" value={feedBags} onChange={(event) => setFeedBags(event.target.value)} /></label>
             </div>
+            {feedSuggestion && (
+              <div className="feed-suggestion">
+                <div>
+                  <strong>Suggestion : {Math.ceil(feedSuggestion.sacs)} sacs de {feedSuggestion.reference.feed_type}</strong>
+                  <span>{selectedFeedLot?.label} · {feedSuggestion.age} jours · {formatNombre(selectedFeedLot?.restants || 0)} sujets restants</span>
+                </div>
+                <button type="button" onClick={() => setFeedBags(String(Math.ceil(feedSuggestion.sacs)))}>
+                  Utiliser
+                </button>
+              </div>
+            )}
             <div className="feed-transition-lines">
               {showSecondFeed ? (
                 <div className="direct-sale-product-line">
@@ -834,17 +845,6 @@ export default function VolaillesResume() {
                 </button>
               )}
             </div>
-            {feedSuggestion && (
-              <div className="feed-suggestion">
-                <div>
-                  <strong>Suggestion : {Math.ceil(feedSuggestion.sacs)} sacs de {feedSuggestion.reference.feed_type}</strong>
-                  <span>{selectedFeedLot?.label} · {feedSuggestion.age} jours · {formatNombre(selectedFeedLot?.restants || 0)} sujets restants</span>
-                </div>
-                <button type="button" onClick={() => setFeedBags(String(Math.ceil(feedSuggestion.sacs)))}>
-                  Utiliser
-                </button>
-              </div>
-            )}
             <div className="poultry-form-stack feed-note-field">
               <label>Note facultative<input type="text" value={feedNote} onChange={(event) => setFeedNote(event.target.value)} /></label>
             </div>

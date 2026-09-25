@@ -47,7 +47,6 @@ type LivraisonStock = {
 type FeedDeliveryLine = {
   feedType: string;
   sacs: string;
-  prix: string;
 };
 
 type ConsumptionFollowUpRow = {
@@ -97,7 +96,6 @@ const enSacs = (quantiteKg: number) => quantiteKg / POIDS_SAC_KG;
 const nouvelleLigneLivraison = (): FeedDeliveryLine => ({
   feedType: "",
   sacs: "",
-  prix: "",
 });
 const sacsEntiers = (quantiteSacs: number) =>
   Math.max(0, Math.round(quantiteSacs));
@@ -202,7 +200,6 @@ export default function DashboardFeed() {
   const [livraisonDate, setLivraisonDate] = useState(aujourdHui());
   const [livraisonType, setLivraisonType] = useState("");
   const [livraisonSacs, setLivraisonSacs] = useState("");
-  const [livraisonPrix, setLivraisonPrix] = useState("");
   const [livraisonLignes, setLivraisonLignes] = useState<FeedDeliveryLine[]>([
     nouvelleLigneLivraison(),
   ]);
@@ -800,12 +797,11 @@ export default function DashboardFeed() {
 
   const enregistrerLivraison = async () => {
     const lignes = livraisonEnModification
-      ? [{ feedType: livraisonType, sacs: livraisonSacs, prix: livraisonPrix }]
+      ? [{ feedType: livraisonType, sacs: livraisonSacs }]
       : livraisonLignes;
     const lignesValides = lignes.map((ligne) => ({
       feedType: ligne.feedType,
       sacs: Number(ligne.sacs),
-      prix: ligne.prix.trim() ? Number(ligne.prix) : null,
     }));
     if (
       saving ||
@@ -815,8 +811,7 @@ export default function DashboardFeed() {
         (ligne) =>
           !ligne.feedType ||
           !Number.isFinite(ligne.sacs) ||
-          ligne.sacs <= 0 ||
-          (ligne.prix != null && (!Number.isFinite(ligne.prix) || ligne.prix < 0))
+          ligne.sacs <= 0
       )
     ) {
       toast.error("Complétez la date, l'aliment et une quantité positive.");
@@ -829,7 +824,7 @@ export default function DashboardFeed() {
       feed_type: ligne.feedType,
       quantite_kg: ligne.sacs * POIDS_SAC_KG,
       fournisseur: null,
-      prix_total_ht: ligne.prix,
+      prix_total_ht: null,
     }));
     const resultat = livraisonEnModification
       ? await supabase
@@ -865,7 +860,6 @@ export default function DashboardFeed() {
       ]);
       await chargerDonnees();
       setLivraisonSacs("");
-      setLivraisonPrix("");
       setLivraisonLignes([nouvelleLigneLivraison()]);
       setLivraisonEnModification(null);
       setLivraisonModalOpen(false);
@@ -913,14 +907,10 @@ export default function DashboardFeed() {
     setLivraisonDate(item.date);
     setLivraisonType(item.feed_type);
     setLivraisonSacs(String(sacsEntiers(enSacs(item.quantite_kg))));
-    setLivraisonPrix(
-      item.prix_total_ht == null ? "" : String(item.prix_total_ht)
-    );
     setLivraisonLignes([
       {
         feedType: item.feed_type,
         sacs: String(sacsEntiers(enSacs(item.quantite_kg))),
-        prix: item.prix_total_ht == null ? "" : String(item.prix_total_ht),
       },
     ]);
     setLivraisonModalOpen(true);
@@ -931,7 +921,6 @@ export default function DashboardFeed() {
     setLivraisonDate(aujourdHui());
     setLivraisonType("");
     setLivraisonSacs("");
-    setLivraisonPrix("");
     setLivraisonLignes([nouvelleLigneLivraison()]);
   };
 
@@ -1512,9 +1501,6 @@ export default function DashboardFeed() {
                   </select></label>
                   <label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={livraisonSacs} onChange={(event) => setLivraisonSacs(event.target.value)} /></label>
                 </div>
-                <div className="poultry-form-stack feed-note-field">
-                  <label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={livraisonPrix} onChange={(event) => setLivraisonPrix(event.target.value)} /></label>
-                </div>
               </>
             ) : (
               <div className="direct-sale-product-lines feed-delivery-lines">
@@ -1532,7 +1518,6 @@ export default function DashboardFeed() {
                         {typesAliment.map((type) => <option key={type} value={type}>{type}</option>)}
                       </select></label>
                       <label>Nombre de sacs livrés (25 kg)<input type="number" min={1} step={1} value={ligne.sacs} onChange={(event) => setLivraisonLignes((lignes) => lignes.map((item, lineIndex) => lineIndex === index ? { ...item, sacs: event.target.value } : item))} /></label>
-                      <label>Prix total HT facultatif (€)<input type="number" min={0} step="0.01" value={ligne.prix} onChange={(event) => setLivraisonLignes((lignes) => lignes.map((item, lineIndex) => lineIndex === index ? { ...item, prix: event.target.value } : item))} /></label>
                     </div>
                   </div>
                 ))}

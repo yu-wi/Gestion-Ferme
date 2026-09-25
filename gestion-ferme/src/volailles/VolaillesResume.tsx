@@ -47,7 +47,6 @@ type FeedReference = {
 type FeedDeliveryLine = {
   feedType: string;
   sacs: string;
-  prix: string;
 };
 
 type AlertItem = {
@@ -82,7 +81,6 @@ const POIDS_SAC_KG = 25;
 const nouvelleLigneLivraison = (): FeedDeliveryLine => ({
   feedType: "",
   sacs: "",
-  prix: "",
 });
 const DEFAULT_MORTALITY_ALERT_THRESHOLD = 15;
 
@@ -440,20 +438,18 @@ export default function VolaillesResume() {
   };
 
   const saveFeedDelivery = async () => {
-    const lignes = deliveryLines.map((line) => ({
-      feedType: line.feedType,
-      bags: Number(line.sacs),
-      price: line.prix.trim() ? Number(line.prix) : null,
-    }));
-    if (
-      !deliveryDate ||
+  const lignes = deliveryLines.map((line) => ({
+    feedType: line.feedType,
+    bags: Number(line.sacs),
+  }));
+  if (
+    !deliveryDate ||
       lignes.length === 0 ||
       lignes.some(
         (line) =>
           !line.feedType ||
           !Number.isFinite(line.bags) ||
-          line.bags <= 0 ||
-          (line.price != null && (!Number.isFinite(line.price) || line.price < 0))
+          line.bags <= 0
       )
     ) {
       toast.error("Complétez la date, l'aliment et le nombre de sacs.");
@@ -466,7 +462,7 @@ export default function VolaillesResume() {
       feed_type: line.feedType,
       quantite_kg: line.bags * POIDS_SAC_KG,
       fournisseur: null,
-      prix_total_ht: line.price,
+      prix_total_ht: null,
       note: null,
     }));
     const { error } = await supabase.from("livraisons_aliment").insert(payloads);
@@ -906,7 +902,6 @@ export default function VolaillesResume() {
                       {feedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select></label>
                     <label>Sacs livrés (25 kg)<input type="number" min="1" step="1" value={line.sacs} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, sacs: event.target.value } : item))} /></label>
-                    <label>Prix total HT facultatif (€)<input type="number" min="0" step="0.01" value={line.prix} onChange={(event) => setDeliveryLines((lines) => lines.map((item, lineIndex) => lineIndex === index ? { ...item, prix: event.target.value } : item))} /></label>
                   </div>
                 </div>
               ))}

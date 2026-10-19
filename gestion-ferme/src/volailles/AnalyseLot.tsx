@@ -155,7 +155,7 @@ export default function AnalyseLot() {
         <article className="history-panel history-charges">
           <h2>Charges par lot</h2>
           {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>Total charges</small><strong>{formatMontant(donnees.totalCharges)}</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
-          {coutAliment !== null && <p className="lot-analysis-feed-note">Consommations saisies × prix TTC actuels des sacs de 25 kg.</p>}
+          {coutAliment !== null && <p className="lot-analysis-feed-note">Montant TTC, TVA de 2,10 % incluse.</p>}
         </article>
         <article className="history-panel lot-analysis-economy">
           <h2>Détail économique</h2>

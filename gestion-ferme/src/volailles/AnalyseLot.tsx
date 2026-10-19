@@ -100,7 +100,7 @@ export default function AnalyseLot() {
     const repartition = Object.entries(chargesAnalyse.reduce<Record<string, number>>((totaux, charge) => {
       totaux[charge.type_charge] = (totaux[charge.type_charge] || 0) + charge.montant;
       return totaux;
-    }, {})).map(([type, montant]) => ({ type, label: type === "aliment" && coutAliment !== null ? "Aliment réellement consommé (HT)" : chargeLabels[type] || "Divers", montant })).sort((a, b) => b.montant - a.montant);
+    }, {})).map(([type, montant]) => ({ type, label: type === "aliment" && coutAliment !== null ? "Aliment consommé (TTC)" : chargeLabels[type] || "Divers", montant })).sort((a, b) => b.montant - a.montant);
     const segments = repartition.reduce((acc, charge, index) => {
       const debut = acc.fin;
       const fin = index === repartition.length - 1 || totalCharges <= 0 ? 360 : debut + (charge.montant / totalCharges) * 360;
@@ -154,16 +154,16 @@ export default function AnalyseLot() {
       <section className="lot-analysis-middle-grid">
         <article className="history-panel history-charges">
           <h2>Charges par lot</h2>
-          {coutAliment !== null && <p>Aliment valorisé aux prix HT des références actuelles, selon les consommations saisies.</p>}
-          {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>Total charges</small><strong>{donnees.totalCharges.toFixed(2)} €</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{charge.montant.toFixed(2)} €</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
+          {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>Total charges</small><strong>{formatMontant(donnees.totalCharges)}</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
+          {coutAliment !== null && <p className="lot-analysis-feed-note">Consommations saisies × prix TTC actuels des sacs de 25 kg.</p>}
         </article>
         <article className="history-panel lot-analysis-economy">
           <h2>Détail économique</h2>
           <div className="lot-analysis-economic-columns">
-            <div><h3>Produits</h3><p><span>Vente des volailles</span><b>{donnees.chiffreAffaires.toFixed(2)} €</b></p><strong>Total produits <b>{donnees.chiffreAffaires.toFixed(2)} €</b></strong></div>
-            <div><h3>Charges</h3>{donnees.repartition.map((charge) => <p key={charge.type}><span>{charge.label}</span><b>{charge.montant.toFixed(2)} €</b></p>)}<strong>Total charges <b>{donnees.totalCharges.toFixed(2)} €</b></strong></div>
+            <div><h3>Produits</h3><p><span>Vente des volailles</span><b>{formatMontant(donnees.chiffreAffaires)}</b></p><strong>Total produits <b>{formatMontant(donnees.chiffreAffaires)}</b></strong></div>
+            <div><h3>Charges</h3>{donnees.repartition.map((charge) => <p key={charge.type}><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b></p>)}<strong>Total charges <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
           </div>
-          <div className="lot-analysis-margin"><span>Marge nette <b>{donnees.resultat.toFixed(2)} €</b></span><span>Taux de marge <b>{donnees.tauxMarge.toFixed(1)} %</b></span></div>
+          <div className="lot-analysis-margin"><span>Marge nette <b>{formatMontant(donnees.resultat)}</b></span><span>Taux de marge <b>{donnees.tauxMarge.toFixed(1)} %</b></span></div>
         </article>
       </section>
 

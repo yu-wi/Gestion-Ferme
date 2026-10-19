@@ -7,7 +7,7 @@ const normaliserAliment = (value: string) => value
   .trim()
   .toLowerCase();
 
-// Même valorisation que la page Alimentation : quantité consommée / 25 kg × prix HT du sac.
+// Même valorisation que la page Alimentation : quantité consommée / 25 kg × prix TTC saisi du sac (champ historique feed_price_ht).
 // null distingue l'absence de saisie d'une consommation dont le coût est nul.
 export function calculerCoutAliment(
   consommations: ConsommationAliment[],

@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { chargerLotsAvecMouvements } from "./volaillesData";
+import { trouverLotsAvecChargesCompletes } from "./chargesCompletes";
 
 interface Charge {
   id: number | string;
@@ -37,7 +38,11 @@ const chargeMeta: Record<string, { label: string; icon: string; tone: string }> 
 const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
+  const [consommations, setConsommations] = useState<{ lot_id: string | null }[]>([]);
+  const [chargementCharges, setChargementCharges] = useState(true);
+  const [erreurCharges, setErreurCharges] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
+  const [lotSaisieId, setLotSaisieId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [chargeEnModification, setChargeEnModification] = useState<Charge | null>(null);
@@ -67,18 +72,26 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   };
 
   const fetchCharges = async () => {
-    const { data, error } = await supabase.from("charges").select("*");
-    if (error) {
-      console.error("Erreur chargement charges :", error.message);
+    const [chargesResult, consommationsResult] = await Promise.all([
+      supabase.from("charges").select("*"),
+      supabase.from("consommations_aliment").select("lot_id").not("lot_id", "is", null),
+    ]);
+    if (chargesResult.error || consommationsResult.error) {
+      console.error("Erreur chargement charges :", chargesResult.error || consommationsResult.error);
+      setErreurCharges(true);
+      setChargementCharges(false);
       toast.error("Les charges n'ont pas pu être chargées.");
       return;
     }
     setCharges(
-      (data || []).map((charge) => ({
+      (chargesResult.data || []).map((charge) => ({
         ...charge,
         montant: Number(charge.montant) || 0,
       })) as Charge[]
     );
+    setConsommations(consommationsResult.data || []);
+    setErreurCharges(false);
+    setChargementCharges(false);
   };
 
   useEffect(() => {
@@ -87,12 +100,16 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   }, []);
 
   const lotsAffiches = useMemo(
-    () =>
-      lotIdsFiltres
-        ? lots.filter((lot) => lotIdsFiltres.includes(lot.id))
-        : lots,
+    () => lots.filter((lot) => !lotIdsFiltres || lotIdsFiltres.includes(lot.id)),
     [lots, lotIdsFiltres]
   );
+
+  const lotsASaisir = useMemo(() => {
+    const lotsComplets = trouverLotsAvecChargesCompletes(charges, consommations);
+    return lotsAffiches.filter((lot) => !lotsComplets.has(lot.id));
+  }, [lotsAffiches, charges, consommations]);
+
+  const lotSaisie = lotsASaisir.find((lot) => lot.id === lotSaisieId);
 
   useEffect(() => {
     if (!lotsAffiches.length) {
@@ -125,7 +142,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       : 0;
 
   const handleSave = async () => {
-    if (saving || !lotSelectionne) return;
+    if (saving || !lotSaisie) return;
     if (montant <= 0) {
       toast.error("Indiquez un montant positif.");
       return;
@@ -133,8 +150,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
     setSaving(true);
     const { error } = await supabase.from("charges").insert({
-      lot_id: lotSelectionne.id,
-      lot_nom: lotSelectionne.nom,
+      lot_id: lotSaisie.id,
+      lot_nom: lotSaisie.nom,
       type_charge: selectedType,
       montant,
       date: dateDuJour(),
@@ -144,6 +161,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       console.error("Erreur enregistrement charge :", error.message);
       toast.error("La charge n'a pas pu être enregistrée.");
     } else {
+      setSelectedLotId(lotSaisie.id);
       setModalOpen(false);
       setSelectedType("achat_poussins");
       setMontant(0);
@@ -204,6 +222,9 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
     setSaving(false);
   };
 
+  if (chargementCharges) return <p className="charge-manager-empty">Chargement des charges…</p>;
+  if (erreurCharges) return <p className="charge-manager-empty" role="alert">Impossible de déterminer les lots à compléter. Fermez puis rouvrez la gestion des charges pour réessayer.</p>;
+
   return (
     <div className="charge-manager">
       {!lotsAffiches.length ? (
@@ -244,8 +265,12 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
           <div className="charge-manager-heading">
             <h3>Charges du lot</h3>
-            <button type="button" onClick={() => setModalOpen(true)}>＋ Ajouter une charge</button>
+            <button type="button" disabled={!lotsASaisir.length} onClick={() => {
+              setLotSaisieId(lotsASaisir.find((lot) => lot.id === lotSelectionne?.id)?.id || lotsASaisir[0]?.id || "");
+              setModalOpen(true);
+            }}>＋ Ajouter une charge</button>
           </div>
+          {!lotsASaisir.length && <p className="charge-manager-empty">Tous les lots affichés ont leurs quatre catégories de charges renseignées.</p>}
 
           <div className="charge-manager-mobile">
             {chargesDuLot.map((charge) => {
@@ -296,7 +321,10 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
       <ChargeFormModal
         open={modalOpen}
         title="Ajouter une charge"
-        lotName={lotSelectionne?.nom || ""}
+        lotName={lotSaisie?.nom || ""}
+        lots={lotsASaisir}
+        lotId={lotSaisieId}
+        onLotChange={setLotSaisieId}
         type={selectedType}
         montant={montant}
         onTypeChange={setSelectedType}
@@ -330,6 +358,9 @@ function ChargeFormModal({
   open,
   title,
   lotName,
+  lots,
+  lotId,
+  onLotChange,
   type,
   montant,
   onTypeChange,
@@ -342,6 +373,9 @@ function ChargeFormModal({
   open: boolean;
   title: string;
   lotName: string;
+  lots?: Lot[];
+  lotId?: string;
+  onLotChange?: (value: string) => void;
   type: string;
   montant: number;
   onTypeChange: (value: string) => void;
@@ -361,11 +395,15 @@ function ChargeFormModal({
           <div><h2>{title}</h2><p>Lot {lotName}</p></div>
         </div>
         <div className="poultry-form-stack">
+          {lots && onLotChange && <label>Lot<select value={lotId || ""} onChange={(event) => onLotChange(event.target.value)} disabled={saving}>
+            <option value="">-- Choisir un lot --</option>
+            {lots.map((lot) => <option key={lot.id} value={lot.id}>Lot {lot.nom} · {lot.batiment}</option>)}
+          </select></label>}
           <label>Catégorie<select value={type} onChange={(event) => onTypeChange(event.target.value)}><option value="achat_poussins">Achat poussins</option><option value="aliment">Aliment</option><option value="ramassage">Ramassage</option><option value="livraison">Livraison</option><option value="divers">Divers</option></select></label>
           <label>Montant (€)<input type="number" min={0.01} step="0.01" value={montant || ""} onChange={(event) => onMontantChange(Number(event.target.value))} /></label>
         </div>
         <div className="poultry-modal-actions">
-          <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>
+          <button type="button" className="poultry-modal-primary" onClick={onSave} disabled={saving || (!!lots && !lots.some((lot) => lot.id === lotId))}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button>
           <button type="button" className="poultry-modal-secondary" onClick={onClose}>Annuler</button>
         </div>
       </div>

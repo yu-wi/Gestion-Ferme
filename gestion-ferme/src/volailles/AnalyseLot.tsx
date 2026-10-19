@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
+import { appliquerCoutAliment, calculerCoutAliment } from "./coutAliment";
 import {
   chargerLotsAvecMouvements,
   type LivraisonVolaille,
@@ -43,31 +44,46 @@ export default function AnalyseLot() {
   const [lot, setLot] = useState<LotAnalyse | null>(null);
   const [lotsDisponibles, setLotsDisponibles] = useState<LotAnalyse[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
+  const [coutAliment, setCoutAliment] = useState<number | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const charger = async () => {
+      setLoading(true);
+      setErreur(null);
       if (!lotId) {
         setLoading(false);
         return;
       }
       try {
-        const [lots, chargesResult] = await Promise.all([
+        const [lots, chargesResult, consommationsResult, referencesResult] = await Promise.all([
           chargerLotsAvecMouvements(false),
           supabase.from("charges").select("type_charge, montant").eq("lot_id", lotId),
+          supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId),
+          supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
         ]);
         if (chargesResult.error) throw chargesResult.error;
+        if (consommationsResult.error) throw consommationsResult.error;
+        if (referencesResult.error) throw referencesResult.error;
+        const cout = calculerCoutAliment(consommationsResult.data || [], referencesResult.data || []);
+        if (!active) return;
         const lotsArchives = lots as LotAnalyse[];
         setLotsDisponibles(lotsArchives);
         setLot(lotsArchives.find((item) => item.id === lotId) || null);
         setCharges((chargesResult.data || []).map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
+        setCoutAliment(cout);
       } catch (error) {
+        if (!active) return;
         console.error("Erreur chargement analyse lot :", error);
+        setErreur(error instanceof Error ? error.message : "L’analyse du lot n’a pas pu être chargée. Veuillez réessayer.");
         toast.error("L'analyse du lot n'a pas pu être chargée.");
       }
-      setLoading(false);
+      if (active) setLoading(false);
     };
     charger();
+    return () => { active = false; };
   }, [lotId]);
 
   const donnees = useMemo(() => {
@@ -76,14 +92,15 @@ export default function AnalyseLot() {
     const totalPoids = Number(lot.total_poids_livre) || 0;
     const poidsMoyen = quantiteLivree > 0 ? totalPoids / quantiteLivree : 0;
     const tauxMortalite = lot.quantite > 0 ? (Number(lot.nb_morts || 0) / lot.quantite) * 100 : 0;
-    const totalCharges = charges.reduce((total, charge) => total + charge.montant, 0);
+    const chargesAnalyse = appliquerCoutAliment(charges, coutAliment);
+    const totalCharges = chargesAnalyse.reduce((total, charge) => total + charge.montant, 0);
     const chiffreAffaires = Number(lot.resultat_brut) || 0;
-    const resultat = lot.resultat_net != null ? Number(lot.resultat_net) || 0 : chiffreAffaires - totalCharges;
+    const resultat = coutAliment === null && lot.resultat_net != null ? Number(lot.resultat_net) || 0 : chiffreAffaires - totalCharges;
     const tauxMarge = chiffreAffaires > 0 ? (resultat / chiffreAffaires) * 100 : 0;
-    const repartition = Object.entries(charges.reduce<Record<string, number>>((totaux, charge) => {
+    const repartition = Object.entries(chargesAnalyse.reduce<Record<string, number>>((totaux, charge) => {
       totaux[charge.type_charge] = (totaux[charge.type_charge] || 0) + charge.montant;
       return totaux;
-    }, {})).map(([type, montant]) => ({ type, label: chargeLabels[type] || "Divers", montant })).sort((a, b) => b.montant - a.montant);
+    }, {})).map(([type, montant]) => ({ type, label: type === "aliment" && coutAliment !== null ? "Aliment réellement consommé (HT)" : chargeLabels[type] || "Divers", montant })).sort((a, b) => b.montant - a.montant);
     const segments = repartition.reduce((acc, charge, index) => {
       const debut = acc.fin;
       const fin = index === repartition.length - 1 || totalCharges <= 0 ? 360 : debut + (charge.montant / totalCharges) * 360;
@@ -92,9 +109,10 @@ export default function AnalyseLot() {
       return acc;
     }, { segments: [] as string[], fin: 0 }).segments;
     return { quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
-  }, [lot, charges]);
+  }, [lot, charges, coutAliment]);
 
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
+  if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>;
   if (!lot || !donnees) return <div className="history-page"><div className="history-empty">Lot introuvable.</div></div>;
 
   return (
@@ -136,6 +154,7 @@ export default function AnalyseLot() {
       <section className="lot-analysis-middle-grid">
         <article className="history-panel history-charges">
           <h2>Charges par lot</h2>
+          {coutAliment !== null && <p>Aliment valorisé aux prix HT des références actuelles, selon les consommations saisies.</p>}
           {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>Total charges</small><strong>{donnees.totalCharges.toFixed(2)} €</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{charge.montant.toFixed(2)} €</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
         </article>
         <article className="history-panel lot-analysis-economy">

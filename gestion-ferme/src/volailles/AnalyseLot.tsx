@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ChargeValider from "./ChargeValider";
+import { completerChargesLivraisons, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
@@ -28,7 +30,7 @@ type LotAnalyse = {
   mortalites: MortaliteVolaille[];
 };
 
-type Charge = { type_charge: string; montant: number };
+type Charge = { id?: string | number; type_charge: string; montant: number };
 
 const chargeLabels: Record<string, string> = {
   aliment: "Aliment",
@@ -47,6 +49,9 @@ export default function AnalyseLot() {
   const [coutAliment, setCoutAliment] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tarifs, setTarifs] = useState(tarifsChargesParDefaut);
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -58,12 +63,15 @@ export default function AnalyseLot() {
         return;
       }
       try {
-        const [lots, chargesResult, consommationsResult, referencesResult] = await Promise.all([
+        const [lots, chargesResult, consommationsResult, referencesResult, tarifsResult] = await Promise.all([
           chargerLotsAvecMouvements(false),
-          supabase.from("charges").select("type_charge, montant").eq("lot_id", lotId),
+          supabase.from("charges").select("id, type_charge, montant").eq("lot_id", lotId),
           supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId),
           supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
+          supabase.from("app_settings").select("key, value").eq("category", "volailles"),
         ]);
+        if (tarifsResult.error) throw tarifsResult.error;
+        const tarifsCharges = lireTarifsCharges(tarifsResult.data || []);
         if (chargesResult.error) throw chargesResult.error;
         if (consommationsResult.error) throw consommationsResult.error;
         if (referencesResult.error) throw referencesResult.error;
@@ -74,6 +82,7 @@ export default function AnalyseLot() {
         setLot(lotsArchives.find((item) => item.id === lotId) || null);
         setCharges((chargesResult.data || []).map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
         setCoutAliment(cout);
+        setTarifs(tarifsCharges);
       } catch (error) {
         if (!active) return;
         console.error("Erreur chargement analyse lot :", error);
@@ -92,10 +101,12 @@ export default function AnalyseLot() {
     const totalPoids = Number(lot.total_poids_livre) || 0;
     const poidsMoyen = quantiteLivree > 0 ? totalPoids / quantiteLivree : 0;
     const tauxMortalite = lot.quantite > 0 ? (Number(lot.nb_morts || 0) / lot.quantite) * 100 : 0;
-    const chargesAnalyse = appliquerCoutAliment(charges, coutAliment);
+    const propositions = calculerChargesLivraisons(lot.livraisons, tarifs);
+    const chargesAvecPropositions = completerChargesLivraisons(charges, lot.livraisons, tarifs);
+    const chargesAnalyse = appliquerCoutAliment(chargesAvecPropositions, coutAliment);
     const totalCharges = chargesAnalyse.reduce((total, charge) => total + charge.montant, 0);
     const chiffreAffaires = Number(lot.resultat_brut) || 0;
-    const resultat = coutAliment === null && lot.resultat_net != null ? Number(lot.resultat_net) || 0 : chiffreAffaires - totalCharges;
+    const resultat = chiffreAffaires - totalCharges;
     const tauxMarge = chiffreAffaires > 0 ? (resultat / chiffreAffaires) * 100 : 0;
     const repartition = Object.entries(chargesAnalyse.reduce<Record<string, number>>((totaux, charge) => {
       totaux[charge.type_charge] = (totaux[charge.type_charge] || 0) + charge.montant;
@@ -108,8 +119,31 @@ export default function AnalyseLot() {
       acc.fin = fin;
       return acc;
     }, { segments: [] as string[], fin: 0 }).segments;
-    return { quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
-  }, [lot, charges, coutAliment]);
+    return { propositions, quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
+  }, [lot, charges, coutAliment, tarifs]);
+
+  const enregistrerCharge = async (type: CategorieAutomatique, montant: number, id?: string | number) => {
+    if (!lot || saveLock.current || !Number.isFinite(montant) || montant < 0) return false;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      const query = id != null
+        ? supabase.from("charges").update({ montant }).eq("id", id).eq("lot_id", lot.id)
+        : supabase.from("charges").insert({ lot_id: lot.id, lot_nom: lot.nom, type_charge: type, montant, date: new Date().toLocaleDateString("en-CA") });
+      const { data, error } = await query.select("id, type_charge, montant").single();
+      if (error) throw error;
+      setCharges((current) => [...current.filter((charge) => charge.id !== data.id), { ...data, montant: Number(data.montant) }]);
+      toast.success("Charge enregistrée.");
+      return true;
+    } catch (error) {
+      console.error("Erreur enregistrement charge :", error);
+      toast.error("La charge n’a pas pu être enregistrée. Veuillez réessayer.");
+      return false;
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  };
 
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
   if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>;
@@ -124,7 +158,7 @@ export default function AnalyseLot() {
           <p>Arrivé le {formatDate(lot.date_arrivee)} · Bâtiment {lot.batiment} · Période de {lot.age || 0} jours</p>
           <label className="lot-analysis-selector">
             Lot analysé
-            <select value={lot.id} onChange={(event) => navigate(`/volailles/sica/historique/${event.target.value}/analyse`)}>
+            <select disabled={saving} value={lot.id} onChange={(event) => navigate(`/volailles/sica/historique/${event.target.value}/analyse`)}>
               {lotsDisponibles.map((item) => <option key={item.id} value={item.id}>Lot {item.nom} · {item.batiment}</option>)}
             </select>
           </label>
@@ -159,9 +193,23 @@ export default function AnalyseLot() {
         </article>
         <article className="history-panel lot-analysis-economy">
           <h2>Détail économique</h2>
+          {lot.livraisons.length > 0 && (["ramassage", "livraison"] as const).some((type) => !charges.some((charge) => charge.type_charge === type)) && <p className="lot-analysis-feed-note">Les totaux incluent les charges proposées à valider avec ✓. Le crayon permet de corriger le montant TTC.</p>}
           <div className="lot-analysis-economic-columns">
             <div><h3>Produits</h3><p><span>Vente des volailles</span><b>{formatMontant(donnees.chiffreAffaires)}</b></p><strong>Total produits <b>{formatMontant(donnees.chiffreAffaires)}</b></strong></div>
-            <div><h3>Charges</h3>{donnees.repartition.map((charge) => <p key={charge.type}><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b></p>)}<strong>Total charges <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
+            <div><h3>Charges</h3>{donnees.repartition.filter((charge) => charge.type !== "ramassage" && charge.type !== "livraison").map((charge) => <p key={charge.type}><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b></p>)}
+              {(["ramassage", "livraison"] as const).map((type) => {
+                const enregistrees = charges.filter((charge) => charge.type_charge === type);
+                const detail = type === "ramassage"
+                  ? `${formatNombre(donnees.quantiteLivree)} sujets × ${formatNombre(Number(tarifs.poultry_collection_price_ht), 4)} € HT + TVA ${formatNombre(Number(tarifs.poultry_collection_vat), 1)} %`
+                  : `${lot.livraisons.length} livraison(s) × ${formatMontant(Number(tarifs.poultry_transport_price_ht))} HT + TVA ${formatNombre(Number(tarifs.poultry_transport_vat), 1)} %`;
+                return enregistrees.length ? enregistrees.map((charge) => <ChargeValider key={`${lot.id}-${charge.id}`} label={chargeLabels[type]}
+                  montant={charge.montant} enregistree detail={detail} disabled={saving}
+                  onSave={(montant) => enregistrerCharge(type, montant, charge.id)} />)
+                  : lot.livraisons.length > 0 ? <ChargeValider key={`${lot.id}-${type}`} label={chargeLabels[type]}
+                    montant={donnees.propositions[type]} enregistree={false} detail={detail} disabled={saving}
+                    onSave={(montant) => enregistrerCharge(type, montant)} /> : null;
+              })}
+              <strong>Total charges <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
           </div>
           <div className="lot-analysis-margin"><span>Marge nette <b>{formatMontant(donnees.resultat)}</b></span><span>Taux de marge <b>{donnees.tauxMarge.toFixed(1)} %</b></span></div>
         </article>

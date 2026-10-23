@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
+import { tarifsChargesParDefaut, libellesTarifsCharges } from "../volailles/tarifsCharges";
 import { formatNombre } from "../outils/formatNombre";
 
 type FeedReference = {
@@ -27,11 +28,13 @@ type PoultrySettingKey =
   | "sica_analysis_day"
   | "sica_delivery_day"
   | "direct_poulet_ready_day"
-  | "direct_pintade_ready_day";
+  | "direct_pintade_ready_day"
+  | keyof typeof tarifsChargesParDefaut;
 
 type PoultrySettingsForm = Record<PoultrySettingKey, string>;
 
 const defaultPoultrySettings: PoultrySettingsForm = {
+  ...tarifsChargesParDefaut,
   mortality_alert_threshold: "15",
   sica_analysis_day: "46",
   sica_delivery_day: "70",
@@ -40,6 +43,7 @@ const defaultPoultrySettings: PoultrySettingsForm = {
 };
 
 const poultrySettingLabels: Record<PoultrySettingKey, string> = {
+  ...libellesTarifsCharges,
   mortality_alert_threshold: "Seuil alerte mortalité (%)",
   sica_analysis_day: "Jour analyse sanitaire SICA",
   sica_delivery_day: "Jour livraison prévue SICA",
@@ -258,7 +262,7 @@ export default function Parametres() {
     const entries = Object.entries(poultrySettings) as Array<[PoultrySettingKey, string]>;
     const invalid = entries.some(([, value]) => {
       const numberValue = Number(value);
-      return !Number.isFinite(numberValue) || numberValue < 0;
+      return value.trim() === "" || !Number.isFinite(numberValue) || numberValue < 0;
     });
     if (invalid) {
       toast.error("Vérifiez les valeurs volailles : elles doivent être positives.");
@@ -381,6 +385,13 @@ export default function Parametres() {
               onChange={(event) => updatePoultrySetting("direct_pintade_ready_day", event.target.value)}
             />
           </label>
+          {Object.keys(tarifsChargesParDefaut).map((setting) => {
+            const key = setting as keyof typeof tarifsChargesParDefaut;
+            return <label key={key}>{libellesTarifsCharges[key]}
+              <input type="number" min="0" step={key === "poultry_collection_price_ht" ? "0.0001" : "0.01"}
+                value={poultrySettings[key]} onChange={(event) => updatePoultrySetting(key, event.target.value)} />
+            </label>;
+          })}
           <div className="settings-form-actions">
             <button type="button" onClick={savePoultrySettings} disabled={saving}>
               Enregistrer

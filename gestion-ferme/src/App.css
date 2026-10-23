@@ -5564,6 +5564,18 @@
 .lot-analysis-economic-columns > div > strong { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; border-top: 1px solid #cfe0d3; padding-top: 10px; color: #14763a; font-size: 10px; }
 .lot-analysis-economic-columns > div:last-child > strong { border-color: #ebcccc; color: #c62828; }
 
+.lot-charge-validation { border-bottom: 1px solid #ebdede; padding: 10px 0; }
+.lot-charge-value { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #40556a; font-size: 10px; }
+.lot-charge-validation > small { display: block; margin-top: 5px; color: #718093; font-size: 9px; line-height: 1.5; }
+.lot-charge-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.lot-charge-actions button { min-width: 28px; min-height: 28px; border: 1px solid #d8e2dd; border-radius: 5px; background: white; color: #40556a; cursor: pointer; }
+.lot-charge-actions .lot-charge-confirm { border-color: #16853d; background: #16853d; color: white; }
+.lot-charge-saved { color: #16853d; font-weight: 800; }
+.lot-charge-actions button:disabled { opacity: .5; cursor: wait; }
+.lot-charge-input { min-width: 0; color: #40556a; font-size: 9px; }
+.lot-charge-input input { display: block; width: 100%; max-width: 120px; border: 1px solid #d8e2dd; border-radius: 5px; padding: 6px; font: inherit; font-size: 12px; }
+@media print { .lot-charge-actions { display: none; } }
+
 .lot-analysis-margin {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

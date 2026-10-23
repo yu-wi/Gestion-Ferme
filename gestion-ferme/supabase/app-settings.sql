@@ -45,5 +45,9 @@ values
   ('sica_analysis_day', '46', 'Jour analyse sanitaire SICA', 'volailles'),
   ('sica_delivery_day', '70', 'Jour livraison prevue SICA', 'volailles'),
   ('direct_poulet_ready_day', '70', 'Jour pret a vendre poulets vente directe', 'volailles'),
-  ('direct_pintade_ready_day', '90', 'Jour pret a vendre pintades vente directe', 'volailles')
+  ('direct_pintade_ready_day', '90', 'Jour pret a vendre pintades vente directe', 'volailles'),
+  ('poultry_collection_price_ht', '0.1415', 'Ramassage (EUR HT / volaille)', 'volailles'),
+  ('poultry_collection_vat', '8.5', 'TVA ramassage (%)', 'volailles'),
+  ('poultry_transport_price_ht', '100', 'Transport (EUR HT / livraison)', 'volailles'),
+  ('poultry_transport_vat', '2.1', 'TVA transport (%)', 'volailles')
 on conflict (key) do nothing;

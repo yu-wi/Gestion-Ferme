@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { calculerChargesLot } from "./chargesLot";
+import { calculerCoutAliment } from "./coutAliment";
+import { chargerPages } from "./chargerPages";
+import { lireTarifsCharges, tarifsChargesParDefaut } from "./tarifsCharges";
+import { formatMontant, formatNombre } from "../outils/formatNombre";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
@@ -12,6 +18,7 @@ interface Charge {
   date: string;
   type_charge: string;
   montant: number;
+  automatique?: boolean;
 }
 
 interface Lot {
@@ -21,6 +28,7 @@ interface Lot {
   batiment: string;
   age: number;
   quantiteLivree: number;
+  livraisons: { quantite: number }[];
 }
 
 interface ChargesProps {
@@ -39,6 +47,8 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [consommations, setConsommations] = useState<{ lot_id: string | null }[]>([]);
+  const [coutsAliment, setCoutsAliment] = useState<Map<string, number>>(new Map());
+  const [tarifs, setTarifs] = useState(tarifsChargesParDefaut);
   const [chargementCharges, setChargementCharges] = useState(true);
   const [erreurCharges, setErreurCharges] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
@@ -59,6 +69,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
           date_arrivee: lot.date_arrivee,
           batiment: lot.batiment,
           age: Number(lot.age) || 0,
+          livraisons: lot.livraisons,
           quantiteLivree: lot.livraisons.reduce(
             (total, livraison) => total + Number(livraison.quantite || 0),
             0
@@ -72,25 +83,31 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   };
 
   const fetchCharges = async () => {
-    const [chargesResult, consommationsResult] = await Promise.all([
-      supabase.from("charges").select("*"),
-      supabase.from("consommations_aliment").select("lot_id").not("lot_id", "is", null),
-    ]);
-    if (chargesResult.error || consommationsResult.error) {
-      console.error("Erreur chargement charges :", chargesResult.error || consommationsResult.error);
+    try {
+      const [chargesRows, consommationsRows, referencesResult, tarifsResult] = await Promise.all([
+        chargerPages((debut, fin) => supabase.from("charges").select("*").order("id").range(debut, fin)),
+        chargerPages((debut, fin) => supabase.from("consommations_aliment").select("lot_id, feed_type, quantite_kg").not("lot_id", "is", null).order("id").range(debut, fin)),
+        supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
+        supabase.from("app_settings").select("key, value").eq("category", "volailles"),
+      ]);
+      if (referencesResult.error) throw referencesResult.error;
+      if (tarifsResult.error) throw tarifsResult.error;
+      const couts = new Map<string, number>();
+      for (const id of new Set(consommationsRows.map((item) => item.lot_id))) {
+        if (!id) continue;
+        const cout = calculerCoutAliment(consommationsRows.filter((item) => item.lot_id === id), referencesResult.data || []);
+        if (cout !== null) couts.set(id, cout);
+      }
+      setCharges(chargesRows.map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })) as Charge[]);
+      setConsommations(consommationsRows);
+      setCoutsAliment(couts);
+      setTarifs(lireTarifsCharges(tarifsResult.data || []));
+      setErreurCharges(false);
+    } catch (error) {
+      console.error("Erreur chargement charges :", error);
       setErreurCharges(true);
-      setChargementCharges(false);
       toast.error("Les charges n'ont pas pu être chargées.");
-      return;
     }
-    setCharges(
-      (chargesResult.data || []).map((charge) => ({
-        ...charge,
-        montant: Number(charge.montant) || 0,
-      })) as Charge[]
-    );
-    setConsommations(consommationsResult.data || []);
-    setErreurCharges(false);
     setChargementCharges(false);
   };
 
@@ -124,13 +141,26 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const lotSelectionne =
     lotsAffiches.find((lot) => lot.id === selectedLotId) || lotsAffiches[0];
 
-  const chargesDuLot = useMemo(
-    () =>
-      charges
-        .filter((charge) => charge.lot_id === lotSelectionne?.id)
-        .sort((a, b) => b.date.localeCompare(a.date)),
-    [charges, lotSelectionne]
-  );
+  const chargesDuLot = useMemo<Charge[]>(() => {
+    if (!lotSelectionne) return [];
+    const enregistrees = charges.filter((charge) => charge.lot_id === lotSelectionne.id)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return calculerChargesLot(enregistrees, lotSelectionne.livraisons, coutsAliment.get(lotSelectionne.id) ?? null, tarifs)
+      .map((charge) => {
+        const source = enregistrees.find((item) => item === charge);
+        return source || { ...charge, id: `auto-${charge.type_charge}`, lot_id: lotSelectionne.id,
+          lot_nom: lotSelectionne.nom, date: "", automatique: true };
+      });
+  }, [charges, lotSelectionne, coutsAliment, tarifs]);
+
+  const libelleCharge = (charge: Charge) => charge.automatique && charge.type_charge === "aliment"
+    ? "Aliment consommé (TTC)" : (chargeMeta[charge.type_charge] || chargeMeta.divers).label;
+  const actionsCharge = (charge: Charge) => charge.automatique
+    ? <Link to={charge.type_charge === "aliment" ? "/volailles/alimentation" : `/volailles/sica/historique/${charge.lot_id}/analyse`}>
+        {charge.type_charge === "aliment" ? "Calculé depuis les consommations" : "À valider dans l’analyse"}
+      </Link>
+    : <><button type="button" title="Modifier la charge" disabled={saving} onClick={() => setChargeEnModification({ ...charge })}>✎</button>
+      <button type="button" title="Supprimer la charge" disabled={saving} onClick={() => supprimerCharge(charge)}>🗑</button></>;
 
   const totalCharges = chargesDuLot.reduce(
     (total, charge) => total + charge.montant,
@@ -172,7 +202,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   };
 
   const enregistrerModification = async () => {
-    if (saving || !chargeEnModification) return;
+    if (saving || !chargeEnModification || chargeEnModification.automatique) return;
     if (chargeEnModification.montant <= 0) {
       toast.error("Indiquez un montant positif.");
       return;
@@ -207,7 +237,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   };
 
   const supprimerCharge = async (charge: Charge) => {
-    if (saving || !window.confirm("Supprimer cette charge ?")) return;
+    if (charge.automatique || saving || !window.confirm("Supprimer cette charge ?")) return;
     setSaving(true);
     const { error } = await supabase.from("charges").delete().eq("id", charge.id);
     if (error) {
@@ -255,11 +285,11 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
             </div>
             <div className="charge-summary-metric">
               <small>Total des charges</small>
-              <strong>{totalCharges.toFixed(2)} €</strong>
+              <strong>{formatMontant(totalCharges)}</strong>
             </div>
             <div className="charge-summary-metric">
               <small>Coût par sujet livré</small>
-              <strong>{coutParSujet.toFixed(2)} €</strong>
+              <strong>{formatMontant(coutParSujet)}</strong>
             </div>
           </section>
 
@@ -281,12 +311,11 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
                 <article key={charge.id}>
                   <div className="charge-category">
                     <span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span>
-                    <div><strong>{meta.label}</strong></div>
+                    <div><strong>{libelleCharge(charge)}</strong></div>
                   </div>
-                  <div className="charge-mobile-values"><b>{charge.montant.toFixed(2)} €</b><span>{pourcentage.toFixed(1)} %</span></div>
+                  <div className="charge-mobile-values"><b>{formatMontant(charge.montant)}</b><span>{formatNombre(pourcentage, 1)} %</span></div>
                   <div className="charge-actions">
-                    <button type="button" title="Modifier" onClick={() => setChargeEnModification({ ...charge })}>✎</button>
-                    <button type="button" title="Supprimer" onClick={() => supprimerCharge(charge)} disabled={saving}>🗑</button>
+                    {actionsCharge(charge)}
                   </div>
                 </article>
               );
@@ -303,16 +332,16 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
                     totalCharges > 0 ? (charge.montant / totalCharges) * 100 : 0;
                   return (
                     <tr key={charge.id}>
-                      <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{meta.label}</strong></div></td>
-                      <td>{charge.montant.toFixed(2)} €</td>
-                      <td>{pourcentage.toFixed(1)} %</td>
-                      <td><div className="charge-actions"><button type="button" title="Modifier la charge" onClick={() => setChargeEnModification({ ...charge })}>✎</button><button type="button" title="Supprimer la charge" onClick={() => supprimerCharge(charge)} disabled={saving}>🗑</button></div></td>
+                      <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{libelleCharge(charge)}</strong></div></td>
+                      <td>{formatMontant(charge.montant)}</td>
+                      <td>{formatNombre(pourcentage, 1)} %</td>
+                      <td><div className="charge-actions">{actionsCharge(charge)}</div></td>
                     </tr>
                   );
                 })}
                 {!chargesDuLot.length && <tr><td colSpan={4} className="charge-manager-empty">Aucune charge enregistrée pour ce lot.</td></tr>}
               </tbody>
-              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{totalCharges.toFixed(2)} €</td><td>100 %</td><td>—</td></tr></tfoot>}
+              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{formatMontant(totalCharges)}</td><td>100 %</td><td>—</td></tr></tfoot>}
             </table>
           </div>
         </>

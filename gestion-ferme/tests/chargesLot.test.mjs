@@ -27,6 +27,25 @@ test('aucun double comptage de l’aliment et respect des charges validées ou c
 test('sans consommation, une charge alimentaire manuelle reste conservée', () => {
   assert.deepEqual(calculerChargesLot([{ type_charge: 'aliment', montant: 50 }], [], null, tarifsChargesParDefaut), [{ type_charge: 'aliment', montant: 50 }]);
 });
+test('régression lot 3126 : le total de gestion inclut les 5 604,78 euros d’aliment', () => {
+  // Montants fournis par les captures, sans accéder à la base de production.
+  const enregistrees = [
+    { id: 1, type_charge: 'ramassage', montant: 261.30 },
+    { id: 2, type_charge: 'livraison', montant: 204.20 },
+    { id: 3, type_charge: 'achat_poussins', montant: 2121.92 },
+  ];
+  const lignes = calculerChargesLot(enregistrees, [{ quantite: 850 }, { quantite: 852 }], 5604.78, tarifsChargesParDefaut);
+  assert.equal(lignes.length, 4);
+  const total = lignes.reduce((s, c) => s + c.montant, 0);
+  assert.equal(total.toFixed(2), '8192.20');
+  assert.equal((total / 1702).toFixed(2), '4.81');
+  // Les lignes enregistrées gardent leur identité pour leurs actions modifier/supprimer.
+  assert.equal(lignes[0], enregistrees[0]);
+  assert.equal(lignes[1], enregistrees[1]);
+  assert.equal(lignes[2], enregistrees[2]);
+  assert.equal(enregistrees.includes(lignes[3]), false);
+  assert.equal((lignes.reduce((s, c) => s + c.montant / total * 100, 0)).toFixed(1), '100.0');
+});
 test('les filtres des lots excluent leurs charges du total affiché', () => {
   const lots = [
     { id: 'visible', charges: calculerChargesLot([], [], 40.84, tarifsChargesParDefaut) },

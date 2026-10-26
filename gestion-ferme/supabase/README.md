@@ -1,5 +1,24 @@
 # Supabase
 
+## Tarifs figés des lots SICA
+
+L'archivage conserve une copie des prix alimentaires, de la TVA alimentaire et des
+tarifs/TVA de ramassage et de transport dans `app_settings`, catégorie
+`lot_tariffs`, clé `lot_tariffs:<lot_id>`. La table existante et ses politiques
+suffisent : aucune migration supplémentaire n'est nécessaire.
+
+L'archivage ne se poursuit que si cette copie est sauvegardée et relue avec succès.
+Le premier instantané est conservé sans écrasement, y compris en cas de nouvelle
+tentative d'archivage. L'analyse complète, l'historique et la gestion des charges
+utilisent ensuite ces tarifs pour ce lot. Les quantités restent corrigeables ;
+les charges manuelles déjà validées conservent leurs montants.
+
+Pour les lots déjà archivés sans instantané, l'analyse propose « Figer les tarifs
+actuels ». Ce gel crée une base à partir des valeurs disponibles au moment du clic,
+et ne prétend pas reconstituer les prix historiques. Aucun gel n'est effectué
+simplement en consultant une page. Ne pas modifier ni supprimer les entrées
+`lot_tariffs` lors d'une mise à jour générale des paramètres.
+
 Ce dossier contient des notes de securite pour preparer la base de donnees.
 
 ## Connexion par identifiant et profils

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { chargerTarifsFiges } from "./tarifsFigesService";
+import type { TarifsFiges } from "./tarifsFiges";
 import { Link } from "react-router-dom";
 import { calculerChargesLot } from "./chargesLot";
 import { calculerCoutAliment } from "./coutAliment";
@@ -48,6 +50,7 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [consommations, setConsommations] = useState<{ lot_id: string | null }[]>([]);
   const [coutsAliment, setCoutsAliment] = useState<Map<string, number>>(new Map());
+  const [snapshots, setSnapshots] = useState<Map<string, TarifsFiges>>(new Map());
   const [tarifs, setTarifs] = useState(tarifsChargesParDefaut);
   const [chargementCharges, setChargementCharges] = useState(true);
   const [erreurCharges, setErreurCharges] = useState(false);
@@ -84,23 +87,26 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
 
   const fetchCharges = async () => {
     try {
-      const [chargesRows, consommationsRows, referencesResult, tarifsResult] = await Promise.all([
+      const [chargesRows, consommationsRows, referencesResult, tarifsResult, snapshotsResult] = await Promise.all([
         chargerPages((debut, fin) => supabase.from("charges").select("*").order("id").range(debut, fin)),
         chargerPages((debut, fin) => supabase.from("consommations_aliment").select("lot_id, feed_type, quantite_kg").not("lot_id", "is", null).order("id").range(debut, fin)),
         supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
         supabase.from("app_settings").select("key, value").eq("category", "volailles"),
+        chargerTarifsFiges(),
       ]);
       if (referencesResult.error) throw referencesResult.error;
       if (tarifsResult.error) throw tarifsResult.error;
       const couts = new Map<string, number>();
       for (const id of new Set(consommationsRows.map((item) => item.lot_id))) {
         if (!id) continue;
-        const cout = calculerCoutAliment(consommationsRows.filter((item) => item.lot_id === id), referencesResult.data || []);
+        const fige = snapshotsResult.get(id);
+        const cout = calculerCoutAliment(consommationsRows.filter((item) => item.lot_id === id), fige?.references ?? referencesResult.data ?? [], fige?.tvaAliment);
         if (cout !== null) couts.set(id, cout);
       }
       setCharges(chargesRows.map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })) as Charge[]);
       setConsommations(consommationsRows);
       setCoutsAliment(couts);
+      setSnapshots(snapshotsResult);
       setTarifs(lireTarifsCharges(tarifsResult.data || []));
       setErreurCharges(false);
     } catch (error) {
@@ -145,13 +151,13 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
     if (!lotSelectionne) return [];
     const enregistrees = charges.filter((charge) => charge.lot_id === lotSelectionne.id)
       .sort((a, b) => b.date.localeCompare(a.date));
-    return calculerChargesLot(enregistrees, lotSelectionne.livraisons, coutsAliment.get(lotSelectionne.id) ?? null, tarifs)
+    return calculerChargesLot(enregistrees, lotSelectionne.livraisons, coutsAliment.get(lotSelectionne.id) ?? null, snapshots.get(lotSelectionne.id)?.tarifs ?? tarifs)
       .map((charge) => {
         const source = enregistrees.find((item) => item === charge);
         return source || { ...charge, id: `auto-${charge.type_charge}`, lot_id: lotSelectionne.id,
           lot_nom: lotSelectionne.nom, date: "", automatique: true };
       });
-  }, [charges, lotSelectionne, coutsAliment, tarifs]);
+  }, [charges, lotSelectionne, coutsAliment, tarifs, snapshots]);
 
   const libelleCharge = (charge: Charge) => charge.automatique && charge.type_charge === "aliment"
     ? "Aliment consommé (TTC)" : (chargeMeta[charge.type_charge] || chargeMeta.divers).label;

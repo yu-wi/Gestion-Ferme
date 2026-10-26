@@ -2,6 +2,7 @@ import { useState, useEffect  } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
+import { figerTarifsLot } from "../volailles/tarifsFigesService";
 import toast from 'react-hot-toast';
 import ModalCloseButton from '../components/ModalCloseButton';
 import { formatMontant, formatNombre } from '../outils/formatNombre';
@@ -818,6 +819,7 @@ const archiverLot = async (lotId: string) => {
           86400000
       )
     );
+    await figerTarifsLot(lotId, 'archivage');
     const { error } = await supabase
       .from('lots_volailles')
       .update({ is_active: false, age: ageCloture })
@@ -830,7 +832,7 @@ const archiverLot = async (lotId: string) => {
 
     setLots((prevLots) => prevLots.filter((lot) => lot.id !== lotId));
 
-    toast.success('Lot archivé.');
+    toast.success('Lot archivé, tarifs conservés.');
 
   } catch (err) {
     console.error("Erreur inconnue lors de l'archivage :", err);

@@ -5508,6 +5508,10 @@
 .lot-analysis-selector select { min-width: 190px; border: 1px solid #d8e2dd; border-radius: 6px; padding: 8px 10px; color: #30485c; background: white; }
 
 .lot-analysis-performance { margin-top: 16px; }
+.lot-tariffs-status { margin: 16px 0; padding: 14px; }
+.lot-tariffs-status p { margin: 0; color: #566c80; font-size: 11px; line-height: 1.6; }
+.lot-tariffs-status button { margin-top: 10px; border: 1px solid #16853d; border-radius: 6px; padding: 8px 12px; color: #14763a; background: #f2f8f3; cursor: pointer; }
+.lot-tariffs-status button:disabled { opacity: .5; cursor: wait; }
 .lot-analysis-performance dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

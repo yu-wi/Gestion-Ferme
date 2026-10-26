@@ -15,6 +15,7 @@ const TAUX_TVA_ALIMENT = 0.021;
 export function calculerCoutAliment(
   consommations: ConsommationAliment[],
   references: ReferenceAliment[],
+  tauxTva = TAUX_TVA_ALIMENT,
 ): number | null {
   if (!consommations.length) return null;
   const prixParAliment = new Map<string, number>();
@@ -31,7 +32,7 @@ export function calculerCoutAliment(
     }
     return total + Number(consommation.quantite_kg) / 25 * prix;
   }, 0);
-  return Math.round((totalHt * (1 + TAUX_TVA_ALIMENT) + Number.EPSILON) * 100) / 100;
+  return Math.round((totalHt * (1 + tauxTva) + Number.EPSILON) * 100) / 100;
 }
 
 export function appliquerCoutAliment<T extends { type_charge: string; montant: number }>(

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { chargerTarifsFiges, figerTarifsLot } from "./tarifsFigesService";
+import type { TarifsFiges } from "./tarifsFiges";
 import ChargeValider from "./ChargeValider";
 import { calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
 import toast from "react-hot-toast";
@@ -52,6 +54,8 @@ export default function AnalyseLot() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tarifs, setTarifs] = useState(tarifsChargesParDefaut);
+  const [tarifsFiges, setTarifsFiges] = useState<TarifsFiges | null>(null);
+  const [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
 
@@ -65,24 +69,27 @@ export default function AnalyseLot() {
         return;
       }
       try {
-        const [lots, chargesResult, consommationsResult, referencesResult, tarifsResult] = await Promise.all([
+        const [lots, chargesResult, consommationsResult, referencesResult, tarifsResult, snapshots] = await Promise.all([
           chargerLotsAvecMouvements(false),
           chargerPages((debut, fin) => supabase.from("charges").select("id, type_charge, montant").eq("lot_id", lotId).order("id").range(debut, fin)),
           chargerPages((debut, fin) => supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId).order("id").range(debut, fin)),
           supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
           supabase.from("app_settings").select("key, value").eq("category", "volailles"),
+          chargerTarifsFiges(),
         ]);
         if (tarifsResult.error) throw tarifsResult.error;
         const tarifsCharges = lireTarifsCharges(tarifsResult.data || []);
         if (referencesResult.error) throw referencesResult.error;
-        const cout = calculerCoutAliment(consommationsResult, referencesResult.data || []);
+        const snapshot = snapshots.get(lotId);
+        const cout = calculerCoutAliment(consommationsResult, snapshot?.references ?? referencesResult.data ?? [], snapshot?.tvaAliment);
         if (!active) return;
         const lotsArchives = lots as LotAnalyse[];
         setLotsDisponibles(lotsArchives);
         setLot(lotsArchives.find((item) => item.id === lotId) || null);
         setCharges(chargesResult.map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
         setCoutAliment(cout);
-        setTarifs(tarifsCharges);
+        setTarifs(snapshot?.tarifs ?? tarifsCharges);
+        setTarifsFiges(snapshot ?? null);
       } catch (error) {
         if (!active) return;
         console.error("Erreur chargement analyse lot :", error);
@@ -93,7 +100,7 @@ export default function AnalyseLot() {
     };
     charger();
     return () => { active = false; };
-  }, [lotId]);
+  }, [lotId, reload]);
 
   const donnees = useMemo(() => {
     if (!lot) return null;
@@ -144,6 +151,20 @@ export default function AnalyseLot() {
     }
   };
 
+  const figer = async () => {
+    if (!lotId || saveLock.current) return;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      await figerTarifsLot(lotId, "historique");
+      setReload(value => value + 1);
+      toast.success("Tarifs actuels figés pour ce lot.");
+    } catch (error) {
+      console.error("Erreur gel des tarifs :", error);
+      toast.error("Les tarifs n’ont pas pu être figés. Aucun changement de tarif n’a été appliqué au lot.");
+    } finally { saveLock.current = false; setSaving(false); }
+  };
+
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
   if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>;
   if (!lot || !donnees) return <div className="history-page"><div className="history-empty">Lot introuvable.</div></div>;
@@ -165,6 +186,10 @@ export default function AnalyseLot() {
         <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>
       </header>
 
+      <section className="history-panel lot-tariffs-status">
+        {tarifsFiges ? <p>✓ Tarifs figés le {new Date(tarifsFiges.date).toLocaleDateString("fr-FR")}{tarifsFiges.origine === "historique" ? " à partir des prix disponibles lors du gel" : " lors de l’archivage"}. Les changements de tarifs généraux ne modifient plus ce lot.</p>
+          : <><p>Les tarifs de ce lot ancien ne sont pas encore figés. Le gel conservera les prix actuels ; il ne reconstitue pas les prix d’origine.</p><button type="button" disabled={saving} onClick={figer}>Figer les tarifs actuels</button></>}
+      </section>
       <section className="history-kpis">
         <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(donnees.quantiteLivree)} note={`Sur ${formatNombre(lot.quantite)} sujets arrivés`} />
         <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={formatPoids(donnees.totalPoids)} note={`Poids moyen : ${formatPoids(donnees.poidsMoyen)}`} />

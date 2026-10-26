@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
+import { chargerTarifsFiges } from "./tarifsFigesService";
 import Charges from "./Charges";
 import { calculerChargesLot } from "./chargesLot";
 import { calculerCoutAliment } from "./coutAliment";
@@ -83,11 +84,12 @@ export default function Historique() {
         return;
       }
       const lotIds = lots.map((lot) => lot.id);
-      const [chargesRows, consommations, referencesResult, tarifsResult] = await Promise.all([
+      const [chargesRows, consommations, referencesResult, tarifsResult, tarifsFiges] = await Promise.all([
         chargerPages((debut, fin) => supabase.from("charges").select("lot_id, type_charge, montant").in("lot_id", lotIds).order("id").range(debut, fin)),
         chargerPages((debut, fin) => supabase.from("consommations_aliment").select("lot_id, feed_type, quantite_kg").in("lot_id", lotIds).order("id").range(debut, fin)),
         supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
         supabase.from("app_settings").select("key, value").eq("category", "volailles"),
+        chargerTarifsFiges(),
       ]);
       if (referencesResult.error) throw referencesResult.error;
       if (tarifsResult.error) throw tarifsResult.error;
@@ -95,8 +97,9 @@ export default function Historique() {
       const chargesCalculees = lots.flatMap((lot) => {
         const chargesLot = chargesRows.filter((charge) => charge.lot_id === lot.id)
           .map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 }));
-        const coutAliment = calculerCoutAliment(consommations.filter((item) => item.lot_id === lot.id), referencesResult.data || []);
-        return calculerChargesLot(chargesLot, lot.livraisons, coutAliment, tarifs)
+        const fige = tarifsFiges.get(lot.id);
+        const coutAliment = calculerCoutAliment(consommations.filter((item) => item.lot_id === lot.id), fige?.references ?? referencesResult.data ?? [], fige?.tvaAliment);
+        return calculerChargesLot(chargesLot, lot.livraisons, coutAliment, fige?.tarifs ?? tarifs)
           .map((charge) => ({ ...charge, lot_id: lot.id }));
       });
       setHistorique(lots as LotHistorique[]);

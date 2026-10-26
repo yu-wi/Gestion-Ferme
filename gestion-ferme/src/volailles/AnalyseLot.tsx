@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ChargeValider from "./ChargeValider";
-import { completerChargesLivraisons, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
+import { calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
-import { appliquerCoutAliment, calculerCoutAliment } from "./coutAliment";
+import { calculerChargesLot } from "./chargesLot";
+import { chargerPages } from "./chargerPages";
+import { calculerCoutAliment } from "./coutAliment";
 import {
   chargerLotsAvecMouvements,
   type LivraisonVolaille,
@@ -65,22 +67,20 @@ export default function AnalyseLot() {
       try {
         const [lots, chargesResult, consommationsResult, referencesResult, tarifsResult] = await Promise.all([
           chargerLotsAvecMouvements(false),
-          supabase.from("charges").select("id, type_charge, montant").eq("lot_id", lotId),
-          supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId),
+          chargerPages((debut, fin) => supabase.from("charges").select("id, type_charge, montant").eq("lot_id", lotId).order("id").range(debut, fin)),
+          chargerPages((debut, fin) => supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId).order("id").range(debut, fin)),
           supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
           supabase.from("app_settings").select("key, value").eq("category", "volailles"),
         ]);
         if (tarifsResult.error) throw tarifsResult.error;
         const tarifsCharges = lireTarifsCharges(tarifsResult.data || []);
-        if (chargesResult.error) throw chargesResult.error;
-        if (consommationsResult.error) throw consommationsResult.error;
         if (referencesResult.error) throw referencesResult.error;
-        const cout = calculerCoutAliment(consommationsResult.data || [], referencesResult.data || []);
+        const cout = calculerCoutAliment(consommationsResult, referencesResult.data || []);
         if (!active) return;
         const lotsArchives = lots as LotAnalyse[];
         setLotsDisponibles(lotsArchives);
         setLot(lotsArchives.find((item) => item.id === lotId) || null);
-        setCharges((chargesResult.data || []).map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
+        setCharges(chargesResult.map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 })));
         setCoutAliment(cout);
         setTarifs(tarifsCharges);
       } catch (error) {
@@ -102,8 +102,7 @@ export default function AnalyseLot() {
     const poidsMoyen = quantiteLivree > 0 ? totalPoids / quantiteLivree : 0;
     const tauxMortalite = lot.quantite > 0 ? (Number(lot.nb_morts || 0) / lot.quantite) * 100 : 0;
     const propositions = calculerChargesLivraisons(lot.livraisons, tarifs);
-    const chargesAvecPropositions = completerChargesLivraisons(charges, lot.livraisons, tarifs);
-    const chargesAnalyse = appliquerCoutAliment(chargesAvecPropositions, coutAliment);
+    const chargesAnalyse = calculerChargesLot(charges, lot.livraisons, coutAliment, tarifs);
     const totalCharges = chargesAnalyse.reduce((total, charge) => total + charge.montant, 0);
     const chiffreAffaires = Number(lot.resultat_brut) || 0;
     const resultat = chiffreAffaires - totalCharges;

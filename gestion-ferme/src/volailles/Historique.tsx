@@ -5,6 +5,10 @@ import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import Charges from "./Charges";
+import { calculerChargesLot } from "./chargesLot";
+import { calculerCoutAliment } from "./coutAliment";
+import { lireTarifsCharges } from "./tarifsCharges";
+import { chargerPages } from "./chargerPages";
 import {
   chargerLotsAvecMouvements,
   supprimerLotEtDonnees,
@@ -50,6 +54,8 @@ export default function Historique() {
   const [historique, setHistorique] = useState<LotHistorique[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [chargesProposees, setChargesProposees] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [batimentFiltre, setBatimentFiltre] = useState("");
   const [resultatFiltre, setResultatFiltre] = useState("");
@@ -67,19 +73,38 @@ export default function Historique() {
 
   const fetchLots = async () => {
     try {
-      const [lots, chargesResult] = await Promise.all([
-        chargerLotsAvecMouvements(false),
-        supabase.from("charges").select("lot_id, type_charge, montant"),
+      setErreur(null);
+      const lots = await chargerLotsAvecMouvements(false);
+      if (!lots.length) {
+        setHistorique([]);
+        setCharges([]);
+        setChargesProposees(false);
+        setLoading(false);
+        return;
+      }
+      const lotIds = lots.map((lot) => lot.id);
+      const [chargesRows, consommations, referencesResult, tarifsResult] = await Promise.all([
+        chargerPages((debut, fin) => supabase.from("charges").select("lot_id, type_charge, montant").in("lot_id", lotIds).order("id").range(debut, fin)),
+        chargerPages((debut, fin) => supabase.from("consommations_aliment").select("lot_id, feed_type, quantite_kg").in("lot_id", lotIds).order("id").range(debut, fin)),
+        supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
+        supabase.from("app_settings").select("key, value").eq("category", "volailles"),
       ]);
-      if (chargesResult.error) throw chargesResult.error;
+      if (referencesResult.error) throw referencesResult.error;
+      if (tarifsResult.error) throw tarifsResult.error;
+      const tarifs = lireTarifsCharges(tarifsResult.data || []);
+      const chargesCalculees = lots.flatMap((lot) => {
+        const chargesLot = chargesRows.filter((charge) => charge.lot_id === lot.id)
+          .map((charge) => ({ ...charge, montant: Number(charge.montant) || 0 }));
+        const coutAliment = calculerCoutAliment(consommations.filter((item) => item.lot_id === lot.id), referencesResult.data || []);
+        return calculerChargesLot(chargesLot, lot.livraisons, coutAliment, tarifs)
+          .map((charge) => ({ ...charge, lot_id: lot.id }));
+      });
       setHistorique(lots as LotHistorique[]);
-      setCharges(
-        (chargesResult.data || []).map((charge) => ({
-          ...charge,
-          montant: Number(charge.montant) || 0,
-        })) as Charge[]
-      );
+      setCharges(chargesCalculees);
+      setChargesProposees(lots.some((lot) => lot.livraisons.length > 0 &&
+        ["ramassage", "livraison"].some((type) => !chargesRows.some((charge) => charge.lot_id === lot.id && charge.type_charge === type))));
     } catch (error) {
+      setErreur(error instanceof Error ? error.message : "L’historique n’a pas pu être chargé. Veuillez réessayer.");
       console.error("Erreur chargement historique :", error);
       toast.error("L'historique n'a pas pu être chargé.");
     }
@@ -101,10 +126,7 @@ export default function Historique() {
           .filter((charge) => charge.lot_id === lot.id)
           .reduce((total, charge) => total + charge.montant, 0);
         const chiffreAffaires = Number(lot.resultat_brut) || 0;
-        const resultat =
-          lot.resultat_net != null
-            ? Number(lot.resultat_net) || 0
-            : chiffreAffaires - totalCharges;
+        const resultat = lot.resultat_net != null ? Number(lot.resultat_net) || 0 : chiffreAffaires - totalCharges;
         return { ...lot, quantiteLivree, totalCharges, chiffreAffaires, resultat };
       }),
     [historique, charges]
@@ -291,6 +313,7 @@ export default function Historique() {
   };
 
   if (loading) return <div className="history-loading">Chargement...</div>;
+  if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><button type="button" onClick={fetchLots}>Réessayer</button></div>;
 
   return (
     <div className="history-page">
@@ -319,7 +342,7 @@ export default function Historique() {
         <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
         <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
         <HistoryKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(totalChiffreAffaires)} note="Lots affichés" />
-        <HistoryKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Charges enregistrées" />
+        <HistoryKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Calcul identique à l’analyse du lot" />
         <HistoryKpi tone="orange" icon="€" label="Résultat net" value={formatMontant(totalResultat)} note="Après charges" />
       </section>
 
@@ -427,7 +450,8 @@ export default function Historique() {
                 ))}
               </div>
             </div>
-          ) : <p className="history-empty">Aucune charge enregistrée.</p>}
+          ) : <p className="history-empty">Aucune charge pour les lots affichés.</p>}
+          <p className="history-charge-note">Aliment consommé TTC inclus (TVA 2,10 %).{chargesProposees ? " Les totaux peuvent inclure du ramassage et du transport proposés, à valider dans l’analyse du lot." : ""}</p>
         </article>
       </section>
 

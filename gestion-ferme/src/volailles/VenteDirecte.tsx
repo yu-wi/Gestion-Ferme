@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { verifierDoublonLivraisonDirecte } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre } from "../outils/formatNombre";
@@ -691,6 +692,7 @@ export default function VenteDirecte() {
   };
 
   const saveDelivery = async () => {
+    if (saving) return;
     if (!deliveryForm.customer_id || !deliveryForm.delivery_date) {
       toast.error("Complétez le client et la date.");
       return;
@@ -707,10 +709,11 @@ export default function VenteDirecte() {
         !line.lot ||
         !Number.isInteger(line.quantityValue) ||
         line.quantityValue <= 0 ||
+        deliveryForm.delivery_date < line.lot.arrival_date ||
         (line.pricing_mode === "kg" && line.weightValue <= 0)
     );
     if (invalidLine) {
-      toast.error("Complétez le lot, la quantité et le poids de chaque produit.");
+      toast.error("Vérifiez le lot, la quantité entière, le poids et une date à partir de l’arrivée du lot.");
       return;
     }
     const quantitiesByLot = parsedLines.reduce((map, line) => {
@@ -752,6 +755,15 @@ export default function VenteDirecte() {
       return;
     }
     setSaving(true);
+    try {
+      const doublon = await verifierDoublonLivraisonDirecte(deliveryForm.customer_id, deliveryForm.delivery_date,
+        parsedLines.map(line => ({ lot_id: line.lot_id, quantity_delivered: line.quantityValue,
+          total_weight: line.weightValue, pricing_mode: line.pricing_mode, unit_price: line.priceValue })), editingDeliveryBatch || undefined);
+      if (doublon && !window.confirm('Une livraison identique existe pour ce client, ce lot et cette date, ou est répétée dans la saisie. Confirmer cette livraison supplémentaire ?')) { setSaving(false); return; }
+    } catch (error) {
+      console.error('Erreur contrôle livraison directe :', error);
+      toast.error('Impossible de vérifier les livraisons existantes. Réessayez avant d’enregistrer.'); setSaving(false); return;
+    }
     if (oldDeliveryLines.length) {
       const { error: deleteError } = await supabase
         .from("direct_sale_deliveries")

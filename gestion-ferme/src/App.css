@@ -5480,6 +5480,12 @@
 .comparison-table-wrap td:not(:first-child) { white-space: nowrap; }
 .comparison-table-wrap td:first-child small { display: block; margin-top: 4px; color: #718093; font-size: 10px; }
 .comparison-table-wrap th[aria-sort] { color: #14763a; background: #f2f8f3; }
+.feed-missing-reminders { margin: 12px 0; border: 1px solid #e8d4ad; border-radius: 6px; padding: 12px; color: #875706; background: #fff9ed; font-size: 11px; }
+.feed-missing-reminders summary { cursor: pointer; font-weight: 700; }
+.feed-missing-reminders p { line-height: 1.5; }
+.feed-missing-reminders ul { margin: 10px 0 0; padding: 0; max-height: 240px; overflow-y: auto; list-style: none; }
+.feed-missing-reminders li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #e8d4ad; }
+.feed-missing-reminders button { border: 1px solid #d7bb88; border-radius: 5px; padding: 6px 8px; color: inherit; background: white; font: inherit; cursor: pointer; }
 @media print { .history-completion { display: none; } }
 
 .history-performance-good,

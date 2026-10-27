@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import { figerTarifsLot } from "../volailles/tarifsFigesService";
+import { verifierLivraisonsSica } from "../volailles/controlesCoherenceService";
 import toast from 'react-hot-toast';
 import ModalCloseButton from '../components/ModalCloseButton';
 import { formatMontant, formatNombre } from '../outils/formatNombre';
@@ -534,17 +535,16 @@ const enregistrerModificationLivraison = async () => {
 
   const lot = lots.find((item) => item.id === livraisonEnModification.lot_id);
   if (!lot) return;
-  const ancienneLivraison = lot.livraisons.find(
-    (item) => item.id === livraisonEnModification.id
-  );
-  const maximumAutorise =
-    calculerSujetsRestants(lot) + Number(ancienneLivraison?.quantite || 0);
-  if (livraisonEnModification.quantite > maximumAutorise) {
-    toast.error(`Le maximum disponible est de ${maximumAutorise} sujets.`);
-    return;
-  }
-
   setSaving(true);
+  try {
+    const controle = await verifierLivraisonsSica(lot.id, [livraisonEnModification], livraisonEnModification.id);
+    if (controle.erreur) { toast.error(controle.erreur); setSaving(false); return; }
+    if (controle.doublon && !window.confirm('Une autre livraison a les mêmes date, quantité et poids. Confirmer cette modification ?')) { setSaving(false); return; }
+  } catch (error) {
+    console.error('Erreur contrôle livraison :', error);
+    toast.error('Impossible de vérifier les effectifs récents. Réessayez avant d’enregistrer.');
+    setSaving(false); return;
+  }
   const { data, error } = await supabase
     .from('livraisons_volailles')
     .update({
@@ -726,41 +726,20 @@ const handleSaveLivraison = async () => {
     return false;
   }
 
-  const hasValidLivraison = livraisons.some((livraison) =>
-    livraison.date &&
-    Number(livraison.quantite) > 0 &&
-    Number(livraison.poids) > 0
-  );
-
-  if (!hasValidLivraison) {
-    toast.error('Renseignez au moins une livraison complète.');
+  const lignesSaisies = livraisons.filter(ligne => ligne.date || ligne.quantite || ligne.poids);
+  if (!lignesSaisies.length || lignesSaisies.some(ligne => !ligne.date || !ligne.quantite || !ligne.poids)) {
+    toast.error('Complétez chaque ligne commencée (date, quantité et poids), ou videz-la entièrement.');
     return false;
   }
 
   try {
     setSaving(true);
-    const livraisonsValides = livraisons
-      .filter((livraison) => (
-        livraison.date &&
-        Number(livraison.quantite) > 0 &&
-        Number(livraison.poids) > 0
-      ))
-      .map((livraison) => ({
-        lot_id: selectedLot.id,
-        date: livraison.date,
-        quantite: Number(livraison.quantite),
-        poids: Number(livraison.poids),
-      }));
-    const lotCourant = lots.find((lot) => lot.id === selectedLot.id) || selectedLot;
-    const totalNouvellesLivraisons = livraisonsValides.reduce(
-      (total, livraison) => total + Number(livraison.quantite || 0),
-      0
-    );
-    const sujetsDisponibles = calculerSujetsRestants(lotCourant);
-    if (totalNouvellesLivraisons > sujetsDisponibles) {
-      toast.error(`Le maximum disponible est de ${sujetsDisponibles} sujets.`);
-      return false;
-    }
+    const livraisonsValides = lignesSaisies.map(ligne => ({ lot_id: selectedLot.id,
+      date: ligne.date, quantite: Number(ligne.quantite), poids: Number(ligne.poids) }));
+    const controle = await verifierLivraisonsSica(selectedLot.id, livraisonsValides);
+    if (controle.erreur) { toast.error(controle.erreur); return false; }
+    if (controle.doublon && !window.confirm('Une livraison avec les mêmes date, quantité et poids existe déjà ou apparaît deux fois dans la saisie. Confirmer ces livraisons supplémentaires ?')) return false;
+    const lotCourant = lots.find(lot => lot.id === selectedLot.id) || selectedLot;
 
     const { data, error } = await supabase
       .from('livraisons_volailles')

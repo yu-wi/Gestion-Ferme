@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { verifierConsommationIdentique } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
@@ -383,6 +384,7 @@ export default function VolaillesResume() {
   };
 
   const saveFeedConsumption = async () => {
+    if (saving) return;
     const selected = allLots.find((lot) => `${lot.source}:${lot.id}` === feedLotKey);
     const bags = Number(feedBags);
     const secondTypeRenseigne = feedSecondType.trim() !== "";
@@ -391,6 +393,9 @@ export default function VolaillesResume() {
     if (!selected || !feedDate || !feedType || !Number.isFinite(bags) || bags <= 0) {
       toast.error("Complétez le lot, la date, l'aliment et le nombre de sacs.");
       return;
+    }
+    if (feedDate < selected.dateArrivee) {
+      toast.error('La consommation ne peut pas précéder l’arrivée du lot.'); return;
     }
     if (secondTypeRenseigne || secondBagsRenseigne) {
       if (!secondTypeRenseigne || !Number.isFinite(secondBags) || secondBags <= 0) {
@@ -423,6 +428,13 @@ export default function VolaillesResume() {
           },
         ]
       : [primaryPayload];
+    try {
+      const doublon = await verifierConsommationIdentique(selected.id, selected.source, feedDate, payloads);
+      if (doublon && !window.confirm('Une consommation identique existe déjà pour ce lot, ce jour et cet aliment. Confirmer une saisie supplémentaire ?')) { setSaving(false); return; }
+    } catch (error) {
+      console.error('Erreur contrôle consommation :', error);
+      toast.error('Impossible de vérifier les consommations existantes. Réessayez avant d’enregistrer.'); setSaving(false); return;
+    }
     const { error } = await supabase.from("consommations_aliment").insert(payloads);
     if (error) {
       console.error("Erreur consommation depuis résumé :", error);

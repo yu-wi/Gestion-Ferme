@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { verifierConsommationIdentique } from "./controlesCoherenceService";
+import { joursSansSaisie } from "./controlesCoherence";
+import { chargerPages } from "./chargerPages";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
@@ -235,12 +238,10 @@ export default function DashboardFeed() {
           .order("date", { ascending: false }),
       ]);
 
-    const consommationsEtendues = await supabase
-      .from("consommations_aliment")
-      .select(
-        "id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note"
-      )
-      .order("date", { ascending: false });
+    const consommationsEtendues = await chargerPages((debut, fin) => supabase
+      .from("consommations_aliment").select("id, lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg, note")
+      .order("date", { ascending: false }).order("id").range(debut, fin))
+      .then(data => ({ data, error: null as unknown }), error => ({ data: [], error }));
 
     let consommationEtendueDisponible = true;
     let consommationError = consommationsEtendues.error;
@@ -248,10 +249,10 @@ export default function DashboardFeed() {
       Record<string, unknown>
     >;
     if (consommationsEtendues.error) {
-      const ancienResultat = await supabase
-        .from("consommations_aliment")
-        .select("id, lot_id, date, feed_type, quantite_kg, note")
-        .order("date", { ascending: false });
+      const ancienResultat = await chargerPages((debut, fin) => supabase
+        .from("consommations_aliment").select("id, lot_id, date, feed_type, quantite_kg, note")
+        .order("date", { ascending: false }).order("id").range(debut, fin))
+        .then(data => ({ data, error: null as unknown }), error => ({ data: [], error }));
       if (!ancienResultat.error) {
         consommationEtendueDisponible = false;
         consommationError = null;
@@ -692,7 +693,18 @@ export default function DashboardFeed() {
       return;
     }
 
+    if (!lotConsommationSelectionne || consommationDate < lotConsommationSelectionne.date_arrivee) {
+      toast.error('La consommation doit concerner un lot existant, à partir de sa date d’arrivée.'); return;
+    }
     setSaving(true);
+    try {
+      const doublon = await verifierConsommationIdentique(lotConsommationSelectionne.id, lotConsommationSelectionne.source,
+        consommationDate, demandes.map(demande => ({ feed_type: demande.type, quantite_kg: demande.sacs * POIDS_SAC_KG })), consommationEnModification?.id);
+      if (doublon && !window.confirm('Une consommation identique existe déjà pour ce lot, ce jour et cet aliment. Confirmer une saisie supplémentaire ?')) { setSaving(false); return; }
+    } catch (error) {
+      console.error('Erreur contrôle consommation :', error);
+      toast.error('Impossible de vérifier les consommations existantes. Réessayez avant d’enregistrer.'); setSaving(false); return;
+    }
     const valeursCommunes = {
       date: consommationDate,
       feed_type: consommationType,
@@ -1091,6 +1103,11 @@ export default function DashboardFeed() {
     setSaving(false);
   };
 
+  const rappelsConsommation = lots.filter(lot => lot.sujets_restants > 0).map(lot => ({
+    lot, dates: joursSansSaisie(lot.date_arrivee, aujourdHui(), consommations.filter(item =>
+      item.source_type === lot.source && (lot.source === "sica" ? item.lot_id === lot.id : item.direct_sale_lot_id === lot.id)).map(item => item.date)),
+  })).filter(item => item.dates.length > 0);
+
   const consommationDuJour = consommations
     .filter((item) => item.date === aujourdHui())
     .reduce((total, item) => total + item.quantite_kg, 0);
@@ -1316,6 +1333,14 @@ export default function DashboardFeed() {
             <div><span className="feed-tracking-icon">▣</span><div><h2>Suivi des consommations d’aliment</h2><p>Saisie des consommations par lot pour le {formatDate(suiviConsommationDate)}.</p></div></div>
             <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationDate(suiviConsommationDate); setConsommationModalOpen(true); }}>⊕ Enregistrer</button>
           </div>
+          {rappelsConsommation.length > 0 && <details className="feed-missing-reminders">
+            <summary>{rappelsConsommation.length} lot(s) avec des jours sans saisie sur les 7 derniers jours terminés</summary>
+            <p>Ce rappel signale des saisies absentes, pas une absence réelle d’alimentation. La journée en cours et les dates avant l’arrivée du lot sont exclues.</p>
+            <ul>{rappelsConsommation.map(({lot, dates}) => <li key={`${lot.source}:${lot.id}`}>
+              <span>Lot {lot.nom} · {lot.source === "sica" ? "SICA" : "Vente directe"} · {dates.length} jour(s) sans saisie</span>
+              <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationLotId(`${lot.source}:${lot.id}`); setConsommationDate(dates[0]); setConsommationModalOpen(true); }}>Renseigner le {formatDate(dates[0])}</button>
+            </li>)}</ul>
+          </details>}
           <div className="feed-tracking-kpis">
             <FeedMiniKpi tone="red" label="Lots à renseigner" value={String(lotsARenseigner)} note={`sur ${lots.length}`} icon="!" />
             <FeedMiniKpi tone="green" label="Renseignés ce jour" value={String(lotsRenseignesSuivi)} note={`sur ${lots.length}`} icon="✓" />
@@ -1370,6 +1395,14 @@ export default function DashboardFeed() {
             <div><span className="feed-tracking-icon feed-tracking-icon-truck">🚚</span><div><h2>Suivi des livraisons d’aliment</h2><p>Enregistrement des entrées de stock.</p></div></div>
             <button type="button" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>⊕ Enregistrer</button>
           </div>
+          {rappelsConsommation.length > 0 && <details className="feed-missing-reminders">
+            <summary>{rappelsConsommation.length} lot(s) avec des jours sans saisie sur les 7 derniers jours terminés</summary>
+            <p>Ce rappel signale des saisies absentes, pas une absence réelle d’alimentation. La journée en cours et les dates avant l’arrivée du lot sont exclues.</p>
+            <ul>{rappelsConsommation.map(({lot, dates}) => <li key={`${lot.source}:${lot.id}`}>
+              <span>Lot {lot.nom} · {lot.source === "sica" ? "SICA" : "Vente directe"} · {dates.length} jour(s) sans saisie</span>
+              <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationLotId(`${lot.source}:${lot.id}`); setConsommationDate(dates[0]); setConsommationModalOpen(true); }}>Renseigner le {formatDate(dates[0])}</button>
+            </li>)}</ul>
+          </details>}
           <div className="feed-tracking-kpis">
             <FeedMiniKpi tone="green" label="Livraisons ce mois" value={String(livraisonsMois.length)} note="Entrées" icon="🚚" />
             <FeedMiniKpi tone="green" label="Total ce mois" value={`${sacsEntiers(enSacs(totalLivraisonsMoisKg))} sacs`} note="Toutes références" icon="▣" />

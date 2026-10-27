@@ -27,6 +27,15 @@ export function lireTarifsCharges(rows: { key: string; value: string }[]) {
 export type TarifsCharges = typeof tarifsChargesParDefaut;
 export type CategorieAutomatique = "ramassage" | "livraison";
 
+export function categoriesChargesProposees(
+  charges: { type_charge: string }[],
+  livraisons: unknown[],
+): CategorieAutomatique[] {
+  return livraisons.length
+    ? (["ramassage", "livraison"] as const).filter(type => !charges.some(charge => charge.type_charge === type))
+    : [];
+}
+
 export function calculerChargesLivraisons(
   livraisons: { quantite: number }[],
   tarifs: TarifsCharges,
@@ -48,10 +57,8 @@ export function completerChargesLivraisons(
   const resultat = [...charges];
   if (!livraisons.length) return resultat;
   const propositions = calculerChargesLivraisons(livraisons, tarifs);
-  for (const type of ["ramassage", "livraison"] as const) {
-    if (!charges.some((charge) => charge.type_charge === type)) {
-      resultat.push({ type_charge: type, montant: propositions[type] });
-    }
+  for (const type of categoriesChargesProposees(charges, livraisons)) {
+    resultat.push({ type_charge: type, montant: propositions[type] });
   }
   return resultat;
 }

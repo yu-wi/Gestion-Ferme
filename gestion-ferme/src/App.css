@@ -5449,6 +5449,13 @@
 .history-charge-list b { font-weight: 650; }
 .history-charge-list em { font-style: normal; font-weight: 800; text-align: right; }
 .history-charge-note { margin: 10px 0 0; color: #718093; font-size: 10px; line-height: 1.5; }
+.charge-status { display: inline-block; max-width: 100%; margin: 3px 0; border-radius: 4px; padding: 3px 5px; font-size: 9px; font-weight: 600; line-height: 1.4; white-space: normal; }
+.charge-status-estime { color: #875706; background: #fff0ce; }
+.charge-status-enregistre { color: #14763a; background: #e5f3e8; }
+.charge-status-calcule { color: #275e90; background: #eaf3fc; }
+.history-charge-list .charge-status, .history-table td > .charge-status { display: block; width: fit-content; }
+.charge-category > .charge-status { margin-left: 6px; }
+.lot-charge-detail { display: block; margin-top: 5px; }
 .history-completion { margin: 16px 0; }
 .history-completion summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; color: #173047; cursor: pointer; font-size: 13px; }
 .history-completion summary span { color: #9a650d; font-size: 11px; }

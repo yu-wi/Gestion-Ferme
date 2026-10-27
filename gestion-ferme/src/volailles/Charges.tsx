@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { chargerTarifsFiges } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
+import StatutCharge from "./StatutCharge";
 import { Link } from "react-router-dom";
 import { calculerChargesLot } from "./chargesLot";
 import { calculerCoutAliment } from "./coutAliment";
@@ -184,6 +185,7 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
     : <><button type="button" title="Modifier la charge" disabled={saving} onClick={() => setChargeEnModification({ ...charge })}>✎</button>
       <button type="button" title="Supprimer la charge" disabled={saving} onClick={() => supprimerCharge(charge)}>🗑</button></>;
 
+  const totalEstime = chargesDuLot.some(charge => charge.automatique && charge.type_charge !== "aliment");
   const totalCharges = chargesDuLot.reduce(
     (total, charge) => total + charge.montant,
     0
@@ -306,7 +308,7 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
               </div>
             </div>
             <div className="charge-summary-metric">
-              <small>Total des charges</small>
+              <small>{totalEstime ? "Total estimé des charges" : "Total des charges"}</small>
               <strong>{formatMontant(totalCharges)}</strong>
             </div>
             <div className="charge-summary-metric">
@@ -333,7 +335,7 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
                 <article key={charge.id}>
                   <div className="charge-category">
                     <span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span>
-                    <div><strong>{libelleCharge(charge)}</strong></div>
+                    <div><strong>{libelleCharge(charge)}</strong><StatutCharge statut={!charge.automatique ? "enregistre" : charge.type_charge === "aliment" ? "calcule" : "estime"} /></div>
                   </div>
                   <div className="charge-mobile-values"><b>{formatMontant(charge.montant)}</b><span>{formatNombre(pourcentage, 1)} %</span></div>
                   <div className="charge-actions">
@@ -354,7 +356,7 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
                     totalCharges > 0 ? (charge.montant / totalCharges) * 100 : 0;
                   return (
                     <tr key={charge.id}>
-                      <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{libelleCharge(charge)}</strong></div></td>
+                      <td><div className="charge-category"><span className={`charge-category-icon charge-tone-${meta.tone}`}>{meta.icon}</span><strong>{libelleCharge(charge)}</strong><StatutCharge statut={!charge.automatique ? "enregistre" : charge.type_charge === "aliment" ? "calcule" : "estime"} /></div></td>
                       <td>{formatMontant(charge.montant)}</td>
                       <td>{formatNombre(pourcentage, 1)} %</td>
                       <td><div className="charge-actions">{actionsCharge(charge)}</div></td>
@@ -363,7 +365,7 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
                 })}
                 {!chargesDuLot.length && <tr><td colSpan={4} className="charge-manager-empty">Aucune charge enregistrée pour ce lot.</td></tr>}
               </tbody>
-              {!!chargesDuLot.length && <tfoot><tr><td>Total des charges</td><td>{formatMontant(totalCharges)}</td><td>100 %</td><td>—</td></tr></tfoot>}
+              {!!chargesDuLot.length && <tfoot><tr><td>{totalEstime ? "Total estimé des charges" : "Total des charges"}</td><td>{formatMontant(totalCharges)}</td><td>100 %</td><td>—</td></tr></tfoot>}
             </table>
           </div>
         </>

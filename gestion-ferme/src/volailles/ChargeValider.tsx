@@ -1,3 +1,4 @@
+import StatutCharge from "./StatutCharge";
 import { useState } from "react";
 import { formatMontant } from "../outils/formatNombre";
 
@@ -23,7 +24,7 @@ export default function ChargeValider({ label, montant, enregistree, detail, dis
           onChange={(event) => setValeur(event.target.value)} />
       </label> : <b>{formatMontant(montant)}</b>}
     </div>
-    <small>{enregistree ? "Charge enregistrée" : `À valider · ${detail}`}</small>
+    <small><StatutCharge statut={enregistree ? "enregistre" : "estime"} />{!enregistree && <span className="lot-charge-detail">{detail}</span>}</small>
     <div className="lot-charge-actions">
       {(!enregistree || editing) ? <button type="button" className="lot-charge-confirm" title="Valider et enregistrer la charge"
         aria-label={`Valider ${label.toLowerCase()}`} disabled={disabled || (editing && invalide)} onClick={enregistrer}>✓</button>

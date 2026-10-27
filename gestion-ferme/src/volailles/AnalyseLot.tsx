@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { chargerTarifsFiges, figerTarifsLot } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
+import StatutCharge from "./StatutCharge";
 import ChargeValider from "./ChargeValider";
-import { calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
+import { categoriesChargesProposees, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
@@ -108,6 +109,7 @@ export default function AnalyseLot() {
     const totalPoids = Number(lot.total_poids_livre) || 0;
     const poidsMoyen = quantiteLivree > 0 ? totalPoids / quantiteLivree : 0;
     const tauxMortalite = lot.quantite > 0 ? (Number(lot.nb_morts || 0) / lot.quantite) * 100 : 0;
+    const aValider = categoriesChargesProposees(charges, lot.livraisons);
     const propositions = calculerChargesLivraisons(lot.livraisons, tarifs);
     const chargesAnalyse = calculerChargesLot(charges, lot.livraisons, coutAliment, tarifs);
     const totalCharges = chargesAnalyse.reduce((total, charge) => total + charge.montant, 0);
@@ -125,7 +127,7 @@ export default function AnalyseLot() {
       acc.fin = fin;
       return acc;
     }, { segments: [] as string[], fin: 0 }).segments;
-    return { propositions, quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
+    return { aValider, propositions, quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
   }, [lot, charges, coutAliment, tarifs]);
 
   const enregistrerCharge = async (type: CategorieAutomatique, montant: number, id?: string | number) => {
@@ -193,7 +195,7 @@ export default function AnalyseLot() {
       <section className="history-kpis">
         <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(donnees.quantiteLivree)} note={`Sur ${formatNombre(lot.quantite)} sujets arrivés`} />
         <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={formatPoids(donnees.totalPoids)} note={`Poids moyen : ${formatPoids(donnees.poidsMoyen)}`} />
-        <HistoryMetric tone="orange" icon="€" label="Résultat net" value={formatMontant(donnees.resultat)} note={`Taux de marge : ${formatNombre(donnees.tauxMarge, 1)} %`} />
+        <HistoryMetric tone="orange" icon="€" label={donnees.aValider.length ? "Résultat net estimé" : "Résultat net"} value={formatMontant(donnees.resultat)} note={`Taux de marge : ${formatNombre(donnees.tauxMarge, 1)} %`} />
         <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${formatNombre(donnees.tauxMortalite, 1)} %`} note={`${formatNombre(lot.nb_morts || 0)} sujets perdus`} />
       </section>
 
@@ -212,12 +214,13 @@ export default function AnalyseLot() {
       <section className="lot-analysis-middle-grid">
         <article className="history-panel history-charges">
           <h2>Charges par lot</h2>
-          {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>Total charges</small><strong>{formatMontant(donnees.totalCharges)}</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
+          {donnees.aValider.length > 0 && <p className="history-charge-note"><StatutCharge statut="estime" /> {donnees.aValider.length} charge(s) à valider dans le détail économique.</p>}
+          {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>{donnees.aValider.length ? "Total estimé" : "Total charges"}</small><strong>{formatMontant(donnees.totalCharges)}</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}{donnees.aValider.some(type => type === charge.type) && <StatutCharge statut="estime" />}</span><b>{formatMontant(charge.montant)}</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
           {coutAliment !== null && <p className="lot-analysis-feed-note">Montant TTC, TVA de 2,10 % incluse.</p>}
         </article>
         <article className="history-panel lot-analysis-economy">
           <h2>Détail économique</h2>
-          {lot.livraisons.length > 0 && (["ramassage", "livraison"] as const).some((type) => !charges.some((charge) => charge.type_charge === type)) && <p className="lot-analysis-feed-note">Les totaux incluent les charges proposées à valider avec ✓. Le crayon permet de corriger le montant TTC.</p>}
+          {donnees.aValider.length > 0 && <p className="lot-analysis-feed-note">Les totaux incluent les charges proposées à valider avec ✓. Le crayon permet de corriger le montant TTC.</p>}
           <div className="lot-analysis-economic-columns">
             <div><h3>Produits</h3><p><span>Vente des volailles</span><b>{formatMontant(donnees.chiffreAffaires)}</b></p><strong>Total produits <b>{formatMontant(donnees.chiffreAffaires)}</b></strong></div>
             <div><h3>Charges</h3>{donnees.repartition.filter((charge) => charge.type !== "ramassage" && charge.type !== "livraison").map((charge) => <p key={charge.type}><span>{charge.label}</span><b>{formatMontant(charge.montant)}</b></p>)}
@@ -233,9 +236,9 @@ export default function AnalyseLot() {
                     montant={donnees.propositions[type]} enregistree={false} detail={detail} disabled={saving}
                     onSave={(montant) => enregistrerCharge(type, montant)} /> : null;
               })}
-              <strong>Total charges <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
+              <strong>{donnees.aValider.length ? "Total estimé" : "Total charges"} <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
           </div>
-          <div className="lot-analysis-margin"><span>Marge nette <b>{formatMontant(donnees.resultat)}</b></span><span>Taux de marge <b>{donnees.tauxMarge.toFixed(1)} %</b></span></div>
+          <div className="lot-analysis-margin"><span>{donnees.aValider.length ? "Marge nette estimée" : "Marge nette"} <b>{formatMontant(donnees.resultat)}</b></span><span>Taux de marge <b>{donnees.tauxMarge.toFixed(1)} %</b></span></div>
         </article>
       </section>
 

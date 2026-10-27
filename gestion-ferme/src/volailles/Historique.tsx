@@ -6,10 +6,11 @@ import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import { chargerTarifsFiges } from "./tarifsFigesService";
 import { elementsManquantsLot, type ElementManquant } from "./lotACompleter";
+import StatutCharge from "./StatutCharge";
 import Charges from "./Charges";
 import { calculerChargesLot } from "./chargesLot";
 import { calculerCoutAliment } from "./coutAliment";
-import { lireTarifsCharges } from "./tarifsCharges";
+import { categoriesChargesProposees, lireTarifsCharges } from "./tarifsCharges";
 import { chargerPages } from "./chargerPages";
 import {
   chargerLotsAvecMouvements,
@@ -57,7 +58,7 @@ export default function Historique() {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [chargesProposees, setChargesProposees] = useState(false);
+  const [propositionsParLot, setPropositionsParLot] = useState<Map<string, string[]>>(new Map());
   const [recherche, setRecherche] = useState("");
   const [batimentFiltre, setBatimentFiltre] = useState("");
   const [resultatFiltre, setResultatFiltre] = useState("");
@@ -82,7 +83,7 @@ export default function Historique() {
       if (!lots.length) {
         setHistorique([]);
         setCharges([]);
-        setChargesProposees(false);
+        setPropositionsParLot(new Map());
         setACompleter(new Map());
         setLoading(false);
         return;
@@ -110,8 +111,8 @@ export default function Historique() {
         elementsManquantsLot(lot, chargesRows, consommations, tarifsFiges.has(lot.id))])));
       setHistorique(lots as LotHistorique[]);
       setCharges(chargesCalculees);
-      setChargesProposees(lots.some((lot) => lot.livraisons.length > 0 &&
-        ["ramassage", "livraison"].some((type) => !chargesRows.some((charge) => charge.lot_id === lot.id && charge.type_charge === type))));
+      setPropositionsParLot(new Map(lots.map(lot => [lot.id,
+        categoriesChargesProposees(chargesRows.filter(charge => charge.lot_id === lot.id), lot.livraisons)])));
     } catch (error) {
       setErreur(error instanceof Error ? error.message : "L’historique n’a pas pu être chargé. Veuillez réessayer.");
       console.error("Erreur chargement historique :", error);
@@ -173,6 +174,8 @@ export default function Historique() {
         : b.nom.localeCompare(a.nom)
     );
 
+  const nombreLotsEstimes = lotsAffiches.filter(lot => (propositionsParLot.get(lot.id)?.length || 0) > 0).length;
+  const resultatsEstimes = lotsAffiches.some(lot => lot.resultat_net == null && (propositionsParLot.get(lot.id)?.length || 0) > 0);
   const totalLivres = lotsAffiches.reduce(
     (total, lot) => total + lot.quantiteLivree,
     0
@@ -363,8 +366,8 @@ export default function Historique() {
         <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
         <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
         <HistoryKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(totalChiffreAffaires)} note="Lots affichés" />
-        <HistoryKpi tone="red" icon="↘" label="Total charges" value={formatMontant(totalCharges)} note="Calcul identique à l’analyse du lot" />
-        <HistoryKpi tone="orange" icon="€" label="Résultat net" value={formatMontant(totalResultat)} note="Après charges" />
+        <HistoryKpi tone="red" icon="↘" label={nombreLotsEstimes ? "Charges estimées" : "Total charges"} value={formatMontant(totalCharges)} note={nombreLotsEstimes ? `${nombreLotsEstimes} lot(s) avec charges à valider` : "Calcul identique à l’analyse du lot"} />
+        <HistoryKpi tone="orange" icon="€" label={resultatsEstimes ? "Résultat net estimé" : "Résultat net"} value={formatMontant(totalResultat)} note="Après charges" />
       </section>
 
       <section className="history-filters">
@@ -413,7 +416,7 @@ export default function Historique() {
         <div className="history-mobile-list">
           {lotsAffiches.map((lot) => (
             <article key={lot.id}>
-              <div><strong>{lot.nom}</strong><span>{lot.batiment} · {formatDate(lot.date_arrivee)}</span></div>
+              <div><strong>{lot.nom}</strong>{!!propositionsParLot.get(lot.id)?.length && <StatutCharge statut="estime" />}<span>{lot.batiment} · {formatDate(lot.date_arrivee)}</span></div>
               <div className="history-mobile-values">
                 <span>Livrés <b>{formatNombre(lot.quantiteLivree)}</b></span>
                 <span>Poids <b>{formatPoids(lot.total_poids_livre, 1)}</b></span>
@@ -441,7 +444,7 @@ export default function Historique() {
             <tbody>
               {lotsAffiches.map((lot) => (
                 <tr key={lot.id}>
-                  <td>{lot.nom}</td>
+                  <td>{lot.nom}{!!propositionsParLot.get(lot.id)?.length && <StatutCharge statut="estime" />}</td>
                   <td>{formatDate(lot.date_arrivee)}</td>
                   <td>{lot.batiment}</td>
                   <td>{formatNombre(lot.sujets_restants)}</td>
@@ -478,7 +481,7 @@ export default function Historique() {
           {totalCharges > 0 ? (
             <div>
               <div className="history-charge-ring" style={{ background: `conic-gradient(${segmentsCharges.join(", ")})` }}>
-                <span><small>Total charges</small><strong>{formatMontant(totalCharges)}</strong></span>
+                <span><small>{nombreLotsEstimes ? "Total estimé" : "Total charges"}</small><strong>{formatMontant(totalCharges)}</strong></span>
               </div>
               <div className="history-charge-list">
                 {repartitionCharges.map((charge, index) => (
@@ -487,7 +490,7 @@ export default function Historique() {
               </div>
             </div>
           ) : <p className="history-empty">Aucune charge pour les lots affichés.</p>}
-          <p className="history-charge-note">Aliment consommé TTC inclus (TVA 2,10 %).{chargesProposees ? " Les totaux peuvent inclure du ramassage et du transport proposés, à valider dans l’analyse du lot." : ""}</p>
+          <p className="history-charge-note">Aliment consommé TTC inclus (TVA 2,10 %).{nombreLotsEstimes ? ` ${nombreLotsEstimes} lot(s) affiché(s) incluent des charges estimées à valider dans l’analyse du lot.` : ""}</p>
         </article>
       </section>
 

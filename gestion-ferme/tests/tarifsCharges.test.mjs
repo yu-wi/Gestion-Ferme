@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculerChargesLivraisons, completerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut } from '../src/volailles/tarifsCharges.ts';
+import { categoriesChargesProposees, calculerChargesLivraisons, completerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut } from '../src/volailles/tarifsCharges.ts';
 
 test('tarifs initiaux et TVA distinctes : 1000 sujets sur deux livraisons', () => {
   assert.deepEqual(calculerChargesLivraisons([{ quantite: 400 }, { quantite: 600 }], tarifsChargesParDefaut), {
@@ -42,4 +42,22 @@ test('les lignes existantes multiples sont conservées sans ajout automatique', 
   const charges = [{ type_charge: 'ramassage', montant: 50 }, { type_charge: 'ramassage', montant: 60 }, { type_charge: 'livraison', montant: 90 }];
   assert.deepEqual(completerChargesLivraisons(charges, [{ quantite: 1000 }], tarifsChargesParDefaut), charges);
   assert.deepEqual(completerChargesLivraisons([], [], tarifsChargesParDefaut), []);
+});
+test('les deux charges sont estimées avant validation puis enregistrées sans changer leur total', () => {
+  const livraisons = [{ quantite: 1000 }];
+  const charges = [];
+  assert.deepEqual(categoriesChargesProposees(charges, livraisons), ['ramassage', 'livraison']);
+  const avant = completerChargesLivraisons(charges, livraisons, tarifsChargesParDefaut);
+  charges.push(avant[0]);
+  assert.deepEqual(categoriesChargesProposees(charges, livraisons), ['livraison']);
+  charges.push(avant[1]);
+  assert.deepEqual(categoriesChargesProposees(charges, livraisons), []);
+  assert.deepEqual(completerChargesLivraisons(charges, livraisons, tarifsChargesParDefaut), avant);
+});
+test('un montant zéro enregistré et les doublons ne deviennent pas des estimations', () => {
+  assert.deepEqual(categoriesChargesProposees([
+    {type_charge:'ramassage', montant:0}, {type_charge:'ramassage', montant:10},
+    {type_charge:'livraison', montant:0},
+  ], [{}]), []);
+  assert.deepEqual(categoriesChargesProposees([], []), []);
 });

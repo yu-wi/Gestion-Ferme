@@ -5469,6 +5469,17 @@
 .history-completion-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .history-completion-actions a, .history-completion-actions button { border: 1px solid #e8d4ad; border-radius: 5px; padding: 7px 9px; color: #875706; background: #fff9ed; font: inherit; font-size: 10px; cursor: pointer; text-decoration: none; }
 .history-completion .history-completion-done { color: #16853d; }
+.comparison-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 16px 0; }
+.comparison-filters label, .comparison-heading label { display: flex; flex-direction: column; gap: 5px; color: #566c80; font-size: 11px; }
+.comparison-filters select, .comparison-filters input, .comparison-heading select, .comparison-filters button { min-height: 36px; max-width: 100%; border: 1px solid #d8e2dd; border-radius: 6px; padding: 8px; background: white; color: #173047; font: inherit; font-size: 12px; }
+.comparison-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.comparison-lots { margin: 16px 0; min-width: 0; }
+.comparison-lots p { color: #718093; font-size: 11px; line-height: 1.6; }
+.comparison-table-wrap { overflow-x: auto; }
+.comparison-table-wrap table { min-width: 760px; width: 100%; }
+.comparison-table-wrap td:not(:first-child) { white-space: nowrap; }
+.comparison-table-wrap td:first-child small { display: block; margin-top: 4px; color: #718093; font-size: 10px; }
+.comparison-table-wrap th[aria-sort] { color: #14763a; background: #f2f8f3; }
 @media print { .history-completion { display: none; } }
 
 .history-performance-good,

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
+import ComparaisonLots from "./ComparaisonLots";
+import { chargerComparaison } from "./chargerComparaison";
+import { chargerPages } from "./chargerPages";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
@@ -96,11 +99,19 @@ export default function Analyse() {
   const [recherche, setRecherche] = useState("");
   const [lotFiltreId, setLotFiltreId] = useState("");
   const [especeDirecte, setEspeceDirecte] = useState<"" | EspeceDirecte>("");
+  const [batiment, setBatiment] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+  const [consommations, setConsommations] = useState<Map<string, number>>(new Map());
+  const [estimations, setEstimations] = useState<Set<string>>(new Set());
+  const [erreur, setErreur] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const chargerAnalyse = async () => {
       setLoading(true);
+      setErreur(false);
       try {
         const [
           lotsData,
@@ -109,11 +120,12 @@ export default function Analyse() {
           directDeliveriesResult,
         ] = await Promise.all([
           chargerLotsAvecMouvements(false),
-          supabase.from("charges").select("lot_id, type_charge, montant"),
+          chargerPages((debut, fin) => supabase.from("charges").select("lot_id, type_charge, montant").order("id").range(debut, fin)),
           supabase.from("direct_sale_lots").select("*").eq("status", "termine"),
           supabase.from("direct_sale_deliveries").select("*"),
         ]);
-        if (chargesResult.error) throw chargesResult.error;
+
+        if (!active) return;
         if (directLotsResult.error && !["42P01", "PGRST205"].includes(directLotsResult.error.code || "")) {
           throw directLotsResult.error;
         }
@@ -121,12 +133,14 @@ export default function Analyse() {
           throw directDeliveriesResult.error;
         }
         setLotsSica(lotsData as LotAnalyse[]);
-        setCharges(
-          (chargesResult.data || []).map((charge) => ({
-            ...charge,
-            montant: Number(charge.montant) || 0,
-          })) as Charge[]
-        );
+        const chargesNormalisees = chargesResult.map(charge => ({ ...charge, montant: Number(charge.montant) || 0 })) as Charge[];
+        if (source === "sica") {
+          const comparaison = await chargerComparaison(lotsData, chargesNormalisees);
+          if (!active) return;
+          setCharges(comparaison.charges);
+          setConsommations(comparaison.consommations);
+          setEstimations(comparaison.estimations);
+        } else setCharges(chargesNormalisees);
         setLotsDirects(
           (directLotsResult.data || []).map((lot) => ({
             ...lot,
@@ -145,13 +159,16 @@ export default function Analyse() {
           })) as DirectDeliveryAnalyse[]
         );
       } catch (error) {
+        if (!active) return;
+        setErreur(true);
         console.error("Erreur chargement analyse :", error);
         toast.error("La page Analyse n'a pas pu être chargée.");
       }
-      setLoading(false);
+      if (active) setLoading(false);
     };
     chargerAnalyse();
-  }, []);
+    return () => { active = false; };
+  }, [source]);
 
   const lignesSica = useMemo<LigneAnalyse[]>(
     () =>
@@ -170,10 +187,7 @@ export default function Analyse() {
           (total, charge) => total + charge.montant,
           0
         );
-        const resultatCalcule =
-          lot.resultat_net != null
-            ? Number(lot.resultat_net) || 0
-            : chiffreAffaires - totalCharges;
+        const resultatCalcule = chiffreAffaires - totalCharges;
 
         return construireLigne({
           id: lot.id,
@@ -238,19 +252,29 @@ export default function Analyse() {
   const terme = recherche.trim().toLowerCase();
   const lignesAffichees = lignes.filter(
     (lot) =>
+      (source !== "sica" || (
+        (!batiment || lot.groupe === batiment) &&
+        (!dateDebut || (lotsSica.find(item => item.id === lot.id)?.date_arrivee || "") >= dateDebut) &&
+        (!dateFin || (lotsSica.find(item => item.id === lot.id)?.date_arrivee || "") <= dateFin)
+      )) &&
       (!lotFiltreId || lot.id === lotFiltreId) &&
       (!especeDirecte || lot.espece === especeDirecte) &&
       (!terme ||
         lot.nom.toLowerCase().includes(terme) ||
         lot.groupe.toLowerCase().includes(terme))
   );
+  const chargesConnues = (id: string) => new Set(charges.filter(charge => charge.lot_id === id).map(charge => charge.type_charge));
+  const chargesCompletes = (id: string) => ["aliment", "achat_poussins", "ramassage", "livraison"].every(type => chargesConnues(id).has(type));
   const titreSource = source === "direct" ? "Vente directe" : "Lots SICA";
   const prochainOnglet = (valeur: OngletAnalyse) => {
     setOnglet(valeur);
     setSearchParams(valeur === "economie" ? { onglet: "economie" } : {});
   };
 
+  const datesInvalides = !!dateDebut && !!dateFin && dateDebut > dateFin;
   if (loading) return <div className="analysis-loading">Chargement de l’analyse...</div>;
+
+  if (erreur) return <p className="analysis-empty" role="alert">Les données n’ont pas pu être chargées. Rechargez la page pour réessayer.</p>;
 
   return (
     <div className="analysis-page">
@@ -298,6 +322,26 @@ export default function Analyse() {
         )}
         <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder={source === "direct" ? "Rechercher un lot ou un emplacement..." : "Rechercher un lot ou un bâtiment..."} />
       </section>
+
+      {source === "sica" && <>
+        <section className="comparison-filters" aria-label="Filtres de comparaison">
+          <label>Bâtiment<select value={batiment} onChange={event => setBatiment(event.target.value)}><option value="">Tous les bâtiments</option>
+            {[...new Set(lotsSica.map(lot => lot.batiment).filter(Boolean))].sort().map(nom => <option key={nom}>{nom}</option>)}
+          </select></label>
+          <label>Arrivée à partir du<input type="date" value={dateDebut} onChange={event => setDateDebut(event.target.value)} /></label>
+          <label>Arrivée jusqu’au<input type="date" value={dateFin} onChange={event => setDateFin(event.target.value)} /></label>
+          <button type="button" onClick={() => { setBatiment(""); setDateDebut(""); setDateFin(""); setLotFiltreId(""); setRecherche(""); }}>Réinitialiser les filtres</button>
+        </section>
+        {datesInvalides && <p role="alert">La date de début doit précéder la date de fin.</p>}
+        {!!lignesAffichees.length && <ComparaisonLots lots={lignesAffichees.map(lot => ({
+          id: lot.id, nom: lot.nom, batiment: lot.groupe,
+          date: lotsSica.find(item => item.id === lot.id)?.date_arrivee || "",
+          estime: estimations.has(lot.id), incomplet: !chargesCompletes(lot.id), resultat: chargesCompletes(lot.id) ? lot.resultatCalcule : null, aliment: chargesConnues(lot.id).has("aliment") ? lot.chargeAliments : null,
+          livres: lot.quantiteLivree, poids: lot.total_poids_livre, morts: lot.nb_morts, initial: lot.quantite,
+          consommation: consommations.get(lot.id) ?? null,
+        }))} />}
+        {lignesAffichees.some(lot => estimations.has(lot.id)) && <p className="history-charge-note">Les résultats ci-dessous incluent des charges estimées à valider dans les fiches des lots concernés.</p>}
+      </>}
 
       {!lignesAffichees.length ? (
         <div className="analysis-empty">Aucun lot ne correspond à cette recherche.</div>

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { chargerPages } from './chargerPages';
 
 export type MortaliteVolaille = {
   id: string;
@@ -25,52 +26,36 @@ export type LotAvecMouvements = Record<string, any> & {
 };
 
 export async function chargerLotsAvecMouvements(isActive?: boolean): Promise<LotAvecMouvements[]> {
-  let lotsQuery = supabase.from('lots_volailles').select('*');
-
-  if (typeof isActive === 'boolean') {
-    lotsQuery = lotsQuery.eq('is_active', isActive);
-  }
-
-  const { data: lots, error: lotsError } = await lotsQuery;
-
-  if (lotsError) {
-    throw lotsError;
-  }
-
-  if (!lots?.length) {
-    return [];
-  }
-
-  const lotIds = lots.map((lot) => lot.id);
-  const [mortalitesResult, livraisonsResult] = await Promise.all([
-    supabase
-      .from('mortalites_volailles')
-      .select('id, lot_id, date, nombre')
-      .in('lot_id', lotIds)
-      .order('date', { ascending: true }),
-    supabase
-      .from('livraisons_volailles')
-      .select('id, lot_id, date, quantite, poids')
-      .in('lot_id', lotIds)
-      .order('date', { ascending: true }),
-  ]);
-
-  if (mortalitesResult.error) {
-    throw mortalitesResult.error;
-  }
-
-  if (livraisonsResult.error) {
-    throw livraisonsResult.error;
+  const lots = await chargerPages((debut, fin) => {
+    let query = supabase.from('lots_volailles').select('*').order('id').range(debut, fin);
+    if (typeof isActive === 'boolean') query = query.eq('is_active', isActive);
+    return query;
+  });
+  if (!lots.length) return [];
+  const lotIds = lots.map(lot => lot.id);
+  const mortalitesResult: MortaliteVolaille[] = [];
+  const livraisonsResult: LivraisonVolaille[] = [];
+  // Charger tous les mouvements, sans dépasser la taille des filtres d'URL.
+  for (let index = 0; index < lotIds.length; index += 100) {
+    const ids = lotIds.slice(index, index + 100);
+    const [mortalites, livraisons] = await Promise.all([
+      chargerPages((debut, fin) => supabase.from('mortalites_volailles').select('id, lot_id, date, nombre')
+        .in('lot_id', ids).order('date').order('id').range(debut, fin)),
+      chargerPages((debut, fin) => supabase.from('livraisons_volailles').select('id, lot_id, date, quantite, poids')
+        .in('lot_id', ids).order('date').order('id').range(debut, fin)),
+    ]);
+    mortalitesResult.push(...mortalites);
+    livraisonsResult.push(...livraisons);
   }
 
   return lots.map((lot) => {
-    const mortalites = (mortalitesResult.data || [])
+    const mortalites = mortalitesResult
       .filter((mortalite) => mortalite.lot_id === lot.id)
       .map((mortalite) => ({
         ...mortalite,
         nombre: Number(mortalite.nombre) || 0,
       }));
-    const livraisons = (livraisonsResult.data || [])
+    const livraisons = livraisonsResult
       .filter((livraison) => livraison.lot_id === lot.id)
       .map((livraison) => ({
         ...livraison,

@@ -8446,3 +8446,35 @@
   .inventory-note { grid-template-columns: 34px minmax(0, 1fr); padding: 14px; }
   .inventory-graph-grid { grid-template-columns: repeat(12, 74px); }
 }
+
+.closure-print { display: none; }
+.closure-export-info { margin: 16px 0; }
+.closure-export-info strong { font-size: 13px; color: #173047; }
+.closure-export-info p { margin: 8px 0 0; color: #718093; font-size: 11px; line-height: 1.5; }
+.lot-analysis-heading > div:last-child { flex-wrap: wrap; }
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body:has(.closure-print) { margin: 0 !important; background: white; }
+  body:has(.closure-print) #root,
+  body:has(.closure-print) .app-shell,
+  body:has(.closure-print) .app-content,
+  body:has(.closure-print) .app-main { min-height: 0 !important; height: auto !important; }
+  .lot-analysis-page > :not(.closure-print) { display: none !important; }
+  .lot-analysis-page .closure-print { display: block !important; color: #111; background: white; font: 10pt Arial, sans-serif; }
+  .closure-print h1 { margin: 8px 0; font-size: 19pt; }
+  .closure-print h2 { margin: 12px 0 8px; font-size: 13pt; }
+  .closure-print p { margin: 6px 0; font-size: 9pt; line-height: 1.5; }
+  .closure-print ul { margin: 8px 0; padding-left: 20px; font-size: 9pt; }
+  .closure-print header { border-bottom: 2px solid #14763a; padding-bottom: 10px; }
+  .closure-print section { margin: 14px 0; }
+  .closure-print dl { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 22px; }
+  .closure-print dl > div { display: flex; justify-content: space-between; gap: 10px; font-size: 9pt; }
+  .closure-print dd { margin: 0; font-weight: 700; }
+  .closure-print table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .closure-print th, .closure-print td { border-bottom: 1px solid #ccc; padding: 7px; text-align: left; white-space: normal; }
+  .closure-print th { background: #f2f6f3; }
+  .closure-print thead { display: table-header-group; }
+  .closure-print tr { break-inside: avoid; }
+  .closure-print footer { border-top: 1px solid #999; margin-top: 16px; padding-top: 8px; break-inside: avoid; }
+  #_rht_toaster { display: none !important; }
+}

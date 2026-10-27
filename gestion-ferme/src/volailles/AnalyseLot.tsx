@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { chargerTarifsFiges, figerTarifsLot } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
+import FicheClotureImpression from "./FicheClotureImpression";
+import { creerFicheCloture, type ConsoFiche, type ReferenceFiche } from "./ficheCloture";
 import StatutCharge from "./StatutCharge";
 import ChargeValider from "./ChargeValider";
 import { categoriesChargesProposees, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
@@ -26,10 +28,10 @@ type LotAnalyse = {
   age: number;
   nb_morts: number;
   sujets_restants: number;
-  resultat_brut: number;
+  resultat_brut: number | null;
   resultat_net: number | null;
   autoconsommation: number;
-  quantite_retenue: number;
+  quantite_retenue: number | null;
   total_poids_livre: number;
   livraisons: LivraisonVolaille[];
   mortalites: MortaliteVolaille[];
@@ -56,6 +58,9 @@ export default function AnalyseLot() {
   const [loading, setLoading] = useState(true);
   const [tarifs, setTarifs] = useState(tarifsChargesParDefaut);
   const [tarifsFiges, setTarifsFiges] = useState<TarifsFiges | null>(null);
+  const [consoFiche, setConsoFiche] = useState<ConsoFiche[]>([]);
+  const [referencesFiche, setReferencesFiche] = useState<ReferenceFiche[]>([]);
+  const [exporting, setExporting] = useState(false);
   const [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
@@ -73,7 +78,7 @@ export default function AnalyseLot() {
         const [lots, chargesResult, consommationsResult, referencesResult, tarifsResult, snapshots] = await Promise.all([
           chargerLotsAvecMouvements(false),
           chargerPages((debut, fin) => supabase.from("charges").select("id, type_charge, montant").eq("lot_id", lotId).order("id").range(debut, fin)),
-          chargerPages((debut, fin) => supabase.from("consommations_aliment").select("feed_type, quantite_kg").eq("lot_id", lotId).order("id").range(debut, fin)),
+          chargerPages((debut, fin) => supabase.from("consommations_aliment").select("date, feed_type, quantite_kg").eq("lot_id", lotId).order("id").range(debut, fin)),
           supabase.from("feed_reference").select("feed_type, feed_price_ht").order("age_min_days"),
           supabase.from("app_settings").select("key, value").eq("category", "volailles"),
           chargerTarifsFiges(),
@@ -91,6 +96,8 @@ export default function AnalyseLot() {
         setCoutAliment(cout);
         setTarifs(snapshot?.tarifs ?? tarifsCharges);
         setTarifsFiges(snapshot ?? null);
+        setConsoFiche(consommationsResult.map(row=>({date:row.date || "",feed_type:row.feed_type,quantite_kg:Number(row.quantite_kg)})));
+        setReferencesFiche((snapshot?.references ?? referencesResult.data ?? []).map(row=>({feed_type:row.feed_type,feed_price_ht:row.feed_price_ht==null ? null : Number(row.feed_price_ht)})));
       } catch (error) {
         if (!active) return;
         console.error("Erreur chargement analyse lot :", error);
@@ -127,8 +134,10 @@ export default function AnalyseLot() {
       acc.fin = fin;
       return acc;
     }, { segments: [] as string[], fin: 0 }).segments;
-    return { aValider, propositions, quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
-  }, [lot, charges, coutAliment, tarifs]);
+    const fiche = creerFicheCloture(lot, chargesAnalyse, { aValider, alimentCalcule:coutAliment!==null,
+      consommations:consoFiche, tarifs, references:referencesFiche, tvaAliment:tarifsFiges?.tvaAliment ?? .021, gel:tarifsFiges });
+    return { fiche, aValider, propositions, quantiteLivree, totalPoids, poidsMoyen, tauxMortalite, totalCharges, chiffreAffaires, resultat, tauxMarge, repartition, segments };
+  }, [lot, charges, coutAliment, tarifs, tarifsFiges, consoFiche, referencesFiche]);
 
   const enregistrerCharge = async (type: CategorieAutomatique, montant: number, id?: string | number) => {
     if (!lot || saveLock.current || !Number.isFinite(montant) || montant < 0) return false;
@@ -167,6 +176,14 @@ export default function AnalyseLot() {
     } finally { saveLock.current = false; setSaving(false); }
   };
 
+  const exporterExcel = async () => {
+    if (!donnees || exporting) return;
+    setExporting(true);
+    try { const { exporterFicheExcel } = await import("../outils/exportFicheCloture"); exporterFicheExcel(donnees.fiche); }
+    catch (error) { console.error("Erreur export fiche :", error); toast.error("Le fichier Excel n’a pas pu être créé."); }
+    finally { setExporting(false); }
+  };
+
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
   if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>;
   if (!lot || !donnees) return <div className="history-page"><div className="history-empty">Lot introuvable.</div></div>;
@@ -185,9 +202,14 @@ export default function AnalyseLot() {
             </select>
           </label>
         </div>
-        <div><button type="button" onClick={() => window.print()}>▤ Exporter PDF</button><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>
+        <div><button type="button" disabled={saving} onClick={() => window.print()}>▤ Fiche PDF / imprimer</button><button type="button" disabled={saving || exporting} onClick={exporterExcel}>{exporting ? "Création…" : "⇩ Fiche Excel"}</button><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>
       </header>
 
+      <section className="history-panel closure-export-info"><strong>Fiche de clôture {donnees.fiche.statut.toLowerCase()}</strong>
+        <p>{donnees.fiche.raisons.length ? donnees.fiche.raisons.join(" · ") : "Charges renseignées et tarifs figés."}</p>
+        <p>Le bouton PDF ouvre la fenêtre d’impression : choisissez « Enregistrer au format PDF ». Les deux formats reprennent les mêmes données.</p>
+      </section>
+      <FicheClotureImpression fiche={donnees.fiche} />
       <section className="history-panel lot-tariffs-status">
         {tarifsFiges ? <p>✓ Tarifs figés le {new Date(tarifsFiges.date).toLocaleDateString("fr-FR")}{tarifsFiges.origine === "historique" ? " à partir des prix disponibles lors du gel" : " lors de l’archivage"}. Les changements de tarifs généraux ne modifient plus ce lot.</p>
           : <><p>Les tarifs de ce lot ancien ne sont pas encore figés. Le gel conservera les prix actuels ; il ne reconstitue pas les prix d’origine.</p><button type="button" disabled={saving} onClick={figer}>Figer les tarifs actuels</button></>}

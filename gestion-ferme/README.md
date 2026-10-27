@@ -1,5 +1,19 @@
 # Gestion SCEA La Ferme de Bernard
 
+## Fiche de clôture SICA
+
+Dans l'analyse complète d'un lot archivé, « Fiche PDF / imprimer » ouvre une
+fiche dédiée : choisir « Enregistrer au format PDF » dans le navigateur.
+« Fiche Excel » télécharge un classeur avec les onglets Synthèse, Production,
+Charges, Livraisons, Mortalités, Consommations et Tarifs. Les montants et statuts
+reprennent les calculs de l'analyse et les tarifs figés lorsqu'ils existent.
+
+La fiche reste provisoire si des charges ou des recettes manquent, si des charges
+restent à valider, si les tarifs ne sont pas figés, si la quantité retenue n'est
+pas renseignée ou si le lot conserve des sujets / n'a aucune livraison. Une
+valeur zéro saisie reste distincte d'une donnée absente. L'export ne valide ni
+ne clôture le lot et n'écrit aucune donnée dans Supabase.
+
 Interface React/Vite pour suivre les ateliers de l'exploitation agricole, avec une base de données Supabase et une publication possible sur Vercel.
 
 ## Configuration locale

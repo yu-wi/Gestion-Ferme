@@ -5,6 +5,7 @@ import { supabase } from "../supabaseClient";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import { chargerTarifsFiges } from "./tarifsFigesService";
+import { elementsManquantsLot, type ElementManquant } from "./lotACompleter";
 import Charges from "./Charges";
 import { calculerChargesLot } from "./chargesLot";
 import { calculerCoutAliment } from "./coutAliment";
@@ -70,6 +71,8 @@ export default function Historique() {
   const [resultatNetInput, setResultatNetInput] = useState("");
   const [quantiteRetenueInput, setQuantiteRetenueInput] = useState("");
   const [showChargesManager, setShowChargesManager] = useState(false);
+  const [aCompleter, setACompleter] = useState<Map<string, ElementManquant[]>>(new Map());
+  const [saisieCharge, setSaisieCharge] = useState<{ lotId: string; categorie: string } | null>(null);
   const [lotAnalyseId, setLotAnalyseId] = useState("");
 
   const fetchLots = async () => {
@@ -80,6 +83,7 @@ export default function Historique() {
         setHistorique([]);
         setCharges([]);
         setChargesProposees(false);
+        setACompleter(new Map());
         setLoading(false);
         return;
       }
@@ -102,6 +106,8 @@ export default function Historique() {
         return calculerChargesLot(chargesLot, lot.livraisons, coutAliment, fige?.tarifs ?? tarifs)
           .map((charge) => ({ ...charge, lot_id: lot.id }));
       });
+      setACompleter(new Map((lots as LotHistorique[]).map(lot => [lot.id,
+        elementsManquantsLot(lot, chargesRows, consommations, tarifsFiges.has(lot.id))])));
       setHistorique(lots as LotHistorique[]);
       setCharges(chargesCalculees);
       setChargesProposees(lots.some((lot) => lot.livraisons.length > 0 &&
@@ -227,6 +233,18 @@ export default function Historique() {
     },
     { segments: [] as string[], fin: 0 }
   ).segments;
+
+  const ouvrirSaisieManquante = (lot: LotHistorique, element: ElementManquant) => {
+    if (element.action === "charges") {
+      setSaisieCharge({ lotId: lot.id, categorie: element.categorie || "achat_poussins" });
+      setShowChargesManager(true);
+    } else {
+      setSelectedLot(lot);
+      setQuantiteRetenueInput("");
+      setShowQuantiteRetenueModal(true);
+    }
+  };
+  const lotsACompleter = lotsAffiches.filter(lot => (aCompleter.get(lot.id)?.length || 0) > 0);
 
   const resetFiltres = () => {
     setRecherche("");
@@ -366,6 +384,21 @@ export default function Historique() {
           <option value="negatif">Résultat négatif</option>
         </select>
         <button type="button" onClick={resetFiltres}>↻ Réinitialiser</button>
+      </section>
+
+      <section className="history-panel history-completion" aria-label="Lots à compléter">
+        <details open>
+          <summary><strong>Lots à compléter</strong><span>{lotsACompleter.length} / {lotsAffiches.length} lot(s) affiché(s)</span></summary>
+          <p>Choisissez une donnée pour ouvrir sa saisie ou son analyse. Les charges proposées restent à valider ; une valeur zéro déjà saisie est acceptée.</p>
+          {!lotsACompleter.length ? <p className="history-completion-done">{lotsAffiches.length ? "✓ Tous les lots affichés sont renseignés." : "Aucun lot pour les filtres sélectionnés."}</p>
+            : <ul>{lotsACompleter.map(lot => <li key={lot.id}>
+              <div><strong>Lot {lot.nom}</strong><small>{lot.batiment}</small></div>
+              <div className="history-completion-actions">{aCompleter.get(lot.id)?.map((element, index) =>
+                element.action === "analyse" ? <Link key={index} to={`/volailles/sica/historique/${lot.id}/analyse`}>{element.libelle} →</Link>
+                  : <button type="button" key={index} onClick={() => ouvrirSaisieManquante(lot, element)}>{element.libelle} →</button>
+              )}</div>
+            </li>)}</ul>}
+        </details>
       </section>
 
       <section className="history-panel history-table-panel">
@@ -513,13 +546,14 @@ export default function Historique() {
           <div className="poultry-modal poultry-modal-large history-charge-manager">
             <ModalCloseButton onClick={() => {
               setShowChargesManager(false);
+              setSaisieCharge(null);
               fetchLots();
             }} />
             <div className="poultry-modal-header">
               <span className="poultry-modal-icon">€</span>
               <div><h2>Gestion des charges</h2><p>Ajouter, consulter ou modifier les charges des lots archivés.</p></div>
             </div>
-            <Charges lotIdsFiltres={lotsAffiches.map((lot) => lot.id)} />
+            <Charges lotIdsFiltres={lotsAffiches.map((lot) => lot.id)} lotInitialId={saisieCharge?.lotId} categorieInitiale={saisieCharge?.categorie} ouvrirAjout={!!saisieCharge} />
           </div>
         </div>
       )}

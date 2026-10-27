@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { chargerTarifsFiges } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
 import { Link } from "react-router-dom";
@@ -35,6 +35,9 @@ interface Lot {
 
 interface ChargesProps {
   lotIdsFiltres?: string[];
+  lotInitialId?: string;
+  categorieInitiale?: string;
+  ouvrirAjout?: boolean;
 }
 
 const chargeMeta: Record<string, { label: string; icon: string; tone: string }> = {
@@ -45,7 +48,8 @@ const chargeMeta: Record<string, { label: string; icon: string; tone: string }> 
   divers: { label: "Divers", icon: "•••", tone: "gray" },
 };
 
-const Charges = ({ lotIdsFiltres }: ChargesProps) => {
+const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }: ChargesProps) => {
+  const initialisee = useRef(false);
   const [lots, setLots] = useState<Lot[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [consommations, setConsommations] = useState<{ lot_id: string | null }[]>([]);
@@ -135,14 +139,26 @@ const Charges = ({ lotIdsFiltres }: ChargesProps) => {
   const lotSaisie = lotsASaisir.find((lot) => lot.id === lotSaisieId);
 
   useEffect(() => {
+    if (initialisee.current || chargementCharges || !lotsAffiches.some(lot => lot.id === lotInitialId)) return;
+    initialisee.current = true;
+    setSelectedLotId(lotInitialId!);
+    if (ouvrirAjout && lotsASaisir.some(lot => lot.id === lotInitialId)) {
+      setLotSaisieId(lotInitialId!);
+      setSelectedType(categorieInitiale || "achat_poussins");
+      setModalOpen(true);
+    }
+  }, [lotInitialId, categorieInitiale, ouvrirAjout, chargementCharges, lotsAffiches, lotsASaisir]);
+
+
+  useEffect(() => {
     if (!lotsAffiches.length) {
       setSelectedLotId("");
       return;
     }
     if (!lotsAffiches.some((lot) => lot.id === selectedLotId)) {
-      setSelectedLotId(lotsAffiches[0].id);
+      setSelectedLotId(lotsAffiches.find(lot => lot.id === lotInitialId)?.id || lotsAffiches[0].id);
     }
-  }, [lotsAffiches, selectedLotId]);
+  }, [lotsAffiches, selectedLotId, lotInitialId]);
 
   const lotSelectionne =
     lotsAffiches.find((lot) => lot.id === selectedLotId) || lotsAffiches[0];

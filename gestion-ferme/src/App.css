@@ -5449,6 +5449,20 @@
 .history-charge-list b { font-weight: 650; }
 .history-charge-list em { font-style: normal; font-weight: 800; text-align: right; }
 .history-charge-note { margin: 10px 0 0; color: #718093; font-size: 10px; line-height: 1.5; }
+.history-completion { margin: 16px 0; }
+.history-completion summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; color: #173047; cursor: pointer; font-size: 13px; }
+.history-completion summary span { color: #9a650d; font-size: 11px; }
+.history-completion summary strong::before { content: "▸ "; }
+.history-completion details[open] > summary strong::before { content: "▾ "; }
+.history-completion p { margin: 12px 0; color: #718093; font-size: 11px; line-height: 1.5; }
+.history-completion ul { max-height: 340px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.history-completion li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #e6ece9; padding: 12px 0; }
+.history-completion li > div:first-child { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.history-completion small { color: #718093; font-size: 10px; }
+.history-completion-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.history-completion-actions a, .history-completion-actions button { border: 1px solid #e8d4ad; border-radius: 5px; padding: 7px 9px; color: #875706; background: #fff9ed; font: inherit; font-size: 10px; cursor: pointer; text-decoration: none; }
+.history-completion .history-completion-done { color: #16853d; }
+@media print { .history-completion { display: none; } }
 
 .history-performance-good,
 .history-performance-alert {

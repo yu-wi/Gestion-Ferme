@@ -1,5 +1,40 @@
 # Supabase
 
+## Journal des modifications
+
+1. Installer les profils avec `user-profiles.sql` si ce n'est pas déjà fait et
+   attribuer un profil actif `admin` aux personnes autorisées à lire le journal.
+2. Exécuter `journal-modifications.sql` dans le SQL Editor Supabase avec le rôle
+   propriétaire. Le script est transactionnel et réexécutable ; il ne détruit
+   aucune donnée métier ni aucun événement déjà enregistré.
+3. Ouvrir « Journal des modifications » avec un compte administrateur actif.
+   Vérifier, sur des données de test, une correction et ses valeurs avant/après.
+
+Le déploiement du frontend n'active pas les déclencheurs. Avant exécution du SQL,
+aucun historique n'est collecté, et les anciennes opérations ne sont pas
+reconstituées. Une table de module absente est signalée par une notice et ignorée :
+réexécuter le script après installation de ce module.
+
+Le journal suit les lots SICA/vente directe, charges, livraisons, mortalités,
+commandes de vente directe, références et mouvements d'aliment, planning SICA,
+paramètres volailles connus et tarifs figés. Il ne suit pas les comptes, mots de
+passe ni les paramètres généraux arbitraires. Les noms d'auteurs sont conservés
+au moment de l'opération ; les opérations sans session sont étiquetées système/SQL.
+
+Les écritures du journal sont réalisées par des déclencheurs et font partie de
+la même transaction que l'opération métier. Un échec de journalisation annule
+donc cette opération. Les clients authentifiés n'ont aucun droit d'ajout,
+modification ou suppression sur `audit_events`. La politique de lecture vérifie
+en base le profil administrateur actif. Le propriétaire SQL conserve ses droits
+d'administration ; le journal ne constitue pas une protection contre ce rôle.
+
+Tests PostgreSQL isolés, sans accès à la base de production :
+
+```bash
+npm install --prefix /tmp/gestion-audit-tests --cache /workspace/.npm-cache --no-package-lock --no-audit --no-fund @electric-sql/pglite@0.3.14
+PGLITE_MODULE_PATH=/tmp/gestion-audit-tests/node_modules/@electric-sql/pglite/dist/index.js node tests/audit-database.mjs
+```
+
 ## Tarifs figés des lots SICA
 
 L'archivage conserve une copie des prix alimentaires, de la TVA alimentaire et des

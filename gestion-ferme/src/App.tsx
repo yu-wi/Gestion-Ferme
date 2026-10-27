@@ -13,6 +13,7 @@ import Ovins from './pages/Ovins';
 import Accueil from './pages/Accueil'; 
 import Planning from './pages/Planning';
 import Sauvegardes from './pages/Sauvegardes';
+import JournalModifications from './pages/JournalModifications';
 import Parametres from './pages/Parametres';
 import VolaillesResume from './volailles/VolaillesResume';
 
@@ -49,6 +50,7 @@ function App() {
                   <Route index element={<Accueil userName={userName} />} />
                   <Route path="planning" element={<Planning />} />
                   <Route path="sauvegardes" element={<Sauvegardes />} />
+                  <Route path="journal" element={<JournalModifications autorise={profile?.role === "admin" && profile.is_active} />} />
                   <Route path="parametres" element={<Parametres />} />
                   <Route path="volailles" element={<VolaillesResume />} />
                   <Route path="/volailles/sica" element={<Volailles />} />

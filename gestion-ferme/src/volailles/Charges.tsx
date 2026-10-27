@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { chargerTarifsFiges } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
+import { ActionButton } from "../components/ActionButton";
 import StatutCharge from "./StatutCharge";
 import { Link } from "react-router-dom";
 import { calculerChargesLot } from "./chargesLot";
@@ -319,10 +320,10 @@ const Charges = ({ lotIdsFiltres, lotInitialId, categorieInitiale, ouvrirAjout }
 
           <div className="charge-manager-heading">
             <h3>Charges du lot</h3>
-            <button type="button" disabled={!lotsASaisir.length} onClick={() => {
+            <ActionButton icon="add" label="Ajouter une charge" disabled={!lotsASaisir.length} onClick={() => {
               setLotSaisieId(lotsASaisir.find((lot) => lot.id === lotSelectionne?.id)?.id || lotsASaisir[0]?.id || "");
               setModalOpen(true);
-            }}>＋ Ajouter une charge</button>
+            }} />
           </div>
           {!lotsASaisir.length && <p className="charge-manager-empty">Tous les lots affichés ont leurs quatre catégories de charges renseignées.</p>}
 

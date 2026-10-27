@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ActionButton } from "../components/ActionButton";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
@@ -518,9 +519,7 @@ export default function Planning() {
             <p>Visualisez et gérez tous les événements à venir.</p>
           </div>
         </div>
-        <button type="button" className="planning-add-button" onClick={() => setModalOpen(true)}>
-          <span>＋</span> Ajouter un événement
-        </button>
+        <ActionButton icon="add" label="Ajouter un événement" className="planning-add-button" onClick={() => setModalOpen(true)} />
       </header>
 
       <section className="planning-kpis">
@@ -569,6 +568,7 @@ export default function Planning() {
 
       <section className="planning-main-grid">
         <article className="planning-calendar-card">
+          <p className="mobile-scroll-hint">Faites glisser le calendrier pour voir toute la semaine.</p>
           <div className="planning-calendar-grid">
             <div className="planning-calendar-weekday planning-calendar-week-label">Sem.</div>
             {WEEK_DAYS.map((day) => (

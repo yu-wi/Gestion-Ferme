@@ -4,6 +4,7 @@ import { chargerTarifsFiges, figerTarifsLot } from "./tarifsFigesService";
 import type { TarifsFiges } from "./tarifsFiges";
 import FicheClotureImpression from "./FicheClotureImpression";
 import { creerFicheCloture, type ConsoFiche, type ReferenceFiche } from "./ficheCloture";
+import { ActionButton, ActionLink } from "../components/ActionButton";
 import StatutCharge from "./StatutCharge";
 import ChargeValider from "./ChargeValider";
 import { categoriesChargesProposees, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
@@ -185,7 +186,7 @@ export default function AnalyseLot() {
   };
 
   if (loading) return <div className="history-loading">Chargement de l’analyse...</div>;
-  if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>;
+  if (erreur) return <div className="history-page"><p className="history-empty" role="alert">{erreur}</p><ActionLink icon="back" label="Retour à l’historique SICA" to="/volailles/sica/historique" /></div>;
   if (!lot || !donnees) return <div className="history-page"><div className="history-empty">Lot introuvable.</div></div>;
 
   return (
@@ -202,7 +203,7 @@ export default function AnalyseLot() {
             </select>
           </label>
         </div>
-        <div><button type="button" disabled={saving} onClick={() => window.print()}>▤ Fiche PDF / imprimer</button><button type="button" disabled={saving || exporting} onClick={exporterExcel}>{exporting ? "Création…" : "⇩ Fiche Excel"}</button><Link to="/volailles/sica/historique">← Retour à l’historique SICA</Link></div>
+        <div><ActionButton icon="print" label="Fiche PDF / imprimer" disabled={saving} onClick={() => window.print()} /><ActionButton icon="download" label={exporting ? "Création…" : "Fiche Excel"} disabled={saving || exporting} onClick={exporterExcel} /><ActionLink icon="back" label="Retour à l’historique SICA" to="/volailles/sica/historique" /></div>
       </header>
 
       <section className="history-panel closure-export-info"><strong>Fiche de clôture {donnees.fiche.statut.toLowerCase()}</strong>

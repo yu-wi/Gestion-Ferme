@@ -6,6 +6,7 @@ import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre, formatPoids } from "../outils/formatNombre";
 import { chargerTarifsFiges } from "./tarifsFigesService";
 import { elementsManquantsLot, type ElementManquant } from "./lotACompleter";
+import { ActionButton } from "../components/ActionButton";
 import StatutCharge from "./StatutCharge";
 import Charges from "./Charges";
 import { calculerChargesLot } from "./chargesLot";
@@ -386,7 +387,7 @@ export default function Historique() {
           <option value="positif">Résultat positif</option>
           <option value="negatif">Résultat négatif</option>
         </select>
-        <button type="button" onClick={resetFiltres}>↻ Réinitialiser</button>
+        <ActionButton icon="reset" label="Réinitialiser les filtres" onClick={resetFiltres} />
       </section>
 
       <section className="history-panel history-completion" aria-label="Lots à compléter">
@@ -408,8 +409,8 @@ export default function Historique() {
         <div className="history-panel-heading">
           <h2>Liste des lots terminés</h2>
           <div>
-            <button type="button" disabled={!lotsSansQuantiteRetenue.length} onClick={() => setShowQuantiteRetenueModal(true)}>Quantité retenue</button>
-            <button type="button" disabled={!lotsSansResultatNet.length} onClick={() => setShowResultatNetModal(true)}>Résultat net</button>
+            <ActionButton icon="edit" label="Quantité retenue" disabled={!lotsSansQuantiteRetenue.length} onClick={() => setShowQuantiteRetenueModal(true)} />
+            <ActionButton icon="money" label="Résultat net" disabled={!lotsSansResultatNet.length} onClick={() => setShowResultatNetModal(true)} />
           </div>
         </div>
 
@@ -476,7 +477,7 @@ export default function Historique() {
         <article className="history-panel history-charges">
           <div className="history-card-heading">
             <h2>Charges des lots affichés</h2>
-            <button type="button" onClick={() => setShowChargesManager(true)}>Gérer les charges</button>
+            <ActionButton icon="money" label="Gérer les charges" onClick={() => setShowChargesManager(true)} />
           </div>
           {totalCharges > 0 ? (
             <div>

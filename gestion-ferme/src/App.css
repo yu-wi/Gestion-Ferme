@@ -8478,3 +8478,122 @@
   .closure-print footer { border-top: 1px solid #999; margin-top: 16px; padding-top: 8px; break-inside: avoid; }
   #_rht_toaster { display: none !important; }
 }
+
+/* Consistent phone layout: page gutters are owned by app-main, never by a grid track. */
+.responsive-action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.responsive-action svg { flex: 0 0 auto; }
+.basic-page { max-width: 1480px; margin: 0 auto; padding: 28px 10px 36px; }
+@media screen and (max-width: 1024px) {
+  .app-shell { display: flex; min-height: 100dvh; flex-direction: column; }
+  .app-content { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; }
+  .app-main { flex: 1; min-width: 0; min-height: 0; padding: 0 16px 24px; }
+  .app-main > :is(.dashboard-page,.planning-page,.backup-page,.settings-page,.aquaponie-page,.basic-page,.poultry-page,.feed-page,.history-page,.lot-analysis-page,.analysis-page,.direct-sale-page,.inventory-page) {
+    width: 100%; min-width: 0; max-width: 100%; margin: 0; padding: 20px 0 0;
+  }
+  .app-main > * { min-width: 0; }
+  .app-main h1 { font-size: 24px !important; line-height: 1.25 !important; overflow-wrap: anywhere; }
+  .app-main :is(.dashboard-heading,.poultry-heading,.planning-heading,.backup-heading,.settings-heading,.aquaponie-heading,.feed-heading,.history-heading,.analysis-heading,.direct-sale-heading,.inventory-heading) {
+    min-width: 0; margin: 0 0 16px; padding: 0; border: 0; background: transparent;
+  }
+  .poultry-summary-page .poultry-heading { padding: 0; }
+  :is(.planning-heading-icon,.backup-heading-icon,.settings-heading-icon,.inventory-heading-icon) { display: none; }
+  :is(.planning-heading-main,.backup-heading > div,.settings-heading > div,.inventory-heading > div) { min-width: 0; gap: 0; }
+  .planning-page { grid-template-columns: minmax(0, 1fr); }
+  .planning-page > *, .lot-analysis-bottom-grid > *, .lot-analysis-middle-grid > * { min-width: 0; }
+  .lot-analysis-bottom-grid, .lot-analysis-middle-grid { grid-template-columns: minmax(0, 1fr); }
+  .lot-analysis-table-wrap, .comparison-table-wrap, .aquaponie-table-wrap, .inventory-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+  .fc .fc-header-toolbar { flex-wrap: wrap; gap: 10px; }
+  .fc .fc-toolbar-title { font-size: 17px; }
+  .fc .fc-button { min-height: 40px; padding: 8px; }
+  .app-main :is(button, input, select, textarea), .poultry-modal :is(button, input, select, textarea) { min-height: 44px; }
+  .app-main :is(input, select, textarea), .poultry-modal :is(input, select, textarea) { min-width: 0; max-width: 100%; font-size: 16px; }
+  :is(.poultry-form-grid,.poultry-form-stack,.aquaponie-form-grid,.settings-form) > label { min-width: 0; }
+  .poultry-tabs, .poultry-summary-page .poultry-tabs { width: 100%; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; }
+  .poultry-tabs :is(a,button) { flex: 0 0 auto; min-height: 44px; padding: 10px 12px; scroll-snap-align: start; white-space: nowrap; }
+  .history-panel-heading > div, .history-card-heading, .lot-analysis-heading > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+  .responsive-action-compact { flex: 0 0 44px !important; width: 44px !important; min-width: 44px; min-height: 44px; padding: 10px !important; }
+  .responsive-action-compact .responsive-action-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app-main .history-filters > .responsive-action { justify-self: end; }
+  .charge-category { flex-wrap: wrap; }
+  .charge-actions :is(button,a) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+  .lot-analysis-heading, .lot-analysis-heading > div:first-child { min-width: 0; }
+  .lot-analysis-selector { max-width: 100%; flex-wrap: wrap; }
+  .lot-analysis-selector select { width: 100%; min-width: 0; }
+  .poultry-modal-backdrop { padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+  .poultry-modal { min-width: 0; max-width: 100%; max-height: calc(100dvh - 16px - env(safe-area-inset-bottom)); padding: 20px 16px; overscroll-behavior: contain; }
+  .poultry-modal-header { min-width: 0; padding-right: 52px; }
+  .poultry-modal-header > div { min-width: 0; }
+  .poultry-modal-header h2 { overflow-wrap: anywhere; }
+  .poultry-modal > button[aria-label="Fermer"] { width: 44px; height: 44px; top: 12px; right: 12px; }
+  .poultry-modal-actions { position: sticky; bottom: -20px; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: -20px; padding: 12px 0 20px; background: white; border-top: 1px solid #e2e8e5; }
+  .poultry-modal-actions button { flex: 1 1 120px; }
+  .weather-modal { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .app-menu-button { display: grid; width: 44px; height: 44px; padding: 10px; place-items: center; }
+  .app-sidebar { max-height: 100dvh; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .app-footer { flex-wrap: wrap; gap: 6px 12px; padding: 16px; }
+}
+.app-sidebar-close, .mobile-scroll-hint { display: none; }
+@media screen and (max-width: 1024px) {
+  .planning-main-grid { grid-template-columns: minmax(0, 1fr); }
+  .planning-main-grid > * { min-width: 0; max-width: 100%; }
+  .planning-calendar-grid { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+  .mobile-scroll-hint { display: block; margin: 0 0 8px; color: #718093; font-size: 12px; }
+  .planning-heading > .responsive-action { align-self: flex-end; }
+  .charge-manager-heading { align-items: center; flex-direction: row; }
+  .app-sidebar-close { position: absolute; top: 8px; right: 8px; display: grid; width: 44px; height: 44px; place-items: center; color: white; background: transparent; }
+  .app-sidebar .app-brand { padding-right: 34px; }
+  .app-sidebar .app-brand-name { font-size: 17px; }
+}
+/* Bounded grid items keep wide tables inside their own scroll area on every screen. */
+.planning-page { grid-template-columns: minmax(0, 1fr); }
+:where(.planning-page,.planning-main-grid,.lot-analysis-bottom-grid,.history-filters,.history-summary-grid) > * { min-width: 0; }
+.history-date-filter input { min-width: 0; max-width: 100%; }
+@media screen and (max-width: 1024px) {
+  .app-mobile-header { position: sticky; top: 0; z-index: 35; display: flex; min-height: 66px; align-items: center; gap: 12px; padding: 9px 16px; color: white; background: #00503a; }
+  .app-mobile-brand { font-size: 16px; font-weight: 800; }
+  .app-mobile-subtitle { margin-top: 0; font-size: 11px; }
+  .app-sidebar { width: min(86vw, 290px); transform: translateX(-105%); transition: transform 200ms ease; }
+  .app-sidebar-open { transform: translateX(0); }
+  .app-sidebar-overlay { position: fixed; inset: 0; z-index: 38; display: block; border-radius: 0; background: rgba(8,24,18,.48); }
+  .app-content { margin-left: 0; }
+  .planning-main-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media screen and (max-width: 1024px) {
+  .history-filters, .analysis-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .history-date-filter { grid-template-columns: minmax(0, 1fr); }
+  .history-date-filter span { display: none; }
+  :is(.dashboard-heading,.poultry-heading,.planning-heading,.backup-heading,.settings-heading,.aquaponie-heading,.feed-heading,.history-heading,.analysis-heading,.direct-sale-heading,.inventory-heading) { flex-direction: column; align-items: stretch; }
+  .dashboard-heading-tools { width: 100%; flex-wrap: wrap; }
+}
+@media screen and (min-width: 1025px) and (max-width: 1400px) {
+  .history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-date-filter { grid-column: span 2; }
+  .history-filters > button { justify-self: end; }
+}
+@media (hover: hover) and (pointer: fine) {
+  html { scrollbar-gutter: stable; }
+}
+@media screen and (max-width: 760px) {
+  .app-main :is(.dashboard-kpis,.poultry-kpis,.history-kpis,.feed-kpis,.analysis-kpis,.planning-kpis,.direct-sale-kpis) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .app-main :is(.dashboard-kpi,.poultry-kpi,.history-kpi,.feed-kpi,.analysis-kpi,.planning-kpi,.direct-sale-kpi) { min-width: 0; min-height: 132px; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; }
+  .app-main :is(.dashboard-kpi-icon,.poultry-kpi-icon,.history-kpi-icon,.feed-kpi-icon,.analysis-kpi-icon,.planning-kpi-icon,.direct-sale-kpi-icon) { width: 32px; height: 32px; font-size: 18px; }
+  .app-main :is(.dashboard-kpi,.poultry-kpi,.history-kpi,.feed-kpi,.analysis-kpi,.planning-kpi,.direct-sale-kpi) strong { margin-top: 4px; font-size: 20px; overflow-wrap: anywhere; line-height: 1.25; }
+  .app-main :is(.dashboard-kpi,.poultry-kpi,.history-kpi,.feed-kpi,.analysis-kpi,.planning-kpi,.direct-sale-kpi) > div:last-child { width: 100%; min-width: 0; }
+  .app-main :is(.history-kpi,.feed-kpi,.analysis-kpi,.planning-kpi,.direct-sale-kpi) em { margin-top: 5px; }
+}
+@media screen and (max-width: 360px) {
+  .app-main :is(.dashboard-kpi,.poultry-kpi,.history-kpi,.feed-kpi,.analysis-kpi,.planning-kpi,.direct-sale-kpi) strong { font-size: 18px; }
+}
+@media screen and (max-width: 1024px) {
+  .app-main { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .app-mobile-header { padding-top: calc(9px + env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .app-sidebar { padding-top: calc(24px + env(safe-area-inset-top)); }
+  .app-sidebar-close { top: calc(8px + env(safe-area-inset-top)); }
+  .app-main input:is([type="checkbox"],[type="radio"]), .poultry-modal input:is([type="checkbox"],[type="radio"]) { min-height: 20px; min-width: 20px; width: 20px; height: 20px; flex: 0 0 auto; }
+  :is(.app-main,.poultry-modal) label:has(> input:is([type="checkbox"],[type="radio"])) { display: flex; min-height: 44px; align-items: center; gap: 10px; }
+  .app-login-page { min-height: 100dvh; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  .app-login-panel { min-width: 0; padding: 24px; }
+  .app-login-input { min-height: 44px; min-width: 0; font-size: 16px; }
+}
+.responsive-action:focus-visible, .app-menu-button:focus-visible, .app-sidebar-close:focus-visible { outline: 3px solid #f5b000; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none; } }

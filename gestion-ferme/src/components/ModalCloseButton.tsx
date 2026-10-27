@@ -1,3 +1,5 @@
+import useBodyScrollLock from "./useBodyScrollLock";
+
 type ModalCloseButtonProps = {
   onClick: () => void;
   disabled?: boolean;
@@ -7,6 +9,7 @@ export default function ModalCloseButton({
   onClick,
   disabled = false,
 }: ModalCloseButtonProps) {
+  useBodyScrollLock(true);
   return (
     <button
       type="button"

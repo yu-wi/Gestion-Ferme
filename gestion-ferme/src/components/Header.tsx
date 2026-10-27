@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { FC, ReactNode } from "react";
 import chickenLogo from "../assets/chicken.svg";
@@ -6,6 +6,8 @@ import fishLogo from "../assets/fish.svg";
 import plantsLogo from "../assets/plants.svg";
 import sheepLogo from "../assets/sheep.svg";
 import { supabase } from "../supabaseClient";
+import useBodyScrollLock from "./useBodyScrollLock";
+import { ActionIcon } from "./ActionButton";
 import type { UserRole } from "../auth/userProfile";
 
 type HeaderProps = {
@@ -37,10 +39,14 @@ const estDansProductionVolailles = (pathname: string) =>
 
 const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   const location = useLocation();
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1024px)').matches);
+  const sidebarRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [volaillesOpen, setVolaillesOpen] = useState(
     estDansProductionVolailles(location.pathname)
   );
+
+  useBodyScrollLock(menuOpen && isMobile);
 
   const fermerMenu = () => setMenuOpen(false);
 
@@ -49,6 +55,30 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
       setVolaillesOpen(true);
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1024px)');
+    const changer = () => { setIsMobile(media.matches); if (!media.matches) setMenuOpen(false); };
+    media.addEventListener('change', changer);
+    return () => media.removeEventListener('change', changer);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen || !isMobile) return;
+    const precedent = document.activeElement as HTMLElement | null;
+    const focusables = () => Array.from(sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') || []);
+    focusables()[0]?.focus();
+    const clavier = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+      if (event.key === 'Tab') {
+        const elements = focusables(), premier = elements[0], dernier = elements.at(-1);
+        if (event.shiftKey && document.activeElement === premier) { event.preventDefault(); dernier?.focus(); }
+        else if (!event.shiftKey && document.activeElement === dernier) { event.preventDefault(); premier?.focus(); }
+      }
+    };
+    window.addEventListener('keydown', clavier);
+    return () => { window.removeEventListener('keydown', clavier); precedent?.focus(); };
+  }, [menuOpen, isMobile]);
 
   const liens = (items: NavigationItem[]) =>
     items.map((item) => (
@@ -73,9 +103,11 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
           type="button"
           className="app-menu-button"
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Ouvrir le menu"
+          aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          aria-expanded={menuOpen}
+          aria-controls="app-mobile-navigation"
         >
-          ☰
+          <ActionIcon name={menuOpen ? "close" : "menu"} />
         </button>
         <div>
           <div className="app-mobile-brand">La Ferme de Bernard</div>
@@ -92,7 +124,8 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
         />
       )}
 
-      <aside className={`app-sidebar${menuOpen ? " app-sidebar-open" : ""}`}>
+      <aside ref={sidebarRef} id="app-mobile-navigation" inert={isMobile && !menuOpen} aria-hidden={isMobile && !menuOpen ? true : undefined} className={`app-sidebar${menuOpen ? " app-sidebar-open" : ""}`}>
+        <button type="button" className="app-sidebar-close" aria-label="Fermer le menu" onClick={fermerMenu}><ActionIcon name="close" /></button>
         <div className="app-brand">
           <div className="app-brand-mark">
             <img src={chickenLogo} alt="" />

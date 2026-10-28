@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { verifierDoublonLivraisonDirecte } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
+import LotActionsMenu from '../components/LotActionsMenu';
+import { prochaineCommande } from './livraisonPrevue';
 import ModalCloseButton from "../components/ModalCloseButton";
 import { formatMontant, formatNombre } from "../outils/formatNombre";
 import { supabase } from "../supabaseClient";
@@ -1266,11 +1268,9 @@ export default function VenteDirecte() {
               <thead>
                 <tr>
                   <th>N° lot</th>
-                  <th>Emplacement</th>
+                  <th>Sujets restants</th>
                   <th>Âge</th>
-                  <th>Effectif</th>
-                  <th>Vendu</th>
-                  <th>Disponible</th>
+                  <th>Livraison prévue</th>
                   <th>Mortalité</th>
                   <th>Statut</th>
                   <th>Actions</th>
@@ -1281,15 +1281,13 @@ export default function VenteDirecte() {
                   const age = Math.max(0, Math.floor((Date.now() - new Date(`${lot.arrival_date}T00:00:00`).getTime()) / 86400000));
                   const taux = lot.initial_quantity > 0 ? (lot.mortality_count / lot.initial_quantity) * 100 : 0;
                   const delivered = deliveredByLot.get(lot.id) || 0;
-                  const deliveredRate = lot.initial_quantity > 0 ? (delivered / lot.initial_quantity) * 100 : 0;
+                  const commande = prochaineCommande(orders, lot.id);
                   return (
                     <tr key={lot.id}>
-                      <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button></td>
-                      <td>{lot.location || "—"}</td>
+                      <td><button type="button" className="poultry-lot-link" onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>{lot.name}</button><small className="lot-cell-note">{speciesLabel(lot.species)} · {lot.location || "Emplacement non renseigné"}</small></td>
+                      <td className="lot-remaining"><strong>{formatNombre(lot.remaining_quantity)}</strong><small>sur {formatNombre(lot.initial_quantity)} · {formatNombre(delivered)} vendus</small></td>
                       <td>{age} jours</td>
-                      <td>{formatNombre(lot.initial_quantity)}</td>
-                      <td className="direct-sale-sold-cell">{formatNombre(delivered)} <small>({formatNombre(deliveredRate, 0)}%)</small></td>
-                      <td className="poultry-success-text">{formatNombre(lot.remaining_quantity)}</td>
+                      <td>{commande ? <><strong>{formatDate(commande.delivery_date)}</strong><small className="lot-cell-note">Commande {commande.status === 'prete' ? 'prête' : 'à préparer'}</small></> : 'Aucune commande en attente'}</td>
                       <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{formatNombre(taux, 2)} %</td>
                       <td>
                         <select
@@ -1305,17 +1303,20 @@ export default function VenteDirecte() {
                       </td>
                       <td>
                         <div className="poultry-row-actions direct-sale-table-actions">
-                          <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.name}`} onClick={() => { setSelectedLotId(lot.id); setLotDetailModal(true); }}>👁</button>
-                          <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.name}`} onClick={() => openMortality(lot)}>✝</button>
-                          <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.name}`} onClick={() => openLotForm(lot)}>✎</button>
-                          <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.name}`} onClick={() => deleteLot(lot)}>🗑</button>
+                          <button type="button" className="poultry-action-delivery" title="Enregistrer une livraison" aria-label={`Enregistrer une livraison pour le lot ${lot.name}`} disabled={saving} onClick={() => commande ? prepareDelivery({ key: commande.batch_id || commande.id, lines: orders.filter(o => (o.status === 'a_preparer' || o.status === 'prete') && (commande.batch_id ? o.batch_id === commande.batch_id : o.id === commande.id)) }, lot.id) : prepareDelivery(undefined, lot.id)}>🚚</button>
+                          <LotActionsMenu lot={lot.name} disabled={saving} actions={[
+                            { label: 'Voir la fiche', icon: '👁', run: () => { setSelectedLotId(lot.id); setLotDetailModal(true); } },
+                            { label: 'Modifier le lot', icon: '✎', run: () => openLotForm(lot) },
+                            { label: 'Saisir une mortalité', icon: '✝', run: () => openMortality(lot) },
+                            { label: 'Supprimer le lot', icon: '🗑', danger: true, run: () => { void deleteLot(lot); } },
+                          ]} />
                         </div>
                       </td>
                     </tr>
                   );
                 })}
                 {activeLotsAffiches.length === 0 && (
-                  <tr><td colSpan={9}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
+                  <tr><td colSpan={7}><div className="poultry-empty">Aucun lot actif.</div></td></tr>
                 )}
               </tbody>
             </table>

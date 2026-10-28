@@ -5,6 +5,9 @@ import { exportToExcel } from "../outils/exportToExcel"
 import { figerTarifsLot } from "../volailles/tarifsFigesService";
 import { verifierLivraisonsSica } from "../volailles/controlesCoherenceService";
 import toast from 'react-hot-toast';
+import LotActionsMenu from '../components/LotActionsMenu';
+import { chargerPages } from '../volailles/chargerPages';
+import { livraisonSicaPrevue } from '../volailles/livraisonPrevue';
 import ModalCloseButton from '../components/ModalCloseButton';
 import { formatMontant, formatNombre } from '../outils/formatNombre';
 import {
@@ -74,6 +77,16 @@ function genererEvenementsLot(dateArrivee: string): Evenement[] {
 
 
 function Volailles() {
+const [planningLivraisons, setPlanningLivraisons] = useState<Record<string, string> | null>(null);
+const [planningCharge, setPlanningCharge] = useState(false);
+useEffect(() => {
+  let actif = true;
+  chargerPages((a, b) => supabase.from('sica_delivery_schedule').select('id,lot_id,delivery_date').order('id').range(a, b))
+    .then(lignes => { if (actif) setPlanningLivraisons(Object.fromEntries(lignes.map(ligne => [ligne.lot_id, ligne.delivery_date]))); })
+    .catch(() => { if (actif) setPlanningLivraisons(null); })
+    .finally(() => { if (actif) setPlanningCharge(true); });
+  return () => { actif = false; };
+}, []);
 const [lots, setLots] = useState<LotVolaille[]>([]);
 const [nom, setNom] = useState('');
 const [quantite, setQuantite] = useState('');
@@ -1145,6 +1158,8 @@ return (
            const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
            const age = calculerAgeLot(lot);
            const vigilance = calculerVigilanceLot(lot);
+           const prevue = livraisonSicaPrevue(planningLivraisons?.[lot.id] || null, lot.livraisons.map(l => l.date), new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Martinique' }).format(new Date()));
+           const texteLivraison = !planningCharge ? 'Chargement…' : planningLivraisons === null ? 'Planning indisponible' : prevue.date ? `${prevue.retard ? 'À revoir · ' : ''}${new Date(`${prevue.date}T12:00:00`).toLocaleDateString('fr-FR')}` : 'Non planifiée';
            return (
              <article key={lot.id} className="poultry-mobile-card">
                <div className="poultry-mobile-card-heading">
@@ -1152,13 +1167,19 @@ return (
                  <span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span>
                </div>
                <div className="poultry-mobile-values poultry-mobile-values-compact">
-                 <span>Effectif <b>{formatNombre(sujetsRestants)}</b></span>
+                 <span>Sujets restants <b>{formatNombre(sujetsRestants)}</b></span>
                  <span>Mortalité <b className={taux > 15 ? "poultry-danger-text" : ""}>{taux.toFixed(1)} %</b></span>
                </div>
+               <p className="lot-next-delivery">🚚 Livraison prévue : <strong>{texteLivraison}</strong></p>
                <div className="poultry-card-actions">
                  <button type="button" onClick={() => setDetailLot(lot)}><span aria-hidden="true">👁</span> Fiche</button>
-                 <button type="button" onClick={() => ouvrirModificationLot(lot)}><span aria-hidden="true">✎</span> Modifier</button>
-                 <button type="button" className="poultry-action-mortality" onClick={() => ouvrirMortaliteModal(lot.id)}><span aria-hidden="true">✝</span> Mortalité</button>
+                 <LotActionsMenu lot={lot.nom} disabled={saving} actions={[
+                   { label: 'Modifier le lot', icon: '✎', run: () => ouvrirModificationLot(lot) },
+                   { label: 'Saisir une mortalité', icon: '✝', run: () => ouvrirMortaliteModal(lot.id) },
+                   { label: 'Enregistrer la vente', icon: '€', run: () => { setSelectedLot(lot); setVenteModalOpen(true); } },
+                   { label: 'Archiver le lot', icon: '🗃', run: () => { void archiverLot(lot.id); } },
+                   { label: 'Supprimer le lot', icon: '🗑', danger: true, run: () => { void supprimerLot(lot); } },
+                 ]} />
                  <button type="button" onClick={() => {
                    setSelectedLot(lot);
                    setLivraisons([{ date: '', quantite: '', poids: '' }]);
@@ -1177,9 +1198,9 @@ return (
              <tr>
                <th onClick={() => handleSort('nom')}>N° lot</th>
                <th onClick={() => handleSort('batiment')}>Bâtiment</th>
-               <th onClick={() => handleSort('dateArrivee')}>Date début</th>
-	               <th>Âge</th>
-	               <th>Effectif</th>
+               <th>Sujets restants</th>
+	               <th onClick={() => handleSort('dateArrivee')} title="Trier par date d’arrivée">Âge / arrivée</th>
+	               <th>Livraison prévue</th>
 	               <th>Mortalité</th>
 	               <th>Vigilance</th>
 	               <th>Actions</th>
@@ -1192,28 +1213,32 @@ return (
 	               const taux = lot.quantite > 0 ? (mortalitesLot / lot.quantite) * 100 : 0;
 	               const age = calculerAgeLot(lot);
 	               const vigilance = calculerVigilanceLot(lot);
+           const prevue = livraisonSicaPrevue(planningLivraisons?.[lot.id] || null, lot.livraisons.map(l => l.date), new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Martinique' }).format(new Date()));
+           const texteLivraison = !planningCharge ? 'Chargement…' : planningLivraisons === null ? 'Planning indisponible' : prevue.date ? `${prevue.retard ? 'À revoir · ' : ''}${new Date(`${prevue.date}T12:00:00`).toLocaleDateString('fr-FR')}` : 'Non planifiée';
                return (
                  <tr key={lot.id}>
                    <td><button type="button" className="poultry-lot-link" onClick={() => setDetailLot(lot)}>{lot.nom}</button></td>
                    <td>{lot.batiment}</td>
-                   <td>{new Date(`${lot.dateArrivee}T00:00:00`).toLocaleDateString("fr-FR")}</td>
-	                   <td>{age} jours</td>
-                   <td>{formatNombre(sujetsRestants)}</td>
+                   <td className="lot-remaining"><strong>{formatNombre(sujetsRestants)}</strong><small>sur {formatNombre(lot.quantite)} à l’arrivée</small></td>
+	                   <td>{age} jours<small className="lot-cell-note">Arrivée le {new Date(`${lot.dateArrivee}T12:00:00`).toLocaleDateString("fr-FR")}</small></td>
+                   <td><span className={prevue.retard ? "poultry-danger-text" : ""}>{texteLivraison}</span></td>
 	                   <td className={taux > 15 ? "poultry-danger-text" : "poultry-success-text"}>{taux.toFixed(2)} %</td>
 	                   <td><span className={`poultry-vigilance poultry-vigilance-${vigilance.tone}`}>{vigilance.label}</span></td>
                    <td>
                      <div className="poultry-row-actions">
-                       <button type="button" title="Voir la fiche" aria-label={`Voir la fiche du lot ${lot.nom}`} onClick={() => setDetailLot(lot)}>👁</button>
-                       <button type="button" title="Modifier le lot" aria-label={`Modifier le lot ${lot.nom}`} onClick={() => ouvrirModificationLot(lot)}>✎</button>
-                       <button type="button" className="poultry-action-mortality" title="Enregistrer une mortalité" aria-label={`Enregistrer une mortalité pour le lot ${lot.nom}`} onClick={() => ouvrirMortaliteModal(lot.id)}>✝</button>
                        <button type="button" className="poultry-action-delivery" title="Enregistrer une livraison" aria-label={`Enregistrer une livraison pour le lot ${lot.nom}`} onClick={() => {
                          setSelectedLot(lot);
                          setLivraisons([{ date: '', quantite: '', poids: '' }]);
                          setShowLivraisonModal(true);
                        }}>🚚</button>
-                       <button type="button" className="poultry-action-sale" title="Enregistrer la vente" aria-label={`Enregistrer la vente du lot ${lot.nom}`} onClick={() => { setSelectedLot(lot); setVenteModalOpen(true); }}>€</button>
-                       <button type="button" className="poultry-action-archive" title="Archiver le lot" aria-label={`Archiver le lot ${lot.nom}`} disabled={saving} onClick={() => archiverLot(lot.id)}>🗃</button>
-                       <button type="button" className="poultry-action-delete" title="Supprimer le lot" aria-label={`Supprimer le lot ${lot.nom}`} disabled={saving} onClick={() => supprimerLot(lot)}>🗑</button>
+                       <LotActionsMenu lot={lot.nom} disabled={saving} actions={[
+                         { label: 'Voir la fiche', icon: '👁', run: () => setDetailLot(lot) },
+                         { label: 'Modifier le lot', icon: '✎', run: () => ouvrirModificationLot(lot) },
+                         { label: 'Saisir une mortalité', icon: '✝', run: () => ouvrirMortaliteModal(lot.id) },
+                         { label: 'Enregistrer la vente', icon: '€', run: () => { setSelectedLot(lot); setVenteModalOpen(true); } },
+                         { label: 'Archiver le lot', icon: '🗃', run: () => { void archiverLot(lot.id); } },
+                         { label: 'Supprimer le lot', icon: '🗑', danger: true, run: () => { void supprimerLot(lot); } },
+                       ]} />
                      </div>
                    </td>
                  </tr>

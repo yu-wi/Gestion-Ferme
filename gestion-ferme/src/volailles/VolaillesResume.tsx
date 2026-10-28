@@ -104,6 +104,7 @@ function PoultrySubnav() {
   return (
     <nav className="poultry-tabs" aria-label="Sections volailles">
       <Link to="/volailles" className="poultry-tab-active">Résumé</Link>
+      <Link to="/volailles/saisie-quotidienne">✓ Saisie quotidienne</Link>
       <Link to="/volailles/alimentation">Alimentation</Link>
       <Link to="/volailles/sica">Lots SICA Madras</Link>
       <Link to="/volailles/sica/historique">Historique SICA</Link>

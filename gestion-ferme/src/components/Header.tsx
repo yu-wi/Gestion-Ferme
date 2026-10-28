@@ -231,6 +231,7 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   <span>•</span>
                   Résumé
                 </NavLink>
+                <NavLink to="/volailles/saisie-quotidienne" onClick={fermerMenu} className={({ isActive }) => `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`}><span>•</span>Saisie quotidienne</NavLink>
                 <NavLink
                   to="/volailles/alimentation"
                   onClick={fermerMenu}

@@ -16,6 +16,7 @@ import Sauvegardes from './pages/Sauvegardes';
 import JournalModifications from './pages/JournalModifications';
 import Parametres from './pages/Parametres';
 import VolaillesResume from './volailles/VolaillesResume';
+import SaisieQuotidienne from './volailles/SaisieQuotidienne';
 
 import AlimentationPage from './volailles/alimentationPage'
 import Historique from './volailles/Historique'; 
@@ -53,6 +54,7 @@ function App() {
                   <Route path="journal" element={<JournalModifications autorise={profile?.role === "admin" && profile.is_active} />} />
                   <Route path="parametres" element={<Parametres />} />
                   <Route path="volailles" element={<VolaillesResume />} />
+                  <Route path="/volailles/saisie-quotidienne" element={<SaisieQuotidienne />} />
                   <Route path="/volailles/sica" element={<Volailles />} />
                   <Route path="aquaponie" element={<Aquaponie />} />
                   <Route path="cultures" element={<Cultures />} />

@@ -8597,3 +8597,26 @@
 }
 .responsive-action:focus-visible, .app-menu-button:focus-visible, .app-sidebar-close:focus-visible { outline: 3px solid #f5b000; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none; } }
+
+/* Saisie de terrain : cartes lisibles sans defilement horizontal. */
+.daily-page { padding: 32px; max-width: 1500px; margin: auto; min-width: 0; }
+.daily-header, .daily-toolbar, .daily-save { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.daily-header h1 { margin: 0; font-size: 30px; color: #173647; }
+.daily-header p, .daily-card > p, .daily-toolbar > span { color: #617787; }
+.daily-toolbar { margin: 24px 0; }
+.daily-page label { display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 600; min-width: 0; }
+.daily-page input, .daily-page select { width: 100%; min-height: 44px; font-size: 16px; border: 1px solid #cbdad3; border-radius: 8px; padding: 9px; background: white; color: #173647; }
+.daily-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; margin: 20px 0; }
+.daily-card { min-width: 0; padding: 20px; background: white; border: 1px solid #dce6e1; border-radius: 14px; }
+.daily-card h2 { font-size: 20px; margin: 0; overflow-wrap: anywhere; }
+.daily-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
+.daily-feed { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px; }
+.daily-stock { border-radius: 10px; border: 1px solid #dce6e1; padding: 16px; background: #f3f9f5; }
+.daily-stock summary { cursor: pointer; min-height: 30px; }
+.daily-existing, .daily-success { color: #14793c; background: #edf8f0; padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
+.daily-alert { background: #fff3e3; color: #7f460d; padding: 16px; border-radius: 8px; overflow-wrap: anywhere; }
+.daily-save { position: sticky; bottom: 0; background: #fff; border: 1px solid #dce6e1; border-radius: 12px; padding: 16px; box-shadow: 0 -3px 12px #1736470d; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.daily-save button { background: #16843c; color: white; padding: 12px 20px; min-height: 44px; border: 0; border-radius: 8px; font-weight: 700; }
+.daily-save button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 1024px) { .daily-page { padding: 20px 16px; } .daily-header h1 { font-size: 24px; } }
+@media (max-width: 480px) { .daily-card { padding: 16px; } .daily-save { gap: 10px; } .daily-save button { width: 100%; } }

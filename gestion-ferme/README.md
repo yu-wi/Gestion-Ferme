@@ -100,3 +100,38 @@ previsions a sept jours.
 
 Si le module Vente directe est deja installe, le script court
 `supabase/alimentation-vente-directe.sql` suffit pour activer cette liaison.
+
+### Saisie quotidienne groupée
+
+La rubrique **Volailles → Saisie quotidienne** (`/volailles/saisie-quotidienne`),
+également accessible depuis le résumé, rassemble les lots SICA actifs et les lots
+vente directe non terminés ayant encore des sujets. La date utilise le fuseau
+Martinique. Les sacs sont entiers de 25 kg ; les champs vides ou à zéro ne créent
+pas de mouvement. Chaque lot peut recevoir un aliment et une mortalité par saisie.
+Les journées de transition avec plusieurs aliments restent accessibles dans le
+formulaire individuel d’alimentation.
+
+**Activation préalable** : exécuter [supabase/saisie-quotidienne.sql](supabase/saisie-quotidienne.sql)
+dans Supabase SQL Editor après les migrations alimentation et vente directe
+(colonnes `source_type` et `direct_sale_lot_id` sur `consommations_aliment`).
+Le script est réexécutable et ne modifie pas les données existantes. Sans cette
+activation, la page affiche un message et n’effectue aucune écriture partielle.
+
+La fonction SQL utilise les permissions et politiques RLS de l’utilisateur
+connecté (`security invoker`). Elle vérifie la date d’arrivée, l’activité des
+lots, leurs effectifs et le stock cumulé. Les tables concernées sont verrouillées
+pendant la transaction courte pour éviter une modification concurrente entre
+contrôle et écriture. Les consommations, mortalités et totaux sont enregistrés
+ensemble ou tous annulés. Un identifiant de tentative rend le renvoi de la même
+requête sans effet supplémentaire après une réponse réseau perdue. La nouvelle
+table `daily_entry_batches` conserve cet identifiant et son contenu, visible
+uniquement par son auteur et sans droit client de modification/suppression.
+
+Une consommation ou une mortalité déjà enregistrée pour le lot et la date est
+signalée : sa correction se fait dans les formulaires individuels existants.
+Les mouvements insérés restent visibles dans les suivis habituels et dans le
+journal lorsque ses triggers sont activés.
+
+Vérification : `node --test tests/*.test.mjs` et `npm run build`.
+Le test transactionnel PostgreSQL local est fourni dans
+`tests/saisie-quotidienne-database.mjs` (instructions en tête du fichier).

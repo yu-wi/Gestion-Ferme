@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { verifierConsommationIdentique } from "./controlesCoherenceService";
 import { joursSansSaisie } from "./controlesCoherence";
 import { chargerPages } from "./chargerPages";
@@ -171,7 +171,12 @@ export default function DashboardFeed() {
   const [directConsumptionReady, setDirectConsumptionReady] = useState(true);
   const [consommationModalOpen, setConsommationModalOpen] = useState(false);
   const [livraisonModalOpen, setLivraisonModalOpen] = useState(false);
-  const [referencesInfoOpen, setReferencesInfoOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onglet = searchParams.get('onglet') === 'stock' ? 'stock' : searchParams.get('onglet') === 'references' ? 'references' : 'consommations';
+  const onglets = [{ cle: 'consommations', label: 'Consommations', icone: '▣' }, { cle: 'stock', label: 'Stock et commandes', icone: '🚚' }, { cle: 'references', label: 'Références', icone: '⌁' }] as const;
+  const changerOnglet = (valeur: string) => {
+    setSearchParams(ancien => { const suivant = new URLSearchParams(ancien); suivant.set('onglet', valeur); return suivant; });
+  };
   const [historyModal, setHistoryModal] = useState<"consommations" | "livraisons" | null>(null);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [referenceEnModification, setReferenceEnModification] =
@@ -1200,14 +1205,15 @@ export default function DashboardFeed() {
       <header className="feed-heading">
         <div><h1>Suivi de l’alimentation</h1><p>Consommations quotidiennes, stock disponible et besoins sur 7 jours.</p></div>
         <div>
-          <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>▥ Saisir une consommation</button>
-          <button type="button" className="feed-primary-action" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>🚚 Ajouter une livraison</button>
-          <button type="button" className="feed-info-button" title="Références alimentaires" aria-label="Afficher les références alimentaires" onClick={() => setReferencesInfoOpen(true)}>i</button>
+          {onglet === 'consommations' && <><Link className="feed-daily-action" to="/volailles/saisie-quotidienne">✓ Saisie quotidienne</Link><button type="button" onClick={() => { annulerModificationConsommation(); setConsommationModalOpen(true); }}>＋ Une consommation</button></>}
+          {onglet === 'stock' && <button type="button" className="feed-primary-action" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>🚚 Ajouter une livraison</button>}
+          {onglet === 'references' && <button type="button" className="feed-primary-action" onClick={ouvrirNouvelleReference}>＋ Ajouter une référence</button>}
         </div>
       </header>
 
       <nav className="poultry-tabs" aria-label="Sections volailles">
         <Link to="/volailles">Résumé</Link>
+        <Link to="/volailles/saisie-quotidienne">Saisie quotidienne</Link>
         <Link to="/volailles/alimentation" className="poultry-tab-active">Alimentation</Link>
         <Link to="/volailles/sica">Lots SICA Madras</Link>
         <Link to="/volailles/sica/historique">Historique SICA</Link>
@@ -1226,108 +1232,15 @@ export default function DashboardFeed() {
         </div>
       )}
 
-      <section className="feed-kpis">
-        <FeedKpi tone="green" icon="▣" label="Stock total" value={`${sacsEntiers(enSacs(stockTotal))} sacs`} note="Disponible en stock" />
-        <FeedKpi tone="blue" icon="▥" label="Consommé aujourd’hui" value={`${sacsEntiers(enSacs(consommationDuJour))} sacs`} note="Toutes références" />
-        <FeedKpi tone="violet" icon="□" label="Besoin sur 7 jours" value={`${Math.ceil(besoinTotalSacs)} sacs`} note="Prévision calculée" />
-        <FeedKpi
-          tone="orange"
-          icon="⌛"
-          label="Stock jusqu’au"
-          value={autonomieStock?.dateFinStock ? formatDateCourte(autonomieStock.dateFinStock) : autonomieStock ? "Après 180 j" : "Non calculé"}
-          note={autonomieStock?.feedType ? `Rupture prévue : ${autonomieStock.feedType}` : "Selon les lots actifs"}
-        />
-        <FeedKpi
-          tone="green"
-          icon="⌑"
-          label="Commander le"
-          value={autonomieStock?.dateCommande ? formatDateCourte(autonomieStock.dateCommande) : autonomieStock ? "Pas nécessaire" : "À définir"}
-          note={autonomieStock?.dateCommande ? `${DELAI_COMMANDE_JOURS} jours avant la rupture` : "Aucune rupture proche"}
-        />
-      </section>
-
-      <section className="feed-panel">
-        <div className="feed-panel-heading"><div><h2>Stock par aliment</h2><p>Situation actuelle calculée à partir des livraisons et consommations.</p></div></div>
-        <div className="feed-stock-grid">
-          {stock.map((item, index) => (
-            <article key={item.feedType} className={item.stock < 0 ? "feed-stock-alert" : ""}>
-              <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{sacsEntiers(enSacs(item.stock))} sacs</b></div>
-              <div><span>Livré <b>{sacsEntiers(enSacs(item.entrees))} sacs</b></span><span>Consommé <b>{sacsEntiers(enSacs(item.consommations))} sacs</b></span></div>
-            </article>
-          ))}
-          {!stock.length && <div className="feed-empty">Aucun mouvement de stock enregistré.</div>}
-        </div>
-      </section>
-
-      <section className="feed-panel feed-forecast">
-        <div className="feed-panel-heading"><div><h2>Prévision de commande à 7 jours</h2><p>Calculée avec les lots actifs, leur âge, les sujets restants et le stock.</p></div></div>
-        {joursSansReference > 0 && <div className="feed-warning">ⓘ {joursSansReference} journée(s) de lot ne disposent pas d’une référence. La prévision peut être sous-estimée.</div>}
-        <div className="feed-table-wrap">
-          <table className="feed-table">
-            <thead><tr><th>Aliment</th><th>Sacs à consommer</th><th>Stock en sacs</th><th>Sacs à commander</th></tr></thead>
-            <tbody>{prevision.map((item, index) => <tr key={item.feedType}><td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{item.feedType}</td><td>{Math.ceil(item.besoinSacs)}</td><td>{sacsEntiers(item.stockSacs)}</td><td className={item.aCommanderSacs > 0 ? "feed-order-needed" : "feed-order-ok"}>{item.aCommanderSacs}</td></tr>)}</tbody>
-            {!!prevision.length && <tfoot><tr><td>Total</td><td>{Math.ceil(besoinTotalSacs)}</td><td>{sacsEntiers(enSacs(stockTotal))}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
-          </table>
-        </div>
-      </section>
-
-      <section className="feed-panel feed-lot-cost-panel">
-        <div className="feed-panel-heading">
-          <div>
-            <h2>Charge d’aliment par lot</h2>
-            <p>Récapitulatif des sacs consommés et du coût estimé par type d’aliment.</p>
-          </div>
-          <select value={selectedLotCostKey} onChange={(event) => setSelectedLotCostKey(event.target.value)}>
-            <option value="">Choisir un lot</option>
-            {lots.map((lot) => (
-              <option key={`${lot.source}:${lot.id}`} value={`${lot.source}:${lot.id}`}>
-                {lot.source === "vente_directe" ? "Vente directe" : "SICA"} · {lot.nom}
-              </option>
-            ))}
-          </select>
-        </div>
-        {selectedLotCost ? (
-          <div className="feed-table-wrap">
-            <table className="feed-table feed-lot-cost-table">
-              <thead>
-                <tr>
-                  <th>Aliment</th>
-                  <th>Sacs consommés</th>
-                  <th>Prix du sac</th>
-                  <th>Coût estimé</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lotFeedCostRows.map((row, index) => (
-                  <tr key={row.feedType}>
-                    <td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{row.feedType}</td>
-                    <td>{formatNombre(row.sacs, 1)} sacs</td>
-                    <td>{formatMontant(row.prixSac)}</td>
-                    <td className="feed-cost-value">{formatMontant(row.cout)}</td>
-                  </tr>
-                ))}
-                {!lotFeedCostRows.length && (
-                  <tr><td colSpan={4}><div className="feed-empty">Aucune consommation enregistrée pour ce lot.</div></td></tr>
-                )}
-              </tbody>
-              {!!lotFeedCostRows.length && (
-                <tfoot>
-                  <tr>
-                    <td>Total</td>
-                    <td>{formatNombre(lotFeedCostRows.reduce((total, row) => total + row.sacs, 0), 1)} sacs</td>
-                    <td>–</td>
-                    <td>{formatMontant(lotFeedCostTotal)}</td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        ) : (
-          <div className="feed-empty">Sélectionnez un lot pour afficher le récapitulatif.</div>
-        )}
-      </section>
-
-      <section className="feed-history-grid feed-tracking-grid">
+      <div className="feed-content-tabs" role="tablist" aria-label="Contenu alimentation">
+        {onglets.map((item, index) => <button key={item.cle} id={`feed-tab-${item.cle}`} type="button" role="tab" aria-selected={onglet === item.cle} aria-controls={`feed-panel-${item.cle}`} tabIndex={onglet === item.cle ? 0 : -1} onClick={() => changerOnglet(item.cle)} onKeyDown={event => {
+          const cible = event.key === 'ArrowRight' ? (index + 1) % onglets.length : event.key === 'ArrowLeft' ? (index + onglets.length - 1) % onglets.length : event.key === 'Home' ? 0 : event.key === 'End' ? onglets.length - 1 : null;
+          if (cible === null) return;
+          event.preventDefault(); changerOnglet(onglets[cible].cle); document.getElementById(`feed-tab-${onglets[cible].cle}`)?.focus();
+        }}><span aria-hidden="true">{item.icone}</span> {item.label}</button>)}
+      </div>
+      {onglet === 'consommations' && <div id="feed-panel-consommations" className="feed-tab-panel" role="tabpanel" aria-labelledby="feed-tab-consommations">
+        <p className="feed-tab-intro">{sacsEntiers(enSacs(consommationDuJour))} sacs consommés aujourd’hui · Renseignez plusieurs lots depuis la saisie quotidienne ou corrigez une saisie ci-dessous.</p>
         <section className="feed-panel feed-tracking-panel">
           <div className="feed-tracking-heading">
             <div><span className="feed-tracking-icon">▣</span><div><h2>Suivi des consommations d’aliment</h2><p>Saisie des consommations par lot pour le {formatDate(suiviConsommationDate)}.</p></div></div>
@@ -1390,19 +1303,115 @@ export default function DashboardFeed() {
           {consommations.length > 0 && <button type="button" className="feed-view-all" onClick={() => setHistoryModal("consommations")}>Voir toutes les consommations →</button>}
         </section>
 
+        <details className="feed-cost-details"><summary>Consulter la charge d’aliment par lot (HT)</summary>
+      <section className="feed-panel feed-lot-cost-panel">
+        <div className="feed-panel-heading">
+          <div>
+            <h2>Charge d’aliment par lot</h2>
+            <p>Estimation aux prix HT actuels des références alimentaires, par type d’aliment.</p>
+          </div>
+          <select value={selectedLotCostKey} onChange={(event) => setSelectedLotCostKey(event.target.value)}>
+            <option value="">Choisir un lot</option>
+            {lots.map((lot) => (
+              <option key={`${lot.source}:${lot.id}`} value={`${lot.source}:${lot.id}`}>
+                {lot.source === "vente_directe" ? "Vente directe" : "SICA"} · {lot.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedLotCost ? (
+          <div className="feed-table-wrap">
+            <table className="feed-table feed-lot-cost-table">
+              <thead>
+                <tr>
+                  <th>Aliment</th>
+                  <th>Sacs consommés</th>
+                  <th>Prix du sac HT</th>
+                  <th>Coût estimé HT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lotFeedCostRows.map((row, index) => (
+                  <tr key={row.feedType}>
+                    <td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{row.feedType}</td>
+                    <td>{formatNombre(row.sacs, 1)} sacs</td>
+                    <td>{formatMontant(row.prixSac)}</td>
+                    <td className="feed-cost-value">{formatMontant(row.cout)}</td>
+                  </tr>
+                ))}
+                {!lotFeedCostRows.length && (
+                  <tr><td colSpan={4}><div className="feed-empty">Aucune consommation enregistrée pour ce lot.</div></td></tr>
+                )}
+              </tbody>
+              {!!lotFeedCostRows.length && (
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td>{formatNombre(lotFeedCostRows.reduce((total, row) => total + row.sacs, 0), 1)} sacs</td>
+                    <td>–</td>
+                    <td>{formatMontant(lotFeedCostTotal)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        ) : (
+          <div className="feed-empty">Sélectionnez un lot pour afficher le récapitulatif.</div>
+        )}
+      </section>
+
+        </details>
+      </div>}
+      {onglet === 'stock' && <div id="feed-panel-stock" className="feed-tab-panel" role="tabpanel" aria-labelledby="feed-tab-stock">
+      <section className="feed-kpis">
+        <FeedKpi tone="green" icon="▣" label="Stock total" value={`${sacsEntiers(enSacs(stockTotal))} sacs`} note="Disponible en stock" />
+        <FeedKpi tone="violet" icon="□" label="Besoin sur 7 jours" value={`${Math.ceil(besoinTotalSacs)} sacs`} note="Prévision calculée" />
+        <FeedKpi
+          tone="orange"
+          icon="⌛"
+          label="Stock jusqu’au"
+          value={autonomieStock?.dateFinStock ? formatDateCourte(autonomieStock.dateFinStock) : autonomieStock ? "Après 180 j" : "Non calculé"}
+          note={autonomieStock?.feedType ? `Rupture prévue : ${autonomieStock.feedType}` : "Selon les lots actifs"}
+        />
+        <FeedKpi
+          tone="green"
+          icon="⌑"
+          label="Commander le"
+          value={autonomieStock?.dateCommande ? formatDateCourte(autonomieStock.dateCommande) : autonomieStock ? "Pas nécessaire" : "À définir"}
+          note={autonomieStock?.dateCommande ? `${DELAI_COMMANDE_JOURS} jours avant la rupture` : "Aucune rupture proche"}
+        />
+      </section>
+
+      <section className="feed-panel">
+        <div className="feed-panel-heading"><div><h2>Stock par aliment</h2><p>Situation actuelle calculée à partir des livraisons et consommations.</p></div></div>
+        <div className="feed-stock-grid">
+          {stock.map((item, index) => (
+            <article key={item.feedType} className={item.stock < 0 ? "feed-stock-alert" : ""}>
+              <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{sacsEntiers(enSacs(item.stock))} sacs</b></div>
+              <div><span>Livré <b>{sacsEntiers(enSacs(item.entrees))} sacs</b></span><span>Consommé <b>{sacsEntiers(enSacs(item.consommations))} sacs</b></span></div>
+            </article>
+          ))}
+          {!stock.length && <div className="feed-empty">Aucun mouvement de stock enregistré.</div>}
+        </div>
+      </section>
+
+      <section className="feed-panel feed-forecast">
+        <div className="feed-panel-heading"><div><h2>Prévision de commande à 7 jours</h2><p>Calculée avec les lots actifs, leur âge, les sujets restants et le stock.</p></div></div>
+        {joursSansReference > 0 && <div className="feed-warning">ⓘ {joursSansReference} journée(s) de lot ne disposent pas d’une référence. La prévision peut être sous-estimée.</div>}
+        <div className="feed-table-wrap">
+          <table className="feed-table">
+            <thead><tr><th>Aliment</th><th>Sacs à consommer</th><th>Stock en sacs</th><th>Sacs à commander</th></tr></thead>
+            <tbody>{prevision.map((item, index) => <tr key={item.feedType}><td><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span>{item.feedType}</td><td>{Math.ceil(item.besoinSacs)}</td><td>{sacsEntiers(item.stockSacs)}</td><td className={item.aCommanderSacs > 0 ? "feed-order-needed" : "feed-order-ok"}>{item.aCommanderSacs}</td></tr>)}</tbody>
+            {!!prevision.length && <tfoot><tr><td>Total</td><td>{Math.ceil(besoinTotalSacs)}</td><td>{sacsEntiers(enSacs(stockTotal))}</td><td>{commandeTotaleSacs}</td></tr></tfoot>}
+          </table>
+        </div>
+      </section>
+
         <section className="feed-panel feed-tracking-panel">
           <div className="feed-tracking-heading">
             <div><span className="feed-tracking-icon feed-tracking-icon-truck">🚚</span><div><h2>Suivi des livraisons d’aliment</h2><p>Enregistrement des entrées de stock.</p></div></div>
             <button type="button" onClick={() => { annulerModificationLivraison(); setLivraisonModalOpen(true); }}>⊕ Enregistrer</button>
           </div>
-          {rappelsConsommation.length > 0 && <details className="feed-missing-reminders">
-            <summary>{rappelsConsommation.length} lot(s) avec des jours sans saisie sur les 7 derniers jours terminés</summary>
-            <p>Ce rappel signale des saisies absentes, pas une absence réelle d’alimentation. La journée en cours et les dates avant l’arrivée du lot sont exclues.</p>
-            <ul>{rappelsConsommation.map(({lot, dates}) => <li key={`${lot.source}:${lot.id}`}>
-              <span>Lot {lot.nom} · {lot.source === "sica" ? "SICA" : "Vente directe"} · {dates.length} jour(s) sans saisie</span>
-              <button type="button" onClick={() => { annulerModificationConsommation(); setConsommationLotId(`${lot.source}:${lot.id}`); setConsommationDate(dates[0]); setConsommationModalOpen(true); }}>Renseigner le {formatDate(dates[0])}</button>
-            </li>)}</ul>
-          </details>}
           <div className="feed-tracking-kpis">
             <FeedMiniKpi tone="green" label="Livraisons ce mois" value={String(livraisonsMois.length)} note="Entrées" icon="🚚" />
             <FeedMiniKpi tone="green" label="Total ce mois" value={`${sacsEntiers(enSacs(totalLivraisonsMoisKg))} sacs`} note="Toutes références" icon="▣" />
@@ -1433,7 +1442,9 @@ export default function DashboardFeed() {
           </div>
           {livraisons.length > 6 && <button type="button" className="feed-view-all" onClick={() => setHistoryModal("livraisons")}>Voir toutes les livraisons →</button>}
         </section>
-      </section>
+      </div>}
+      {onglet === 'references' && <div id="feed-panel-references" className="feed-tab-panel" role="tabpanel" aria-labelledby="feed-tab-references">
+      <section className="feed-panel"><div className="feed-panel-heading"><div><h2>Références alimentaires</h2><p>Consommation prévisionnelle par âge et prix HT d’un sac de 25 kg.</p></div></div><div className="feed-reference-heading"><span>{references.length} référence(s)</span></div><div className="feed-table-wrap"><table className="feed-table feed-reference-table"><thead><tr><th>Aliment</th><th>Âge minimum</th><th>Âge maximum</th><th>Consommation / sujet / jour</th><th>Prix du sac HT</th><th>Actions</th></tr></thead><tbody>{references.map((reference, index) => <tr key={reference.id}><td><span className={`feed-type-icon feed-type-${index % 3}`}>⌁</span>{reference.feed_type}</td><td>{reference.age_min_days} jours</td><td>{reference.age_max_days} jours</td><td>{reference.daily_consumption_g} g</td><td>{(reference.feed_price_ht || 0).toFixed(2)} €</td><td><div className="feed-row-actions"><button type="button" title="Modifier" onClick={() => ouvrirModificationReference(reference)}>✎</button><button type="button" title="Supprimer" onClick={() => supprimerReference(reference)}>🗑</button></div></td></tr>)}{!references.length && <tr><td colSpan={6}><div className="feed-empty">Aucune référence alimentaire. Ajoutez une référence pour préparer vos prévisions.</div></td></tr>}</tbody></table></div></section>      </div>}
 
       {consommationModalOpen && (
         <div className="poultry-modal-backdrop">
@@ -1571,7 +1582,7 @@ export default function DashboardFeed() {
 
       {historyModal === "livraisons" && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-large feed-history-modal"><ModalCloseButton onClick={() => setHistoryModal(null)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">🚚</span><div><h2>Toutes les livraisons de stock</h2><p>{livraisons.length} entrée(s) enregistrée(s).</p></div></div><div className="feed-full-history">{livraisons.map((item) => <Mouvement key={item.id} titre={item.feed_type} sousTitre={formatDate(item.date)} valeur={`+${sacsEntiers(enSacs(item.quantite_kg))} sacs`} onEdit={() => modifierLivraison(item)} onDelete={() => supprimerLivraison(item)} saving={saving} />)}</div></div></div>}
 
-      {referencesInfoOpen && <div className="poultry-modal-backdrop"><div className="poultry-modal poultry-modal-large feed-reference-modal"><ModalCloseButton onClick={() => setReferencesInfoOpen(false)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">i</span><div><h2>Références alimentaires</h2><p>Valeurs utilisées pour calculer la consommation prévisionnelle selon l’âge des lots.</p></div></div><div className="feed-reference-heading"><span>{references.length} référence(s)</span><button type="button" onClick={ouvrirNouvelleReference}>＋ Ajouter une référence</button></div><div className="feed-table-wrap"><table className="feed-table feed-reference-table"><thead><tr><th>Aliment</th><th>Âge minimum</th><th>Âge maximum</th><th>Consommation / sujet / jour</th><th>Prix du sac HT</th><th>Actions</th></tr></thead><tbody>{references.map((reference, index) => <tr key={reference.id}><td><span className={`feed-type-icon feed-type-${index % 3}`}>⌁</span>{reference.feed_type}</td><td>{reference.age_min_days} jours</td><td>{reference.age_max_days} jours</td><td>{reference.daily_consumption_g} g</td><td>{(reference.feed_price_ht || 0).toFixed(2)} €</td><td><div className="feed-row-actions"><button type="button" title="Modifier" onClick={() => ouvrirModificationReference(reference)}>✎</button><button type="button" title="Supprimer" onClick={() => supprimerReference(reference)}>🗑</button></div></td></tr>)}</tbody></table></div></div></div>}
+
 
       {referenceModalOpen && <div className="poultry-modal-backdrop poultry-modal-backdrop-front"><div className="poultry-modal poultry-modal-small"><ModalCloseButton onClick={() => setReferenceModalOpen(false)} disabled={saving} /><div className="poultry-modal-header"><span className="poultry-modal-icon">⌁</span><div><h2>{referenceEnModification ? "Modifier la référence" : "Ajouter une référence"}</h2><p>Les tranches d’âge ne doivent pas se chevaucher.</p></div></div><div className="poultry-form-stack"><label>Type d’aliment<input type="text" value={referenceType} onChange={(event) => setReferenceType(event.target.value)} placeholder="Ex. Démarrage" /></label><label>Âge minimum (jours)<input type="number" min={0} step={1} value={referenceAgeMin} onChange={(event) => setReferenceAgeMin(event.target.value)} /></label><label>Âge maximum (jours)<input type="number" min={0} step={1} value={referenceAgeMax} onChange={(event) => setReferenceAgeMax(event.target.value)} /></label><label>Consommation par sujet et par jour (g)<input type="number" min={0.01} step="0.01" value={referenceConso} onChange={(event) => setReferenceConso(event.target.value)} /></label><label>Prix HT d’un sac de 25 kg (€)<input type="number" min={0} step="0.01" value={referencePrix} onChange={(event) => setReferencePrix(event.target.value)} /></label></div><div className="poultry-modal-actions"><button type="button" className="poultry-modal-primary" onClick={enregistrerReference} disabled={saving}>{saving ? "Enregistrement..." : "▣ Enregistrer"}</button><button type="button" className="poultry-modal-secondary" onClick={() => setReferenceModalOpen(false)}>Annuler</button></div></div></div>}
     </div>

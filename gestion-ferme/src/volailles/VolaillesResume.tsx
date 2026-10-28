@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { verifierConsommationIdentique } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
+import ActionsVolailles from './ActionsVolailles';
 import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
 import { dateDepuisArrivee, genererEvenementsVolailles, REGLES_SUIVI_VOLAILLES } from "../outils/evenementsVolailles";
@@ -121,6 +122,7 @@ export default function VolaillesResume() {
   const [sicaLots, setSicaLots] = useState<SicaLot[]>([]);
   const [directLots, setDirectLots] = useState<DirectLot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sicaAvailable, setSicaAvailable] = useState(true);
   const [directAvailable, setDirectAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedTypes, setFeedTypes] = useState<string[]>(["starter", "croissance", "finition"]);
@@ -184,6 +186,7 @@ export default function VolaillesResume() {
           .maybeSingle(),
       ]);
 
+      setSicaAvailable(!sicaResult.error);
       if (sicaResult.error) {
         console.error("Erreur chargement résumé volailles :", sicaResult.error);
         toast.error("Le résumé volailles n'a pas pu être chargé.");
@@ -562,11 +565,6 @@ export default function VolaillesResume() {
     (total, lot) => total + (Number(lot.remaining_quantity) || 0),
     0
   );
-  const mortalites = sicaLots.reduce(
-    (total, lot) => total + (Number(lot.nb_morts) || 0),
-    0
-  ) + directLots.reduce((total, lot) => total + (Number(lot.mortality_count) || 0), 0);
-
   const alertes = useMemo(() => {
     const items: AlertItem[] = [];
     const now = todayStart();
@@ -578,7 +576,7 @@ export default function VolaillesResume() {
         if (jours < 0 || jours > 7) return;
         items.push({
           id: `sica-${lot.id}-${regle.key}`,
-          title: regle.title,
+          title: regle.key === "livraison" ? "Livraison indicative (J70)" : regle.title,
           detail: `${lot.nom} · ${jours === 0 ? "aujourd’hui" : `dans ${jours} j`} · ${date.toLocaleDateString("fr-FR")}`,
           icon: regle.icon,
           tone: regle.tone,
@@ -627,7 +625,7 @@ export default function VolaillesResume() {
       <header className="poultry-heading">
         <div>
           <h1>Résumé volailles <span>♧</span></h1>
-          <p>Vue rapide des lots actifs SICA Madras, vente directe et alertes à venir.</p>
+          <p>Vos actions du jour, vos lots actifs et les prochaines échéances.</p>
         </div>
       </header>
 
@@ -640,9 +638,11 @@ export default function VolaillesResume() {
         </div>
       )}
 
+      <ActionsVolailles lots={allLots} busy={saving} incomplet={!sicaAvailable || !directAvailable} />
+
       <section className="poultry-panel poultry-summary-shortcuts-panel">
         <div className="poultry-panel-heading">
-          <h2>Raccourcis de saisie</h2>
+          <h2>Autres saisies</h2>
           <span>Lots SICA et vente directe</span>
         </div>
         <div className="poultry-shortcuts">
@@ -659,12 +659,6 @@ export default function VolaillesResume() {
         </article>
         <article className="poultry-kpi poultry-summary-kpi">
           <i className="poultry-kpi-icon poultry-kpi-blue">◎</i><div><small>Lots Vente directe</small><strong>{formatNombre(directLots.length)}</strong><em>{formatNombre(sujetsDirect)} sujets</em></div>
-        </article>
-        <article className="poultry-kpi poultry-summary-kpi">
-          <i className="poultry-kpi-icon poultry-kpi-red">✚</i><div><small>Mortalités</small><strong>{formatNombre(mortalites)}</strong><em>Tous lots actifs</em></div>
-        </article>
-        <article className="poultry-kpi poultry-summary-kpi">
-          <i className="poultry-kpi-icon poultry-kpi-orange">!</i><div><small>Alertes planning</small><strong>{formatNombre(alertes.length)}</strong><em>Sur 7 jours</em></div>
         </article>
       </section>
 
@@ -709,7 +703,7 @@ export default function VolaillesResume() {
 
         <article className="poultry-panel">
           <div className="poultry-panel-heading">
-            <h2>Alertes planning</h2>
+            <h2>Échéances d’élevage et alertes</h2>
             <Link className="summary-heading-link" to="/planning">Voir le planning <span>→</span></Link>
           </div>
           <div className="poultry-alert-list">

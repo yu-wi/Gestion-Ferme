@@ -8620,3 +8620,27 @@
 .daily-save button:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 1024px) { .daily-page { padding: 20px 16px; } .daily-header h1 { font-size: 24px; } }
 @media (max-width: 480px) { .daily-card { padding: 16px; } .daily-save { gap: 10px; } .daily-save button { width: 100%; } }
+
+/* Organisation des contenus Volailles. */
+.feed-content-tabs { display: flex; gap: 8px; margin: 24px 0 16px; flex-wrap: wrap; }
+.feed-content-tabs button { min-height: 44px; border: 1px solid #d5e3db; border-radius: 10px; padding: 10px 16px; color: #315344; background: #fff; font-weight: 600; }
+.feed-content-tabs button[aria-selected="true"] { background: #08783d; color: #fff; border-color: #08783d; }
+.feed-tab-intro { color: #5a7180; margin-bottom: 16px; }
+.feed-tab-panel { min-width: 0; }
+.feed-tab-panel > .feed-panel { margin-bottom: 20px; }
+.feed-cost-details { border: 1px solid #dce6e1; border-radius: 12px; background: #fff; margin: 20px 0; }
+.feed-cost-details > summary { padding: 16px; cursor: pointer; min-height: 44px; font-weight: 600; }
+.feed-cost-details > .feed-panel { border: 0; margin: 0; }
+.feed-daily-action, .poultry-daily-link { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 10px 16px; background: #08783d; color: #fff; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.poultry-today { margin: 20px 0; }
+.poultry-today .poultry-panel-heading > div > p { color: #6a7e89; margin: 6px 0 0; }
+.poultry-today-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.poultry-today-grid article { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding: 16px; border: 1px solid #dce6e1; background: #f6faf7; border-radius: 10px; gap: 10px; overflow-wrap: anywhere; }
+.poultry-today-grid h3 { font-size: 16px; margin: 0; }
+.poultry-today-grid p { margin: 0; color: #607684; }
+.poultry-today-grid ul { padding-left: 20px; margin: 0; }
+.poultry-today-grid a { margin-top: auto; padding-top: 8px; min-height: 44px; display: inline-flex; align-items: center; color: #08783d; font-weight: 600; }
+.poultry-today-grid summary { min-height: 44px; cursor: pointer; padding: 8px 0; }
+.poultry-summary-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1024px) { .poultry-today-grid { grid-template-columns: 1fr; } .poultry-today .poultry-panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; } }
+@media (max-width: 480px) { .feed-content-tabs { gap: 6px; } .feed-content-tabs button { padding: 10px 8px; flex: 1 1 90px; font-size: 13px; } }

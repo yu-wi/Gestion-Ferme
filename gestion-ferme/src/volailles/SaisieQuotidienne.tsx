@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
 import { chargerPages } from './chargerPages';
 import { chargerLotsAvecMouvements } from './volaillesData';
@@ -70,7 +71,9 @@ export default function SaisieQuotidienne() {
         throw new Error(error.message || 'Enregistrement impossible. Réessayez avec les mêmes valeurs.');
       }
       setLignes({}); tentative.current = null;
-      setSucces(`${envoi.lignes.length} lot(s) enregistré(s). Les consommations et mortalités sont à jour.`);
+      const confirmation = `${envoi.lignes.length} lot(s) enregistré(s). Les consommations et mortalités sont à jour.`;
+      setSucces(confirmation);
+      toast.success(confirmation, { id: `saisie-quotidienne-${envoi.id}`, duration: 5000 });
       try { setDonnees(await charger()); } catch { setMessage('Enregistrement réussi. Actualisez la page pour voir les nouveaux totaux.'); }
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Connexion interrompue. Réessayez avec les mêmes valeurs.'); }
     finally { verrou.current = false; setSaving(false); }

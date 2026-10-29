@@ -27,3 +27,22 @@ export function preparerSaisie(date: string, aujourdHui: string, lignes: SaisieQ
   if (!resultat.length) throw new Error('Renseignez au moins une consommation ou une mortalité.');
   return resultat;
 }
+
+export function repartirLotsQuotidiens(
+  lots: LotQuotidien[], date: string,
+  consommations: { lot_id: string | null; direct_sale_lot_id: string | null; date: string }[],
+  mortalitesSica: { lot_id: string; date: string }[], mortalitesDirectes: { lot_id: string; date: string }[],
+) {
+  const aRenseigner: LotQuotidien[] = [];
+  const renseignes: LotQuotidien[] = [];
+  for (const lot of lots) {
+    if (lot.arrivee > date) continue;
+    const alimentSaisi = consommations.some(c => c.date === date && (lot.source === 'sica' ? c.lot_id === lot.id : c.direct_sale_lot_id === lot.id));
+    const mortaliteSaisie = (lot.source === 'sica' ? mortalitesSica : mortalitesDirectes).some(m => m.date === date && m.lot_id === lot.id);
+    if (lot.restants <= 0 && !alimentSaisi && !mortaliteSaisie) continue;
+    // Sans deces, aucune ligne de mortalite n'est creee : ne pas l'exiger pour terminer la journee.
+    if (alimentSaisi || lot.restants <= 0) renseignes.push(lot);
+    else aRenseigner.push(lot);
+  }
+  return { aRenseigner, renseignes };
+}

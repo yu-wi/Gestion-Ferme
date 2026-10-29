@@ -8709,3 +8709,13 @@
 
 .daily-edit-button { display: inline-flex; align-items: center; min-height: 44px; margin-left: 6px; padding: 8px 12px; border: 1px solid #bddbc8; border-radius: 8px; background: white; color: #08783d; font-weight: 600; }
 .daily-edit-fields { min-width: 0; border: 0; padding: 0; margin: 0; }
+
+.daily-progress { margin: 20px 0; padding: 16px; border: 1px solid #d2e5d8; border-radius: 12px; background: #f0f8f2; }
+.daily-progress > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: #17693b; }
+.daily-progress progress { width: 100%; height: 12px; margin: 12px 0 4px; accent-color: #16843c; }
+.daily-progress p, .daily-completed > p { margin: 8px 0 0; color: #607684; font-size: 13px; line-height: 1.5; }
+.daily-group-title { display: flex; align-items: center; gap: 10px; margin: 24px 0 0; font-size: 20px; color: #173647; }
+.daily-group-title span, .daily-completed summary span { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 4px 8px; border-radius: 16px; background: #e5f2e9; color: #14763a; font-size: 14px; }
+.daily-completed { margin: 20px 0; padding: 16px; border: 1px solid #dce6e1; border-radius: 12px; background: #f8faf9; }
+.daily-completed > summary { cursor: pointer; min-height: 44px; color: #315e49; font-weight: 600; }
+.daily-completed summary span { margin-left: 8px; }

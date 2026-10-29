@@ -206,34 +206,23 @@ export default function AnalyseLot() {
         <div><ActionButton icon="print" label="Fiche PDF / imprimer" disabled={saving} onClick={() => window.print()} /><ActionButton icon="download" label={exporting ? "Création…" : "Fiche Excel"} disabled={saving || exporting} onClick={exporterExcel} /><ActionLink icon="back" label="Retour à l’historique SICA" to="/volailles/sica/historique" /></div>
       </header>
 
+      <section className="history-kpis">
+        <HistoryMetric tone="orange" icon="€" label={donnees.aValider.length ? "Résultat net estimé" : "Résultat net"} value={formatMontant(donnees.resultat)} note={`Taux de marge : ${formatNombre(donnees.tauxMarge, 1)} %`} />
+        <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(donnees.quantiteLivree)} note={`Sur ${formatNombre(lot.quantite)} sujets arrivés`} />
+        <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={formatPoids(donnees.totalPoids)} note={`Poids moyen : ${formatPoids(donnees.poidsMoyen)}`} />
+        <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${formatNombre(donnees.tauxMortalite, 1)} %`} note={`${formatNombre(lot.nb_morts || 0)} sujets perdus`} />
+      </section>
+
       <section className="history-panel closure-export-info"><strong>Fiche de clôture {donnees.fiche.statut.toLowerCase()}</strong>
         <p>{donnees.fiche.raisons.length ? donnees.fiche.raisons.join(" · ") : "Charges renseignées et tarifs figés."}</p>
-        <p>Le bouton PDF ouvre la fenêtre d’impression : choisissez « Enregistrer au format PDF ». Les deux formats reprennent les mêmes données.</p>
+        <details className="lot-export-help"><summary>Comment exporter la fiche ?</summary><p>Le bouton PDF ouvre la fenêtre d’impression : choisissez « Enregistrer au format PDF ». Les deux formats reprennent les mêmes données.</p></details>
+        {donnees.aValider.length > 0 && <a className="lot-validation-link" href="#detail-economique">Valider les {donnees.aValider.length} charges proposées ↓</a>}
       </section>
       <FicheClotureImpression fiche={donnees.fiche} />
       <section className="history-panel lot-tariffs-status">
         {tarifsFiges ? <p>✓ Tarifs figés le {new Date(tarifsFiges.date).toLocaleDateString("fr-FR")}{tarifsFiges.origine === "historique" ? " à partir des prix disponibles lors du gel" : " lors de l’archivage"}. Les changements de tarifs généraux ne modifient plus ce lot.</p>
           : <><p>Les tarifs de ce lot ancien ne sont pas encore figés. Le gel conservera les prix actuels ; il ne reconstitue pas les prix d’origine.</p><button type="button" disabled={saving} onClick={figer}>Figer les tarifs actuels</button></>}
       </section>
-      <section className="history-kpis">
-        <HistoryMetric tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(donnees.quantiteLivree)} note={`Sur ${formatNombre(lot.quantite)} sujets arrivés`} />
-        <HistoryMetric tone="green" icon="⚖" label="Poids total livré" value={formatPoids(donnees.totalPoids)} note={`Poids moyen : ${formatPoids(donnees.poidsMoyen)}`} />
-        <HistoryMetric tone="orange" icon="€" label={donnees.aValider.length ? "Résultat net estimé" : "Résultat net"} value={formatMontant(donnees.resultat)} note={`Taux de marge : ${formatNombre(donnees.tauxMarge, 1)} %`} />
-        <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${formatNombre(donnees.tauxMortalite, 1)} %`} note={`${formatNombre(lot.nb_morts || 0)} sujets perdus`} />
-      </section>
-
-      <section className="history-panel lot-analysis-performance">
-        <h2>Performances de production</h2>
-        <dl>
-          <div><dt>Âge à la livraison</dt><dd>{lot.age || 0} jours</dd></div>
-          <div><dt>Poids moyen à la livraison</dt><dd>{formatPoids(donnees.poidsMoyen)}</dd></div>
-          <div><dt>Taux de mortalité</dt><dd>{formatNombre(donnees.tauxMortalite, 1)} %</dd></div>
-          <div><dt>Quantité retenue</dt><dd>{formatNombre(lot.quantite_retenue || 0)}</dd></div>
-          <div><dt>Autoconsommation</dt><dd>{formatNombre(lot.autoconsommation || 0)}</dd></div>
-          <div><dt>Sujets restants</dt><dd>{formatNombre(lot.sujets_restants || 0)}</dd></div>
-        </dl>
-      </section>
-
       <section className="lot-analysis-middle-grid">
         <article className="history-panel history-charges">
           <h2>Charges par lot</h2>
@@ -241,7 +230,7 @@ export default function AnalyseLot() {
           {donnees.totalCharges > 0 ? <div><div className="history-charge-ring" style={{ background: `conic-gradient(${donnees.segments.join(", ")})` }}><span><small>{donnees.aValider.length ? "Total estimé" : "Total charges"}</small><strong>{formatMontant(donnees.totalCharges)}</strong></span></div><div className="history-charge-list">{donnees.repartition.map((charge, index) => <div key={charge.type}><i style={{ background: chargeColors[index % chargeColors.length] }} /><span>{charge.label}{donnees.aValider.some(type => type === charge.type) && <StatutCharge statut="estime" />}</span><b>{formatMontant(charge.montant)}</b><em>{((charge.montant / donnees.totalCharges) * 100).toFixed(0)}%</em></div>)}</div></div> : <p className="history-empty">Aucune charge enregistrée.</p>}
           {coutAliment !== null && <p className="lot-analysis-feed-note">Montant TTC, TVA de 2,10 % incluse.</p>}
         </article>
-        <article className="history-panel lot-analysis-economy">
+        <article id="detail-economique" className="history-panel lot-analysis-economy">
           <h2>Détail économique</h2>
           {donnees.aValider.length > 0 && <p className="lot-analysis-feed-note">Les totaux incluent les charges proposées à valider avec ✓. Le crayon permet de corriger le montant TTC.</p>}
           <div className="lot-analysis-economic-columns">
@@ -265,9 +254,21 @@ export default function AnalyseLot() {
         </article>
       </section>
 
+      <section className="history-panel lot-analysis-performance">
+        <h2>Performances de production</h2>
+        <dl>
+          <div><dt>Âge à la livraison</dt><dd>{lot.age || 0} jours</dd></div>
+          <div><dt>Poids moyen à la livraison</dt><dd>{formatPoids(donnees.poidsMoyen)}</dd></div>
+          <div><dt>Taux de mortalité</dt><dd>{formatNombre(donnees.tauxMortalite, 1)} %</dd></div>
+          <div><dt>Quantité retenue</dt><dd>{formatNombre(lot.quantite_retenue || 0)}</dd></div>
+          <div><dt>Autoconsommation</dt><dd>{formatNombre(lot.autoconsommation || 0)}</dd></div>
+          <div><dt>Sujets restants</dt><dd>{formatNombre(lot.sujets_restants || 0)}</dd></div>
+        </dl>
+      </section>
+
       <section className="lot-analysis-bottom-grid">
-        <article className="history-panel"><h2>Livraisons</h2><div className="lot-analysis-table-wrap"><table className="lot-analysis-table"><thead><tr><th>Date</th><th>Quantité</th><th>Poids total</th><th>Poids moyen</th></tr></thead><tbody>{lot.livraisons.map((livraison) => <tr key={livraison.id}><td>{formatDate(livraison.date)}</td><td>{livraison.quantite}</td><td>{livraison.poids.toFixed(2)} kg</td><td>{livraison.quantite > 0 ? (livraison.poids / livraison.quantite).toFixed(2) : "0.00"} kg</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{donnees.quantiteLivree}</td><td>{donnees.totalPoids.toFixed(2)} kg</td><td>{donnees.poidsMoyen.toFixed(2)} kg</td></tr></tfoot></table></div></article>
-        <article className="history-panel"><h2>Mortalités</h2><div className="lot-analysis-table-wrap"><table className="lot-analysis-table"><thead><tr><th>Date</th><th>Nombre</th></tr></thead><tbody>{lot.mortalites.map((mortalite) => <tr key={mortalite.id}><td>{formatDate(mortalite.date)}</td><td>{mortalite.nombre}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{lot.nb_morts || 0}</td></tr></tfoot></table></div></article>
+        <article className="history-panel lot-history-details"><details key={`livraisons-${lot.id}`}><summary><strong>Historique des livraisons</strong><span>{lot.livraisons.length} livraison(s) · {formatNombre(donnees.quantiteLivree)} sujets</span></summary><div className="lot-analysis-table-wrap"><table className="lot-analysis-table"><thead><tr><th>Date</th><th>Quantité</th><th>Poids total</th><th>Poids moyen</th></tr></thead><tbody>{lot.livraisons.map((livraison) => <tr key={livraison.id}><td>{formatDate(livraison.date)}</td><td>{livraison.quantite}</td><td>{livraison.poids.toFixed(2)} kg</td><td>{livraison.quantite > 0 ? (livraison.poids / livraison.quantite).toFixed(2) : "0.00"} kg</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{donnees.quantiteLivree}</td><td>{donnees.totalPoids.toFixed(2)} kg</td><td>{donnees.poidsMoyen.toFixed(2)} kg</td></tr></tfoot></table></div></details></article>
+        <article className="history-panel lot-history-details"><details key={`mortalites-${lot.id}`}><summary><strong>Historique des mortalités</strong><span>{lot.mortalites.length} saisie(s) · {formatNombre(lot.nb_morts || 0)} sujets</span></summary><div className="lot-analysis-table-wrap"><table className="lot-analysis-table"><thead><tr><th>Date</th><th>Nombre</th></tr></thead><tbody>{lot.mortalites.map((mortalite) => <tr key={mortalite.id}><td>{formatDate(mortalite.date)}</td><td>{mortalite.nombre}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{lot.nb_morts || 0}</td></tr></tfoot></table></div></details></article>
         <article className="history-panel lot-analysis-keypoints"><h2>Points clés</h2><p>✓ Poids moyen final : {donnees.poidsMoyen.toFixed(2)} kg.</p><p>✓ {donnees.resultat >= 0 ? "Marge nette positive." : "Marge nette à améliorer."}</p><p>✓ Les charges alimentaires représentent {donnees.totalCharges > 0 ? ((donnees.repartition.find((charge) => charge.type === "aliment")?.montant || 0) / donnees.totalCharges * 100).toFixed(0) : 0}% des charges.</p><p>✓ Taux de mortalité : {donnees.tauxMortalite.toFixed(1)} %.</p></article>
       </section>
     </div>

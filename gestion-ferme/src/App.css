@@ -8654,3 +8654,17 @@
 .lot-cell-note, .lot-remaining small { display: block; color: #687f89; font-size: 12px; font-weight: 400; margin-top: 4px; }
 .lot-remaining > strong { color: #08783d; font-size: 18px; }
 .lot-next-delivery { margin: 12px 0; font-size: 14px; color: #526d7b; }
+
+.history-state-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.history-state-filters button { min-height: 44px; padding: 10px 16px; border: 1px solid #d7e4dc; border-radius: 10px; background: #fff; color: #315344; font-weight: 600; }
+.history-state-filters button[aria-pressed="true"] { background: #08783d; border-color: #08783d; color: #fff; }
+.lot-history-details summary { display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-height: 44px; list-style: none; }
+.lot-history-details summary strong::before { content: '▸ '; color: #16843c; }
+.lot-history-details details[open] summary strong::before { content: '▾ '; }
+.lot-history-details summary span { color: #607888; font-size: 13px; }
+.lot-history-details details[open] summary { margin-bottom: 16px; }
+.lot-export-help summary { cursor: pointer; padding: 10px 0; min-height: 44px; color: #315e49; }
+.lot-validation-link { display: inline-flex; align-items: center; min-height: 44px; color: #08783d; font-weight: 600; }
+#detail-economique { scroll-margin-top: 90px; }
+.lot-analysis-economy { order: -1; }
+@media (min-width: 1025px) { .lot-analysis-middle-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr); } }

@@ -63,6 +63,7 @@ export default function Historique() {
   const [recherche, setRecherche] = useState("");
   const [batimentFiltre, setBatimentFiltre] = useState("");
   const [resultatFiltre, setResultatFiltre] = useState("");
+  const [etatFiltre, setEtatFiltre] = useState<'tous' | 'a_completer' | 'renseignes'>('tous');
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -147,7 +148,7 @@ export default function Historique() {
     new Set(historique.map((lot) => lot.batiment).filter(Boolean))
   ).sort();
 
-  const lotsAffiches = lignes
+  const lotsFiltres = lignes
     .filter((lot) => {
       const terme = recherche.trim().toLowerCase();
       const correspondRecherche =
@@ -174,6 +175,10 @@ export default function Historique() {
         ? a.nom.localeCompare(b.nom)
         : b.nom.localeCompare(a.nom)
     );
+
+  const nombreACompleter = lotsFiltres.filter(lot => (aCompleter.get(lot.id)?.length || 0) > 0).length;
+  const lotsAffiches = lotsFiltres.filter(lot => etatFiltre === 'tous' || (etatFiltre === 'a_completer' ? (aCompleter.get(lot.id)?.length || 0) > 0 : !(aCompleter.get(lot.id)?.length || 0)))
+    .sort((a, b) => etatFiltre === 'tous' ? Number(!!aCompleter.get(b.id)?.length) - Number(!!aCompleter.get(a.id)?.length) : 0);
 
   const nombreLotsEstimes = lotsAffiches.filter(lot => (propositionsParLot.get(lot.id)?.length || 0) > 0).length;
   const resultatsEstimes = lotsAffiches.some(lot => lot.resultat_net == null && (propositionsParLot.get(lot.id)?.length || 0) > 0);
@@ -251,6 +256,7 @@ export default function Historique() {
   const lotsACompleter = lotsAffiches.filter(lot => (aCompleter.get(lot.id)?.length || 0) > 0);
 
   const resetFiltres = () => {
+    setEtatFiltre('tous');
     setRecherche("");
     setBatimentFiltre("");
     setResultatFiltre("");
@@ -362,17 +368,8 @@ export default function Historique() {
         <Link to="/volailles/inventaire">Inventaire</Link>
       </nav>
 
-      <section className="history-kpis">
-        <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={formatNombre(lotsAffiches.length)} note="Lots affichés" />
-        <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
-        <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
-        <HistoryKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(totalChiffreAffaires)} note="Lots affichés" />
-        <HistoryKpi tone="red" icon="↘" label={nombreLotsEstimes ? "Charges estimées" : "Total charges"} value={formatMontant(totalCharges)} note={nombreLotsEstimes ? `${nombreLotsEstimes} lot(s) avec charges à valider` : "Calcul identique à l’analyse du lot"} />
-        <HistoryKpi tone="orange" icon="€" label={resultatsEstimes ? "Résultat net estimé" : "Résultat net"} value={formatMontant(totalResultat)} note="Après charges" />
-      </section>
-
       <section className="history-filters">
-        <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un lot ou un bâtiment..." />
+        <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} aria-label="Rechercher par numéro de lot ou bâtiment" placeholder="N° de lot ou bâtiment…" />
         <select value={batimentFiltre} onChange={(event) => setBatimentFiltre(event.target.value)}>
           <option value="">Tous les bâtiments</option>
           {batiments.map((batiment) => <option key={batiment} value={batiment}>{batiment}</option>)}
@@ -390,6 +387,12 @@ export default function Historique() {
         <ActionButton icon="reset" label="Réinitialiser les filtres" onClick={resetFiltres} />
       </section>
 
+      <div className="history-state-filters" role="group" aria-label="État des lots archivés">
+        <button type="button" aria-pressed={etatFiltre === 'tous'} onClick={() => setEtatFiltre('tous')}>Tous ({lotsFiltres.length})</button>
+        <button type="button" aria-pressed={etatFiltre === 'a_completer'} onClick={() => setEtatFiltre('a_completer')}>À compléter ({nombreACompleter})</button>
+        <button type="button" aria-pressed={etatFiltre === 'renseignes'} onClick={() => setEtatFiltre('renseignes')}>Renseignés ({lotsFiltres.length - nombreACompleter})</button>
+      </div>
+
       <section className="history-panel history-completion" aria-label="Lots à compléter">
         <details open>
           <summary><strong>Lots à compléter</strong><span>{lotsACompleter.length} / {lotsAffiches.length} lot(s) affiché(s)</span></summary>
@@ -405,9 +408,18 @@ export default function Historique() {
         </details>
       </section>
 
+      <section className="history-kpis">
+        <HistoryKpi tone="green" icon="▣" label="Lots archivés" value={formatNombre(lotsAffiches.length)} note="Lots affichés" />
+        <HistoryKpi tone="blue" icon="♧" label="Sujets livrés" value={formatNombre(totalLivres)} note="Sur la période" />
+        <HistoryKpi tone="green" icon="⚖" label="Poids livré" value={formatPoids(totalPoids, 1)} note="Poids cumulé" />
+        <HistoryKpi tone="blue" icon="↗" label="Chiffre d’affaires" value={formatMontant(totalChiffreAffaires)} note="Lots affichés" />
+        <HistoryKpi tone="red" icon="↘" label={nombreLotsEstimes ? "Charges estimées" : "Total charges"} value={formatMontant(totalCharges)} note={nombreLotsEstimes ? `${nombreLotsEstimes} lot(s) avec charges à valider` : "Calcul identique à l’analyse du lot"} />
+        <HistoryKpi tone="orange" icon="€" label={resultatsEstimes ? "Résultat net estimé" : "Résultat net"} value={formatMontant(totalResultat)} note="Après charges" />
+      </section>
+
       <section className="history-panel history-table-panel">
         <div className="history-panel-heading">
-          <h2>Liste des lots terminés</h2>
+          <h2>{etatFiltre === 'a_completer' ? 'Lots à compléter' : etatFiltre === 'renseignes' ? 'Lots renseignés' : 'Lots archivés — à compléter en premier'}</h2>
           <div>
             <ActionButton icon="edit" label="Quantité retenue" disabled={!lotsSansQuantiteRetenue.length} onClick={() => setShowQuantiteRetenueModal(true)} />
             <ActionButton icon="money" label="Résultat net" disabled={!lotsSansResultatNet.length} onClick={() => setShowResultatNetModal(true)} />

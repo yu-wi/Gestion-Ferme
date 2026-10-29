@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function PoultryNavigation() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = useRef<HTMLElement>(null);
   const [defilement, setDefilement] = useState({ gauche: false, droite: false, deborde: false });
   const volailles = pathname === '/volailles' || pathname.startsWith('/volailles/');
   const sica = pathname.startsWith('/volailles/sica') || pathname.startsWith('/volailles/historique');
   const directe = pathname.startsWith('/volailles/vente-directe');
+  const analyse = pathname === '/volailles/analyse' || pathname.startsWith('/volailles/analyse/');
+  const economie = new URLSearchParams(search).get('onglet') === 'economie' ? '?onglet=economie' : '';
   const historique = pathname.includes('/historique');
   const liens = [
     { to: '/volailles', label: 'Résumé', actif: pathname === '/volailles' },
@@ -15,8 +17,7 @@ export default function PoultryNavigation() {
     { to: '/volailles/alimentation', label: 'Alimentation', actif: pathname === '/volailles/alimentation' },
     { to: '/volailles/sica', label: 'Lots SICA Madras', actif: sica },
     { to: '/volailles/vente-directe', label: 'Vente directe', actif: directe },
-    { to: '/volailles/analyse/sica', label: 'Analyse SICA', actif: pathname === '/volailles/analyse/sica' },
-    { to: '/volailles/analyse/vente-directe', label: 'Analyse vente directe', actif: pathname === '/volailles/analyse/vente-directe' },
+    { to: '/volailles/analyse/sica', label: 'Analyse', actif: analyse },
     { to: '/volailles/inventaire', label: 'Inventaire', actif: pathname === '/volailles/inventaire' },
   ];
   useEffect(() => {
@@ -43,6 +44,11 @@ export default function PoultryNavigation() {
       <nav ref={nav} className="poultry-navigation-links" aria-label="Sections volailles">{liens.map(lien => <Link key={lien.to} to={lien.to} aria-current={lien.actif ? 'page' : undefined}>{lien.label}</Link>)}</nav>
       {defilement.deborde && <button type="button" className="poultry-nav-arrow" aria-label="Défiler le menu Volailles vers la droite" disabled={!defilement.droite} onClick={() => defiler(1)}>›</button>}
     </div>
+    {analyse && <nav className="poultry-lot-tabs" aria-label="Sources de l’analyse">
+      <span>Analyse</span>
+      <Link to={`/volailles/analyse/sica${economie}`} aria-current={!pathname.includes('vente-directe') ? 'page' : undefined}>SICA Madras</Link>
+      <Link to={`/volailles/analyse/vente-directe${economie}`} aria-current={pathname.includes('vente-directe') ? 'page' : undefined}>Vente directe</Link>
+    </nav>}
     {(sica || directe) && <nav className="poultry-lot-tabs" aria-label={sica ? 'Vues des lots SICA' : 'Vues des lots vente directe'}>
       <span>{sica ? 'Lots SICA Madras' : 'Vente directe'}</span>
       <Link to={base} aria-current={!historique ? 'page' : undefined}>Lots actifs</Link>

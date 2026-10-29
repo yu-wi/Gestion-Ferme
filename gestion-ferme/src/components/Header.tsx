@@ -266,25 +266,16 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 </NavLink>
 
                 <NavLink
-                  to="/volailles/analyse/sica"
+                  to="/volailles/analyse"
                   onClick={fermerMenu}
                   className={({ isActive }) =>
                     `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
                   }
                 >
                   <span>•</span>
-                  Analyse SICA
+                  Analyse
                 </NavLink>
-                <NavLink
-                  to="/volailles/analyse/vente-directe"
-                  onClick={fermerMenu}
-                  className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
-                  }
-                >
-                  <span>•</span>
-                  Analyse vente directe
-                </NavLink>
+
                 <NavLink
                   to="/volailles/inventaire"
                   onClick={fermerMenu}

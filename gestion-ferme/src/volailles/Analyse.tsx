@@ -112,6 +112,8 @@ export default function Analyse() {
     const chargerAnalyse = async () => {
       setLoading(true);
       setErreur(false);
+      setRecherche(''); setLotFiltreId(''); setEspeceDirecte('');
+      setBatiment(''); setDateDebut(''); setDateFin('');
       try {
         const [
           lotsData,
@@ -289,10 +291,7 @@ export default function Analyse() {
 
 
 
-      <section className="analysis-source-tabs" aria-label="Type d'analyse">
-        <Link to="/volailles/analyse/sica" className={source === "sica" ? "analysis-source-active" : undefined}>Lots SICA</Link>
-        <Link to="/volailles/analyse/vente-directe" className={source === "direct" ? "analysis-source-active" : undefined}>Vente directe</Link>
-      </section>
+
 
       <section className={`analysis-toolbar analysis-toolbar-${source}`}>
         <div className="analysis-tabs">

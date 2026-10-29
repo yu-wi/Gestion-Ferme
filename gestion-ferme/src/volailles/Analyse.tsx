@@ -287,17 +287,7 @@ export default function Analyse() {
         </p>
       </header>
 
-      <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Résumé</Link>
-        <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/sica">Lots SICA Madras</Link>
-        <Link to="/volailles/sica/historique">Historique SICA</Link>
-        <Link to="/volailles/vente-directe">Vente directe</Link>
-        <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-        <Link to="/volailles/analyse/sica" className={source === "sica" ? "poultry-tab-active" : undefined}>Analyse SICA</Link>
-        <Link to="/volailles/analyse/vente-directe" className={source === "direct" ? "poultry-tab-active" : undefined}>Analyse vente directe</Link>
-        <Link to="/volailles/inventaire">Inventaire</Link>
-      </nav>
+
 
       <section className="analysis-source-tabs" aria-label="Type d'analyse">
         <Link to="/volailles/analyse/sica" className={source === "sica" ? "analysis-source-active" : undefined}>Lots SICA</Link>

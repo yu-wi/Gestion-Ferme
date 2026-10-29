@@ -8690,3 +8690,19 @@
   .comparison-mobile-cards dt { font-size: 13px; color: #526c7a; }
   .comparison-mobile-cards dd { margin: 0; font-weight: 700; white-space: nowrap; }
 }
+
+/* Navigation commune a toutes les pages Volailles, historiques inclus. */
+.poultry-navigation { position: sticky; top: 0; z-index: 30; max-width: 1480px; margin: 0 auto; padding: 8px 0 0; background: #f5f8f6; border-bottom: 1px solid #d7e4dc; }
+.poultry-navigation-row { display: flex; align-items: center; min-width: 0; gap: 4px; }
+.poultry-navigation-links { position: relative; display: flex; flex: 1; gap: 8px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.poultry-navigation-links a { display: flex; align-items: center; flex: 0 0 auto; white-space: nowrap; min-height: 44px; padding: 10px 12px; color: #526d7b; text-decoration: none; font-size: 13px; font-weight: 650; border-bottom: 3px solid transparent; }
+.poultry-navigation-links a[aria-current="page"] { color: #08783d; background: #eaf4ed; border-bottom-color: #08783d; border-radius: 8px 8px 0 0; }
+.poultry-nav-arrow { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0; border: 1px solid #d7e4dc; border-radius: 8px; background: #fff; color: #08783d; font-size: 24px; }
+.poultry-nav-arrow:disabled { opacity: .35; cursor: default; }
+.poultry-lot-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+.poultry-lot-tabs > span { margin-right: auto; color: #526d7b; font-size: 13px; font-weight: 600; }
+.poultry-lot-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid #d7e4dc; border-radius: 8px; background: #fff; color: #315344; text-decoration: none; font-weight: 600; font-size: 13px; }
+.poultry-lot-tabs a[aria-current="page"] { background: #08783d; border-color: #08783d; color: #fff; }
+@media (max-width: 1024px) { .poultry-navigation { top: 66px; } .poultry-lot-tabs > span { flex: 1 1 100%; margin: 0; } .poultry-lot-tabs { gap: 6px; } .poultry-lot-tabs a { flex: 1; justify-content: center; } }
+#detail-economique { scroll-margin-top: 220px; }
+@media print { .poultry-navigation { display: none !important; } }

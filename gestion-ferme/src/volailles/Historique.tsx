@@ -356,17 +356,7 @@ export default function Historique() {
         <button type="button" onClick={() => window.print()}>▤ Exporter PDF</button>
       </header>
 
-      <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Résumé</Link>
-        <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/sica">Lots SICA Madras</Link>
-        <Link to="/volailles/sica/historique" className="poultry-tab-active">Historique SICA</Link>
-        <Link to="/volailles/vente-directe">Vente directe</Link>
-        <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-        <Link to="/volailles/analyse/sica">Analyse SICA</Link>
-        <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
-        <Link to="/volailles/inventaire">Inventaire</Link>
-      </nav>
+
 
       <section className="history-filters">
         <input type="search" value={recherche} onChange={(event) => setRecherche(event.target.value)} aria-label="Rechercher par numéro de lot ou bâtiment" placeholder="N° de lot ou bâtiment…" />

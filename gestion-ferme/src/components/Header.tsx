@@ -33,6 +33,7 @@ const estDansProductionVolailles = (pathname: string) =>
   pathname.startsWith("/volailles/sica") ||
   pathname.startsWith("/volailles/vente-directe") ||
   pathname.startsWith("/volailles/alimentation") ||
+  pathname.startsWith("/volailles/saisie-quotidienne") ||
   pathname.startsWith("/volailles/historique") ||
   pathname.startsWith("/volailles/analyse") ||
   pathname.startsWith("/volailles/inventaire");
@@ -246,22 +247,13 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   to="/volailles/sica"
                   onClick={fermerMenu}
                   className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
+                    `app-nav-sublink${isActive || location.pathname.startsWith("/volailles/historique") ? " app-nav-sublink-active" : ""}`
                   }
                 >
                   <span>•</span>
                   Lots SICA Madras
                 </NavLink>
-                <NavLink
-                  to="/volailles/sica/historique"
-                  onClick={fermerMenu}
-                  className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
-                  }
-                >
-                  <span>•</span>
-                  Historique SICA
-                </NavLink>
+
                 <NavLink
                   to="/volailles/vente-directe"
                   onClick={fermerMenu}
@@ -272,16 +264,7 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                   <span>•</span>
                   Vente directe
                 </NavLink>
-                <NavLink
-                  to="/volailles/vente-directe/historique"
-                  onClick={fermerMenu}
-                  className={({ isActive }) =>
-                    `app-nav-sublink${isActive ? " app-nav-sublink-active" : ""}`
-                  }
-                >
-                  <span>•</span>
-                  Historique vente directe
-                </NavLink>
+
                 <NavLink
                   to="/volailles/analyse/sica"
                   onClick={fermerMenu}

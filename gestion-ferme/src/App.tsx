@@ -1,5 +1,6 @@
 import { Navigate, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
+import PoultryNavigation from './components/PoultryNavigation';
 import Footer from './components/Footer';
 import AuthGate from './components/AuthGate';
 import { Toaster } from "react-hot-toast";
@@ -47,6 +48,7 @@ function App() {
             <Toaster position="top-right" reverseOrder={false} />
             <div className="app-content">
               <main className="app-main">
+                <PoultryNavigation />
                 <Routes>
                   <Route index element={<Accueil userName={userName} />} />
                   <Route path="planning" element={<Planning />} />

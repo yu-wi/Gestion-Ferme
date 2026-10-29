@@ -1,5 +1,4 @@
 import { useState, useEffect  } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from "../supabaseClient";
 import { exportToExcel } from "../outils/exportToExcel"
 import { figerTarifsLot } from "../volailles/tarifsFigesService";
@@ -1037,17 +1036,7 @@ return (
      </div>
    </header>
 
-   <nav className="poultry-tabs" aria-label="Sections volailles">
-     <Link to="/volailles">Résumé</Link>
-     <Link to="/volailles/alimentation">Alimentation</Link>
-     <a href="#vue-ensemble" className="poultry-tab-active">Lots SICA Madras</a>
-     <Link to="/volailles/sica/historique">Historique SICA</Link>
-     <Link to="/volailles/vente-directe">Vente directe</Link>
-     <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-     <Link to="/volailles/analyse/sica">Analyse SICA</Link>
-     <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
-     <Link to="/volailles/inventaire">Inventaire</Link>
-   </nav>
+
 
    <section id="vue-ensemble" className="poultry-overview-grid">
      <article id="batiments" className="poultry-panel poultry-buildings">

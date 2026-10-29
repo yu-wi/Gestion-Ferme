@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { verifierDoublonLivraisonDirecte } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
 import LotActionsMenu from '../components/LotActionsMenu';
@@ -1150,17 +1150,7 @@ export default function VenteDirecte() {
         </div>}
       </header>
 
-      <nav className="poultry-tabs" aria-label="Sections volailles">
-        <Link to="/volailles">Résumé</Link>
-        <Link to="/volailles/alimentation">Alimentation</Link>
-        <Link to="/volailles/sica">Lots SICA Madras</Link>
-        <Link to="/volailles/sica/historique">Historique SICA</Link>
-        <Link to="/volailles/vente-directe" className={!historiqueMode ? "poultry-tab-active" : undefined}>Vente directe</Link>
-        <Link to="/volailles/vente-directe/historique" className={historiqueMode ? "poultry-tab-active" : undefined}>Historique vente directe</Link>
-        <Link to="/volailles/analyse/sica">Analyse SICA</Link>
-        <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
-        <Link to="/volailles/inventaire">Inventaire</Link>
-      </nav>
+
 
       {databaseMissing && (
         <div className="direct-sale-setup">

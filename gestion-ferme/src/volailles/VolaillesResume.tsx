@@ -101,23 +101,6 @@ const ageEntreDates = (dateArrivee: string, dateCible: string) => {
   return Math.max(0, Math.floor((cible.getTime() - arrivee.getTime()) / 86400000));
 };
 
-function PoultrySubnav() {
-  return (
-    <nav className="poultry-tabs" aria-label="Sections volailles">
-      <Link to="/volailles" className="poultry-tab-active">Résumé</Link>
-      <Link to="/volailles/saisie-quotidienne">✓ Saisie quotidienne</Link>
-      <Link to="/volailles/alimentation">Alimentation</Link>
-      <Link to="/volailles/sica">Lots SICA Madras</Link>
-      <Link to="/volailles/sica/historique">Historique SICA</Link>
-      <Link to="/volailles/vente-directe">Vente directe</Link>
-      <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-      <Link to="/volailles/analyse/sica">Analyse SICA</Link>
-      <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
-      <Link to="/volailles/inventaire">Inventaire</Link>
-    </nav>
-  );
-}
-
 export default function VolaillesResume() {
   const [sicaLots, setSicaLots] = useState<SicaLot[]>([]);
   const [directLots, setDirectLots] = useState<DirectLot[]>([]);
@@ -629,7 +612,7 @@ export default function VolaillesResume() {
         </div>
       </header>
 
-      <PoultrySubnav />
+
 
       {!directAvailable && (
         <div className="direct-sale-setup">

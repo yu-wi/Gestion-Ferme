@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { formatDateCourte, formatNombre } from "../outils/formatNombre";
@@ -238,22 +237,6 @@ const formatSignedNumber = (value: number, decimals = 0) => {
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
   return `${sign}${formatNombre(Math.abs(value), decimals)}`;
 };
-
-function PoultrySubnav() {
-  return (
-    <nav className="poultry-tabs" aria-label="Sections volailles">
-      <Link to="/volailles">Résumé</Link>
-      <Link to="/volailles/alimentation">Alimentation</Link>
-      <Link to="/volailles/sica">Lots SICA Madras</Link>
-      <Link to="/volailles/sica/historique">Historique SICA</Link>
-      <Link to="/volailles/vente-directe">Vente directe</Link>
-      <Link to="/volailles/vente-directe/historique">Historique vente directe</Link>
-      <Link to="/volailles/analyse/sica">Analyse SICA</Link>
-      <Link to="/volailles/analyse/vente-directe">Analyse vente directe</Link>
-      <Link to="/volailles/inventaire" className="poultry-tab-active">Inventaire</Link>
-    </nav>
-  );
-}
 
 export default function Inventaire() {
   const currentYear = new Date().getFullYear();
@@ -661,7 +644,7 @@ export default function Inventaire() {
         </div>
       </header>
 
-      <PoultrySubnav />
+
 
       <section className="inventory-tabs" aria-label="Vues inventaire">
         <button type="button" className={tab === "annuel" ? "inventory-tab-active" : ""} onClick={() => setTab("annuel")}>

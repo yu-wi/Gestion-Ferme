@@ -8668,3 +8668,25 @@
 #detail-economique { scroll-margin-top: 90px; }
 .lot-analysis-economy { order: -1; }
 @media (min-width: 1025px) { .lot-analysis-middle-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr); } }
+
+.comparison-controls { display: flex; gap: 12px; flex-wrap: wrap; }
+.comparison-extra { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; color: #456454; }
+.comparison-extra input { width: 20px; height: 20px; }
+.comparison-help { margin: 8px 0 16px; }
+.comparison-help summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: #315e49; }
+.comparison-essential table { min-width: 560px; }
+.comparison-mobile-cards { display: none; }
+@media (max-width: 760px) {
+  .comparison-controls { width: 100%; }
+  .comparison-controls label { flex: 1 1 140px; }
+  .comparison-controls select { font-size: 16px; min-height: 44px; }
+  .comparison-lots .comparison-table-wrap { display: none; }
+  .comparison-mobile-cards { display: grid; gap: 12px; }
+  .comparison-mobile-cards article { min-width: 0; padding: 14px; border: 1px solid #dce6e1; border-radius: 10px; }
+  .comparison-mobile-cards article > a { display: inline-flex; min-height: 44px; align-items: center; color: #08783d; font-weight: 700; }
+  .comparison-mobile-cards small { display: block; color: #657f8b; overflow-wrap: anywhere; }
+  .comparison-mobile-cards dl { margin: 12px 0 0; }
+  .comparison-mobile-cards dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid #eef2ef; }
+  .comparison-mobile-cards dt { font-size: 13px; color: #526c7a; }
+  .comparison-mobile-cards dd { margin: 0; font-weight: 700; white-space: nowrap; }
+}

@@ -17,3 +17,9 @@ export function comparerMesures(a: number | null, b: number | null, croissant: b
   if (b === null) return -1;
   return croissant ? a - b : b - a;
 }
+
+export function selectionnerLotsRecents<T extends { id: string; date: string; dateFin?: string | null }>(lots: T[], limite: number | null): T[] {
+  const dateTri = (lot: T) => lot.dateFin || lot.date;
+  const tries = [...lots].sort((a, b) => dateTri(b).localeCompare(dateTri(a)) || a.id.localeCompare(b.id));
+  return limite === null ? tries : tries.slice(0, limite);
+}

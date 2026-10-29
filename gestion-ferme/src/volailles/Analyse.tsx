@@ -336,6 +336,7 @@ export default function Analyse() {
         {!!lignesAffichees.length && <ComparaisonLots lots={lignesAffichees.map(lot => ({
           id: lot.id, nom: lot.nom, batiment: lot.groupe,
           date: lotsSica.find(item => item.id === lot.id)?.date_arrivee || "",
+          dateFin: lotsSica.find(item => item.id === lot.id)?.livraisons.map(livraison => livraison.date).filter(Boolean).sort().at(-1) || null,
           estime: estimations.has(lot.id), incomplet: !chargesCompletes(lot.id), resultat: chargesCompletes(lot.id) ? lot.resultatCalcule : null, aliment: chargesConnues(lot.id).has("aliment") ? lot.chargeAliments : null,
           livres: lot.quantiteLivree, poids: lot.total_poids_livre, morts: lot.nb_morts, initial: lot.quantite,
           consommation: consommations.get(lot.id) ?? null,

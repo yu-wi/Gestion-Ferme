@@ -53,3 +53,31 @@ test('un lot sans sujet reste consultable si un mouvement existe ce jour',()=>{
  assert.equal(groupes.renseignes.length,1);assert.equal(groupes.aRenseigner.length,0);
  assert.equal(groupes.renseignes[0].id,'a');
 });
+
+import {suggererAliment,projeterStockQuotidien} from '../src/volailles/saisieQuotidienne.ts';
+const refs=[{feed_type:'Starter',age_min_days:0,age_max_days:20},{feed_type:'Croissance',age_min_days:21,age_max_days:40}];
+test('la suggestion utilise l’age a la date saisie et les bornes inclusives',()=>{
+ assert.equal(suggererAliment('2026-10-01','2026-10-21',refs).aliment,'Starter');
+ assert.deepEqual(suggererAliment('2026-10-01','2026-10-22',refs),{age:21,aliment:'Croissance'});
+ assert.equal(suggererAliment('2026-09-30','2026-10-01',refs).age,1);
+});
+test('aucune suggestion hors reference, avant arrivee ou en cas d’ambiguite',()=>{
+ assert.equal(suggererAliment('2026-10-01','2026-09-30',refs),null);
+ assert.equal(suggererAliment('2026-02-01','2026-02-30',refs),null);
+ assert.equal(suggererAliment('2026-10-01','2026-12-01',refs),null);
+ assert.equal(suggererAliment('2026-10-01','2026-10-02',[]),null);
+ assert.equal(suggererAliment('2026-10-01','2026-10-02',[...refs,{feed_type:'Autre',age_min_days:0,age_max_days:10}]),null);
+});
+test('les demandes cumulent les deux sources et normalisent le nom d’aliment',()=>{
+ const projection=projeterStockQuotidien([{feed_type:'DÉMARRAGE',stock_kg:100}],[{...ligne(),aliment:'demarrage',sacs:'2'},{...ligne('b','vente_directe'),aliment:'Démarrage',sacs:'3'}]);
+ assert.equal(projection.aliments[0].demande,125);assert.equal(projection.aliments[0].restant,-25);assert.equal(projection.incomplet,false);
+});
+test('la projection ne deduit que les brouillons et signale les saisies incompletes',()=>{
+ const projection=projeterStockQuotidien([{feed_type:'demarrage',stock_kg:75}],[{...ligne(),aliment:'demarrage',sacs:'1'},{...ligne('b','vente_directe'),aliment:'',sacs:'2'}]);
+ assert.equal(projection.aliments[0].restant,50);assert.equal(projection.incomplet,true);
+ assert.equal(projeterStockQuotidien([{feed_type:'demarrage',stock_kg:75}],[]).aliments[0].restant,75);
+});
+test('un aliment absent du stock ne dispose pas de sacs gratuits et les quantites invalides sont signalees',()=>{
+ assert.equal(projeterStockQuotidien([],[ligne()]).aliments[0].restant,-50);
+ for(const sacs of ['-1','1.5','Infinity','abc'])assert.equal(projeterStockQuotidien([],[{...ligne(),sacs}]).incomplet,true);
+});

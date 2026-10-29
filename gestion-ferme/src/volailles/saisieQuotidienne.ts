@@ -46,3 +46,32 @@ export function repartirLotsQuotidiens(
   }
   return { aRenseigner, renseignes };
 }
+
+export type ReferenceQuotidienne = { feed_type: string; age_min_days: number; age_max_days: number };
+export function suggererAliment(arrivee: string, date: string, references: ReferenceQuotidienne[]) {
+  const debut = Date.parse(`${arrivee}T00:00:00Z`), fin = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(debut) || !Number.isFinite(fin) || fin < debut || new Date(debut).toISOString().slice(0, 10) !== arrivee || new Date(fin).toISOString().slice(0, 10) !== date) return null;
+  const age = Math.round((fin - debut) / 86400000);
+  const candidats = references.filter(r => Number.isFinite(r.age_min_days) && Number.isFinite(r.age_max_days) && age >= r.age_min_days && age <= r.age_max_days && r.feed_type.trim());
+  if (new Set(candidats.map(r => cleAliment(r.feed_type))).size !== 1) return null;
+  return { age, aliment: candidats[0].feed_type.trim() };
+}
+export function projeterStockQuotidien(stocks: { feed_type: string; stock_kg: number }[], lignes: SaisieQuotidienne[]) {
+  const aliments = new Map<string, { aliment: string; disponible: number; demande: number; restant: number }>();
+  for (const s of stocks) {
+    const cle = cleAliment(s.feed_type);
+    const valeur = aliments.get(cle) || { aliment: s.feed_type, disponible: 0, demande: 0, restant: 0 };
+    valeur.disponible += Number(s.stock_kg); aliments.set(cle, valeur);
+  }
+  let incomplet = false;
+  for (const ligne of lignes) {
+    if (!ligne.sacs.trim()) continue;
+    const sacs = Number(ligne.sacs);
+    if (!Number.isFinite(sacs) || sacs < 0 || !Number.isInteger(sacs) || (sacs > 0 && !ligne.aliment.trim())) { incomplet = true; continue; }
+    if (!sacs) continue;
+    const cle = cleAliment(ligne.aliment);
+    const valeur = aliments.get(cle) || { aliment: ligne.aliment, disponible: 0, demande: 0, restant: 0 };
+    valeur.demande += sacs * 25; aliments.set(cle, valeur);
+  }
+  return { incomplet, aliments: [...aliments.values()].map(a => ({ ...a, restant: a.disponible - a.demande })) };
+}

@@ -5,28 +5,29 @@ import { supabase } from '../supabaseClient';
 import { chargerPages } from './chargerPages';
 import { chargerLotsAvecMouvements } from './volaillesData';
 import ModifierSaisieQuotidienne, { type EditionQuotidienne } from './ModifierSaisieQuotidienne';
-import { cleAliment, preparerSaisie, repartirLotsQuotidiens } from './saisieQuotidienne';
-import type { LotQuotidien, SaisieQuotidienne } from './saisieQuotidienne';
+import { cleAliment, preparerSaisie, repartirLotsQuotidiens, suggererAliment, projeterStockQuotidien } from './saisieQuotidienne';
+import type { LotQuotidien, SaisieQuotidienne, ReferenceQuotidienne } from './saisieQuotidienne';
 
 const aujourdHui = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Martinique' }).format(new Date());
 type Stock = { feed_type: string; stock_kg: number };
 type Consommation = { id: string; lot_id: string | null; direct_sale_lot_id: string | null; date: string; feed_type: string; quantite_kg: number };
 type Mortalite = { id: string; lot_id: string; date: string; nombre?: number; quantity?: number };
-type Donnees = { lots: LotQuotidien[]; stocks: Stock[]; consommations: Consommation[]; mortalites: Mortalite[]; directMortalites: Mortalite[] };
+type Donnees = { references: ReferenceQuotidienne[] | null; lots: LotQuotidien[]; stocks: Stock[]; consommations: Consommation[]; mortalites: Mortalite[]; directMortalites: Mortalite[] };
 async function charger(): Promise<Donnees> {
-  const [sica, directe, stock, consommations, mortalites, directMortalites] = await Promise.all([
+  const [sica, directe, stock, consommations, mortalites, directMortalites, references] = await Promise.all([
     chargerLotsAvecMouvements(true),
     chargerPages((a, b) => supabase.from('direct_sale_lots').select('id,name,arrival_date,remaining_quantity').neq('status', 'termine').order('id').range(a, b)),
     supabase.rpc('calculer_stock_aliment'),
     chargerPages((a, b) => supabase.from('consommations_aliment').select('lot_id,direct_sale_lot_id,date,feed_type,quantite_kg,id').order('id').range(a, b)),
     chargerPages((a, b) => supabase.from('mortalites_volailles').select('lot_id,date,nombre,id').order('id').range(a, b)),
     chargerPages((a, b) => supabase.from('direct_sale_mortalities').select('lot_id,date,quantity,id').order('id').range(a, b)),
+    chargerPages((a, b) => supabase.from('feed_reference').select('id,feed_type,age_min_days,age_max_days').order('id').range(a, b)).catch(() => null),
   ]);
   if (stock.error) throw stock.error;
   return { lots: [
     ...sica.map(lot => ({ id: lot.id, nom: String(lot.nom), arrivee: String(lot.date_arrivee), restants: lot.sujets_restants, source: 'sica' as const })),
     ...directe.map(lot => ({ id: lot.id, nom: lot.name, arrivee: lot.arrival_date, restants: Number(lot.remaining_quantity), source: 'vente_directe' as const })),
-  ].filter(lot => lot.restants >= 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true })), stocks: stock.data || [], consommations, mortalites, directMortalites };
+  ].filter(lot => lot.restants >= 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true })), stocks: stock.data || [], consommations, mortalites, directMortalites, references: references?.map(r => ({ feed_type: r.feed_type, age_min_days: Number(r.age_min_days), age_max_days: Number(r.age_max_days) })) ?? null };
 }
 export default function SaisieQuotidienne() {
   const [date, setDate] = useState(aujourdHui);
@@ -45,9 +46,16 @@ export default function SaisieQuotidienne() {
     finally { setChargement(false); }
   }, []);
   useEffect(() => { void chargerInitial(); }, [chargerInitial]);
+  const suggestionPourLot = (lot: LotQuotidien) => suggererAliment(lot.arrivee, date, donnees?.references || []);
+  const alimentPourLot = (lot: LotQuotidien) => {
+    const saisi = lignes[`${lot.source}:${lot.id}`]?.aliment;
+    if (saisi !== undefined) return saisi;
+    const suggestion = suggestionPourLot(lot);
+    return suggestion ? donnees?.stocks.find(s => cleAliment(s.feed_type) === cleAliment(suggestion.aliment))?.feed_type || suggestion.aliment : '';
+  };
   const modifier = (lot: LotQuotidien, champ: 'aliment' | 'sacs' | 'morts', valeur: string) => {
     const cle = `${lot.source}:${lot.id}`;
-    setLignes(ancien => ({ ...ancien, [cle]: { ...(ancien[cle] || { lot_id: lot.id, source: lot.source, aliment: '', sacs: '', morts: '' }), [champ]: valeur } }));
+    setLignes(ancien => ({ ...ancien, [cle]: { ...(ancien[cle] || { lot_id: lot.id, source: lot.source, aliment: alimentPourLot(lot), sacs: '', morts: '' }), [champ]: valeur } }));
     setMessage(''); setSucces('');
   };
   const enregistrer = async () => {
@@ -84,16 +92,27 @@ export default function SaisieQuotidienne() {
   const lots = [...aRenseigner, ...renseignes];
   const totalSacs = Object.values(lignes).reduce((n, l) => n + (Number(l.sacs) || 0), 0);
   const totalMorts = Object.values(lignes).reduce((n, l) => n + (Number(l.morts) || 0), 0);
+  const projection = projeterStockQuotidien(donnees?.stocks || [], Object.values(lignes));
+  const demandes = projection.aliments.filter(a => a.demande > 0);
+  const manqueStock = demandes.some(a => a.restant < 0);
   const afficherLot = (lot: LotQuotidien) => {
     if (!donnees) return null;
     const cle = `${lot.source}:${lot.id}`;
     const ligne = lignes[cle];
     const consos = donnees.consommations.filter(c => c.date === date && (lot.source === 'sica' ? c.lot_id === lot.id : c.direct_sale_lot_id === lot.id));
     const morts = (lot.source === 'sica' ? donnees.mortalites : donnees.directMortalites).filter(m => m.date === date && m.lot_id === lot.id);
-    const types = donnees.stocks.filter((s, i, tous) => tous.findIndex(t => cleAliment(t.feed_type) === cleAliment(s.feed_type)) === i);
+    const suggestion = suggestionPourLot(lot);
+    const alimentChoisi = alimentPourLot(lot);
+    const tousTypes = [...donnees.stocks.map(s => s.feed_type), ...(donnees.references || []).map(r => r.feed_type), alimentChoisi].filter(Boolean);
+    const types = tousTypes.filter((type, i, tous) => tous.findIndex(t => cleAliment(t) === cleAliment(type)) === i);
+    const bilan = projection.aliments.find(a => cleAliment(a.aliment) === cleAliment(alimentChoisi));
     return <article className="daily-card" key={cle}><h2>Lot {lot.nom}</h2><p>{lot.source === 'sica' ? 'SICA Madras' : 'Vente directe'} · {lot.restants.toLocaleString('fr-FR')} sujets restants</p>
       <fieldset disabled={saving || !!tentative.current}><legend className="sr-only">Saisie du lot {lot.nom}</legend>
-        {consos.length > 0 ? <p className="daily-existing">✓ Aliment déjà saisi : {consos.map(c => `${c.feed_type} (${Number(c.quantite_kg) / 25} sacs)`).join(', ')}. <button type="button" className="daily-edit-button" aria-label={`Modifier l’alimentation du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'aliment', mouvements: consos.map(c => ({ id: c.id, date: c.date, quantite: Number(c.quantite_kg), aliment: c.feed_type })) })}>✎ Modifier</button></p> : <div className="daily-feed"><label>Aliment<select disabled={lot.restants <= 0} value={ligne?.aliment || ''} onChange={e => modifier(lot, 'aliment', e.target.value)}><option value="">Choisir…</option>{types.map(s => <option key={s.feed_type}>{s.feed_type}</option>)}</select></label><label>Sacs de 25 kg<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" placeholder="—" value={ligne?.sacs || ''} onChange={e => modifier(lot, 'sacs', e.target.value)} /></label></div>}
+        {consos.length > 0 ? <p className="daily-existing">✓ Aliment déjà saisi : {consos.map(c => `${c.feed_type} (${Number(c.quantite_kg) / 25} sacs)`).join(', ')}. <button type="button" className="daily-edit-button" aria-label={`Modifier l’alimentation du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'aliment', mouvements: consos.map(c => ({ id: c.id, date: c.date, quantite: Number(c.quantite_kg), aliment: c.feed_type })) })}>✎ Modifier</button></p> : <div className="daily-feed"><label>Aliment<select disabled={lot.restants <= 0} value={alimentChoisi} onChange={e => modifier(lot, 'aliment', e.target.value)}><option value="">Choisir…</option>{types.map(type => <option key={type}>{type}</option>)}</select></label><label>Sacs de 25 kg<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" placeholder="—" value={ligne?.sacs || ''} onChange={e => modifier(lot, 'sacs', e.target.value)} /></label></div>}
+        {!consos.length && lot.restants > 0 && <div className="daily-feed-guidance">
+          <p>{suggestion ? `Aliment proposé à ${suggestion.age} jours : ${suggestion.aliment}. Vous pouvez le changer.` : 'Aucune référence unique pour cet âge : choisissez l’aliment distribué.'}</p>
+          {alimentChoisi && <p className={bilan && bilan.restant < 0 ? 'daily-stock-shortage' : ''}>Après les saisies de tous les lots : <strong>{((bilan?.restant ?? 0) / 25).toLocaleString('fr-FR')} sac(s) de {alimentChoisi}</strong>.</p>}
+        </div>}
         {morts.length > 0 ? <p className="daily-existing">✓ Mortalité déjà saisie : {morts.reduce((n, m) => n + Number(m.nombre ?? m.quantity), 0)}. <button type="button" className="daily-edit-button" aria-label={`Modifier la mortalité du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'mortalite', mouvements: morts.map(m => ({ id: m.id, date: m.date, quantite: Number(m.nombre ?? m.quantity) })) })}>✎ Modifier</button></p> : <label>Mortalités du jour<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" max={lot.restants} placeholder="—" value={ligne?.morts || ''} onChange={e => modifier(lot, 'morts', e.target.value)} /></label>}
       </fieldset></article>;
   };
@@ -104,6 +123,7 @@ export default function SaisieQuotidienne() {
     {message && <div role="alert" className="daily-alert">{message}{!donnees && <button onClick={() => void chargerInitial()}>Réessayer</button>}</div>}
     {succes && <p role="status" className="daily-success">✓ {succes}</p>}
     {chargement ? <p role="status">Chargement des lots et des stocks…</p> : donnees && <>
+      {donnees.references === null && <p className="daily-alert" role="status">Références alimentaires indisponibles. Vous pouvez choisir l’aliment et enregistrer les quantités normalement.</p>}
       <details className="daily-stock"><summary>Stock disponible par aliment</summary>{donnees.stocks.map(s => <p key={s.feed_type}>{s.feed_type} : <strong>{(Number(s.stock_kg) / 25).toLocaleString('fr-FR')} sacs</strong></p>)}</details>
       {lots.length > 0 && <section className="daily-progress" aria-label="Progression de la saisie quotidienne">
         <div><strong>{renseignes.length} lot(s) sur {lots.length} renseigné(s)</strong><span>{aRenseigner.length} à renseigner</span></div>
@@ -114,6 +134,12 @@ export default function SaisieQuotidienne() {
       {lots.length > 0 && !aRenseigner.length && <p className="daily-success">✓ Tous les lots disponibles sont traités pour l’alimentation. Vous pouvez encore ajouter ou modifier une mortalité dans les lots ci-dessous.</p>}
       {renseignes.length > 0 && <details key={date} className="daily-completed"><summary>Lots déjà renseignés <span>{renseignes.length}</span></summary><p>Consultez ou corrigez les données enregistrées, ou ajoutez une mortalité si nécessaire. Les lots sans sujet restant sont également regroupés ici.</p><div className="daily-grid">{renseignes.map(afficherLot)}</div></details>}
       {!lots.length && <p>Aucun lot actif disponible à cette date.</p>}
+      {demandes.length > 0 && <section className="daily-stock-preview" aria-label="Stock après les saisies">
+        <h2>Stock après enregistrement</h2><p>Stock disponible actuellement moins les quantités en cours de saisie, tous lots confondus. Les consommations déjà enregistrées sont déjà déduites du stock.</p>
+        {manqueStock && <p className="daily-alert" role="alert">Stock insuffisant pour les quantités saisies. Réduisez les quantités ou vérifiez les entrées de stock avant d’enregistrer.</p>}
+        {demandes.map(a => <div key={cleAliment(a.aliment)} className={a.restant < 0 ? 'daily-stock-shortage' : ''}><strong>{a.aliment}</strong><span>{(a.disponible / 25).toLocaleString('fr-FR')} sacs disponibles − {(a.demande / 25).toLocaleString('fr-FR')} à enregistrer</span><b>Restant : {(a.restant / 25).toLocaleString('fr-FR')} sac(s)</b></div>)}
+      </section>}
+      {projection.incomplet && <p className="daily-alert" role="status">La prévision exclut les quantités invalides ou sans aliment. Complétez ces champs pour connaître le stock restant.</p>}
       <div className="daily-save"><span><strong>{totalSacs} sacs</strong> · {totalMorts} mortalité(s)</span><button type="button" onClick={() => void enregistrer()} disabled={saving || !lots.length || (totalSacs <= 0 && totalMorts <= 0)}>{saving ? 'Enregistrement…' : tentative.current ? '↻ Réessayer l’enregistrement' : '✓ Enregistrer la journée'}</button></div>
     </>}
     {edition && donnees && <ModifierSaisieQuotidienne edition={edition} aliments={donnees.stocks.map(s => s.feed_type)} onClose={() => setEdition(null)} onSaved={async () => {

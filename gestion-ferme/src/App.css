@@ -8719,3 +8719,12 @@
 .daily-completed { margin: 20px 0; padding: 16px; border: 1px solid #dce6e1; border-radius: 12px; background: #f8faf9; }
 .daily-completed > summary { cursor: pointer; min-height: 44px; color: #315e49; font-weight: 600; }
 .daily-completed summary span { margin-left: 8px; }
+
+.daily-feed-guidance p { margin: 0 0 8px; color: #607684; font-size: 13px; line-height: 1.5; }
+.daily-stock-preview { margin: 20px 0; padding: 16px; border: 1px solid #dce6e1; border-radius: 12px; background: #fff; }
+.daily-stock-preview h2 { margin: 0; font-size: 20px; }
+.daily-stock-preview > p { color: #607684; font-size: 13px; }
+.daily-stock-preview > div { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; padding: 12px 0; border-top: 1px solid #e4ece7; }
+.daily-stock-preview > div > strong { flex: 1 1 120px; }
+.daily-stock-preview > div > span { flex: 2 1 240px; }
+.daily-stock-shortage, .daily-feed-guidance .daily-stock-shortage { color: #b52b30; }

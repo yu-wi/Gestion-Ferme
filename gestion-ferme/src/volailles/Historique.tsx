@@ -449,7 +449,7 @@ export default function Historique() {
             <thead>
               <tr>
                 <th onClick={() => setSortOrder((ordre) => ordre === "asc" ? "desc" : "asc")}>N° lot {sortOrder === "asc" ? "↑" : "↓"}</th>
-                <th>Arrivée</th><th>Bâtiment</th><th>Restants</th><th>Livraisons</th>
+                <th>Arrivée</th><th>Bâtiment</th><th>Restants</th>
                 <th>Quantité livrée</th><th>Quantité retenue</th><th>Poids total</th>
                 <th>Autoconsommation</th><th>Résultat net</th><th>Actions</th>
               </tr>
@@ -461,7 +461,6 @@ export default function Historique() {
                   <td>{formatDate(lot.date_arrivee)}</td>
                   <td>{lot.batiment}</td>
                   <td>{formatNombre(lot.sujets_restants)}</td>
-                  <td>{lot.livraisons.length ? lot.livraisons.map((livraison) => formatDate(livraison.date)).join(" → ") : "—"}</td>
                   <td>{formatNombre(lot.quantiteLivree)}</td>
                   <td>{formatNombre(lot.quantite_retenue || 0)}</td>
                   <td>{formatPoids(lot.total_poids_livre)}</td>
@@ -476,10 +475,10 @@ export default function Historique() {
                   </td>
                 </tr>
               ))}
-              {!lotsAffiches.length && <tr><td colSpan={11} className="history-empty">Aucun lot archivé à afficher.</td></tr>}
+              {!lotsAffiches.length && <tr><td colSpan={10} className="history-empty">Aucun lot archivé à afficher.</td></tr>}
             </tbody>
             {!!lotsAffiches.length && (
-              <tfoot><tr><td>Totaux</td><td>—</td><td>—</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + lot.sujets_restants, 0))}</td><td>—</td><td>{formatNombre(totalLivres)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.quantite_retenue || 0), 0))}</td><td>{formatPoids(totalPoids)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.autoconsommation || 0), 0))}</td><td>{formatMontant(totalResultat)}</td><td>—</td></tr></tfoot>
+              <tfoot><tr><td>Totaux</td><td>—</td><td>—</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + lot.sujets_restants, 0))}</td><td>{formatNombre(totalLivres)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.quantite_retenue || 0), 0))}</td><td>{formatPoids(totalPoids)}</td><td>{formatNombre(lotsAffiches.reduce((total, lot) => total + Number(lot.autoconsommation || 0), 0))}</td><td>{formatMontant(totalResultat)}</td><td>—</td></tr></tfoot>
             )}
           </table>
         </div>

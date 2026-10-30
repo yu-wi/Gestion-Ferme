@@ -53,7 +53,7 @@ export default function SaisieQuotidienne() {
     const suggestion = suggestionPourLot(lot);
     return suggestion ? donnees?.stocks.find(s => cleAliment(s.feed_type) === cleAliment(suggestion.aliment))?.feed_type || suggestion.aliment : '';
   };
-  const modifier = (lot: LotQuotidien, champ: 'aliment' | 'sacs' | 'morts', valeur: string) => {
+  const modifier = (lot: LotQuotidien, champ: 'aliment' | 'sacs' | 'morts' | 'secondAliment' | 'secondSacs', valeur: string) => {
     const cle = `${lot.source}:${lot.id}`;
     setLignes(ancien => ({ ...ancien, [cle]: { ...(ancien[cle] || { lot_id: lot.id, source: lot.source, aliment: alimentPourLot(lot), sacs: '', morts: '' }), [champ]: valeur } }));
     setMessage(''); setSucces('');
@@ -74,10 +74,10 @@ export default function SaisieQuotidienne() {
       }
       // Rejouer exactement la requete envoyee si sa reponse s'est perdue.
       const envoi = tentative.current;
-      const { error } = await supabase.rpc('enregistrer_saisie_quotidienne', { p_id: envoi.id, p_date: envoi.date, p_lignes: envoi.lignes });
+      const { error } = await supabase.rpc(envoi.lignes.some(l => (l.second_quantite_kg || 0) > 0) ? 'enregistrer_saisie_quotidienne_v2' : 'enregistrer_saisie_quotidienne', { p_id: envoi.id, p_date: envoi.date, p_lignes: envoi.lignes });
       if (error) {
         if (error.code) tentative.current = null;
-        if (error.code === 'PGRST202' || error.code === '42883') throw new Error('La saisie groupée doit être activée : exécutez supabase/saisie-quotidienne.sql dans Supabase SQL Editor.');
+        if (error.code === 'PGRST202' || error.code === '42883') throw new Error('La saisie groupée à deux aliments doit être activée : réexécutez supabase/saisie-quotidienne.sql dans Supabase SQL Editor.');
         throw new Error(error.message || 'Enregistrement impossible. Réessayez avec les mêmes valeurs.');
       }
       setLignes({}); tentative.current = null;
@@ -90,7 +90,7 @@ export default function SaisieQuotidienne() {
   };
   const { aRenseigner, renseignes } = donnees ? repartirLotsQuotidiens(donnees.lots, date, donnees.consommations, donnees.mortalites, donnees.directMortalites) : { aRenseigner: [], renseignes: [] };
   const lots = [...aRenseigner, ...renseignes];
-  const totalSacs = Object.values(lignes).reduce((n, l) => n + (Number(l.sacs) || 0), 0);
+  const totalSacs = Object.values(lignes).reduce((n, l) => n + (Number(l.sacs) || 0) + (Number(l.secondSacs) || 0), 0);
   const totalMorts = Object.values(lignes).reduce((n, l) => n + (Number(l.morts) || 0), 0);
   const projection = projeterStockQuotidien(donnees?.stocks || [], Object.values(lignes));
   const demandes = projection.aliments.filter(a => a.demande > 0);
@@ -109,6 +109,14 @@ export default function SaisieQuotidienne() {
     return <article className="daily-card" key={cle}><h2>Lot {lot.nom}</h2><p>{lot.source === 'sica' ? 'SICA Madras' : 'Vente directe'} · {lot.restants.toLocaleString('fr-FR')} sujets restants</p>
       <fieldset disabled={saving || !!tentative.current}><legend className="sr-only">Saisie du lot {lot.nom}</legend>
         {consos.length > 0 ? <p className="daily-existing">✓ Aliment déjà saisi : {consos.map(c => `${c.feed_type} (${Number(c.quantite_kg) / 25} sacs)`).join(', ')}. <button type="button" className="daily-edit-button" aria-label={`Modifier l’alimentation du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'aliment', mouvements: consos.map(c => ({ id: c.id, date: c.date, quantite: Number(c.quantite_kg), aliment: c.feed_type })) })}>✎ Modifier</button></p> : <div className="daily-feed"><label>Aliment<select disabled={lot.restants <= 0} value={alimentChoisi} onChange={e => modifier(lot, 'aliment', e.target.value)}><option value="">Choisir…</option>{types.map(type => <option key={type}>{type}</option>)}</select></label><label>Sacs de 25 kg<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" placeholder="—" value={ligne?.sacs || ''} onChange={e => modifier(lot, 'sacs', e.target.value)} /></label></div>}
+        {!consos.length && lot.restants > 0 && <div className="daily-second-feed">
+          {ligne?.secondAliment !== undefined ? <>
+            <div className="daily-feed"><label>Deuxième aliment<select aria-label={`Deuxième aliment du lot ${lot.nom}`} value={ligne.secondAliment} onChange={e => modifier(lot, 'secondAliment', e.target.value)}><option value="">Choisir…</option>{types.map(type => <option key={type} disabled={cleAliment(type) === cleAliment(alimentChoisi)}>{type}</option>)}</select></label>
+            <label>Sacs du deuxième aliment<input aria-label={`Sacs du deuxième aliment du lot ${lot.nom}`} type="number" inputMode="numeric" min="1" step="1" value={ligne.secondSacs || ''} onChange={e => modifier(lot, 'secondSacs', e.target.value)} /></label></div>
+            {ligne.secondAliment && <p>Après toutes les saisies : <strong>{((projection.aliments.find(a => cleAliment(a.aliment) === cleAliment(ligne.secondAliment || ''))?.restant ?? 0) / 25).toLocaleString('fr-FR')} sac(s) de {ligne.secondAliment}</strong>.</p>}
+            <button type="button" onClick={() => setLignes(avant => ({ ...avant, [cle]: { ...avant[cle], secondAliment: undefined, secondSacs: undefined } }))}>Retirer le deuxième aliment</button>
+          </> : <button type="button" onClick={() => modifier(lot, 'secondAliment', '')}>＋ Ajouter un deuxième aliment</button>}
+        </div>}
         {!consos.length && lot.restants > 0 && <div className="daily-feed-guidance">
           <p>{suggestion ? `Aliment proposé à ${suggestion.age} jours : ${suggestion.aliment}. Vous pouvez le changer.` : 'Aucune référence unique pour cet âge : choisissez l’aliment distribué.'}</p>
           {alimentChoisi && <p className={bilan && bilan.restant < 0 ? 'daily-stock-shortage' : ''}>Après les saisies de tous les lots : <strong>{((bilan?.restant ?? 0) / 25).toLocaleString('fr-FR')} sac(s) de {alimentChoisi}</strong>.</p>}

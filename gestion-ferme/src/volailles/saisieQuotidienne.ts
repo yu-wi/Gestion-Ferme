@@ -1,11 +1,11 @@
 export type LotQuotidien = { id: string; source: 'sica' | 'vente_directe'; nom: string; arrivee: string; restants: number };
-export type SaisieQuotidienne = { lot_id: string; source: LotQuotidien['source']; aliment: string; sacs: string; morts: string };
+export type SaisieQuotidienne = { lot_id: string; source: LotQuotidien['source']; aliment: string; sacs: string; morts: string; secondAliment?: string; secondSacs?: string };
 export const cleAliment = (texte: string) => texte.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export function preparerSaisie(date: string, aujourdHui: string, lignes: SaisieQuotidienne[], lots: LotQuotidien[], stocks: { feed_type: string; stock_kg: number }[]) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date || date > aujourdHui) throw new Error('Choisissez une date valide, au plus tard aujourd’hui.');
   const demandes = new Map<string, number>();
   const cles = new Set<string>();
-  const resultat = lignes.filter(ligne => ligne.sacs.trim() !== '' || ligne.morts.trim() !== '').map(ligne => {
+  const resultat = lignes.filter(ligne => ligne.sacs.trim() !== '' || ligne.morts.trim() !== '' || !!ligne.secondAliment?.trim() || !!ligne.secondSacs?.trim()).map(ligne => {
     const cle = `${ligne.source}:${ligne.lot_id}`;
     const lot = lots.find(item => `${item.source}:${item.id}` === cle);
     if (!lot || lot.arrivee > date) throw new Error('La date doit être postérieure ou égale à l’arrivée de chaque lot.');
@@ -16,9 +16,18 @@ export function preparerSaisie(date: string, aujourdHui: string, lignes: SaisieQ
     if (!Number.isFinite(sacs) || sacs < 0 || !Number.isInteger(sacs) || !Number.isSafeInteger(morts) || morts < 0) throw new Error(`Lot ${lot.nom} : indiquez des nombres entiers positifs ou nuls.`);
     if (morts > lot.restants) throw new Error(`Lot ${lot.nom} : seuls ${lot.restants} sujets restent disponibles.`);
     if (sacs && !ligne.aliment.trim()) throw new Error(`Lot ${lot.nom} : choisissez l’aliment.`);
-    const aliment = cleAliment(ligne.aliment);
-    if (sacs > 0) demandes.set(aliment, (demandes.get(aliment) || 0) + sacs * 25);
-    return { lot_id: ligne.lot_id, source: ligne.source, aliment: ligne.aliment.trim(), quantite_kg: sacs * 25, morts };
+    const secondAliment = ligne.secondAliment?.trim() || '';
+    const secondSaisi = !!secondAliment || !!ligne.secondSacs?.trim();
+    const secondSacs = Number(ligne.secondSacs || 0);
+    if (secondSaisi && (!secondAliment || !Number.isInteger(secondSacs) || !Number.isFinite(secondSacs) || secondSacs <= 0)) throw new Error(`Lot ${lot.nom} : complétez le deuxième aliment et sa quantité positive en sacs entiers.`);
+    if (secondSaisi && (!ligne.aliment.trim() || sacs <= 0)) throw new Error(`Lot ${lot.nom} : renseignez d’abord le premier aliment et sa quantité.`);
+    if (secondSaisi && cleAliment(secondAliment) === cleAliment(ligne.aliment)) throw new Error(`Lot ${lot.nom} : choisissez deux aliments différents.`);
+    for (const [type, nombre] of [[ligne.aliment, sacs], [secondAliment, secondSaisi ? secondSacs : 0]] as const) {
+      if (nombre > 0) demandes.set(cleAliment(type), (demandes.get(cleAliment(type)) || 0) + nombre * 25);
+    }
+    return { lot_id: ligne.lot_id, source: ligne.source, aliment: ligne.aliment.trim(), quantite_kg: sacs * 25, morts,
+      ...(secondSaisi ? { second_aliment: secondAliment, second_quantite_kg: secondSacs * 25 } : {}) };
+
   }).filter(ligne => ligne.quantite_kg > 0 || ligne.morts > 0);
   for (const [aliment, kg] of demandes) {
     const disponible = stocks.filter(stock => cleAliment(stock.feed_type) === aliment).reduce((somme, stock) => somme + Number(stock.stock_kg), 0);
@@ -65,13 +74,18 @@ export function projeterStockQuotidien(stocks: { feed_type: string; stock_kg: nu
   }
   let incomplet = false;
   for (const ligne of lignes) {
-    if (!ligne.sacs.trim()) continue;
-    const sacs = Number(ligne.sacs);
-    if (!Number.isFinite(sacs) || sacs < 0 || !Number.isInteger(sacs) || (sacs > 0 && !ligne.aliment.trim())) { incomplet = true; continue; }
-    if (!sacs) continue;
-    const cle = cleAliment(ligne.aliment);
-    const valeur = aliments.get(cle) || { aliment: ligne.aliment, disponible: 0, demande: 0, restant: 0 };
-    valeur.demande += sacs * 25; aliments.set(cle, valeur);
+    if (ligne.secondAliment?.trim() && (!ligne.secondSacs?.trim() || Number(ligne.secondSacs) <= 0)) incomplet = true;
+    if (ligne.secondAliment?.trim() && cleAliment(ligne.secondAliment) === cleAliment(ligne.aliment)) incomplet = true;
+    for (const demande of [{ aliment: ligne.aliment, sacs: ligne.sacs }, { aliment: ligne.secondAliment || '', sacs: ligne.secondSacs || '' }]) {
+      if (!demande.sacs.trim()) continue;
+      const sacs = Number(demande.sacs);
+      if (!Number.isFinite(sacs) || sacs < 0 || !Number.isInteger(sacs) || (sacs > 0 && !demande.aliment.trim())) { incomplet = true; continue; }
+      if (!sacs) continue;
+      const cle = cleAliment(demande.aliment);
+      const valeur = aliments.get(cle) || { aliment: demande.aliment, disponible: 0, demande: 0, restant: 0 };
+      valeur.demande += sacs * 25; aliments.set(cle, valeur);
+    }
   }
+
   return { incomplet, aliments: [...aliments.values()].map(a => ({ ...a, restant: a.disponible - a.demande })) };
 }

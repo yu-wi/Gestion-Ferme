@@ -81,3 +81,16 @@ test('un aliment absent du stock ne dispose pas de sacs gratuits et les quantite
  assert.equal(projeterStockQuotidien([],[ligne()]).aliments[0].restant,-50);
  for(const sacs of ['-1','1.5','Infinity','abc'])assert.equal(projeterStockQuotidien([],[{...ligne(),sacs}]).incomplet,true);
 });
+
+test('deux aliments restent une seule ligne de lot et une seule mortalite',()=>{
+ const resultat=preparerSaisie('2026-10-28','2026-10-28',[{...ligne(),secondAliment:'Finition',secondSacs:'1'}],lots,[...stocks,{feed_type:'Finition',stock_kg:25}]);
+ assert.equal(resultat.length,1);assert.equal(resultat[0].quantite_kg,50);assert.equal(resultat[0].second_quantite_kg,25);assert.equal(resultat[0].morts,1);
+});
+test('le deuxieme aliment doit etre complet, distinct et accompagne du premier',()=>{
+ for(const modification of [{secondAliment:'Finition',secondSacs:''},{secondAliment:'',secondSacs:'1'},{secondAliment:'DÉMARRAGE',secondSacs:'1'},{secondAliment:'Finition',secondSacs:'0'},{secondAliment:'Finition',secondSacs:'1.5'},{secondAliment:'Finition',secondSacs:'1',sacs:''}])assert.throws(()=>preparerSaisie('2026-10-28','2026-10-28',[{...ligne(),...modification}],lots,[...stocks,{feed_type:'Finition',stock_kg:100}]));
+});
+test('le stock du deuxieme aliment est controle et cumule avec les autres lots',()=>{
+ assert.throws(()=>preparerSaisie('2026-10-28','2026-10-28',[{...ligne(),secondAliment:'Finition',secondSacs:'2'}, {...ligne('b','vente_directe'),aliment:'Finition',sacs:'1'}],lots,[...stocks,{feed_type:'Finition',stock_kg:50}]),/Stock insuffisant/);
+ const p=projeterStockQuotidien([{feed_type:'demarrage',stock_kg:100},{feed_type:'finition',stock_kg:50}],[{...ligne(),secondAliment:'Finition',secondSacs:'2'},{...ligne('b','vente_directe'),aliment:'Finition',sacs:'1'}]);
+ assert.equal(p.aliments.find(a=>a.aliment==='finition').restant,-25);
+});

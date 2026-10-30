@@ -15,7 +15,7 @@ create policy own_daily_batches on public.daily_entry_batches for select to auth
 drop policy if exists insert_daily_batches on public.daily_entry_batches;
 create policy insert_daily_batches on public.daily_entry_batches for insert to authenticated with check (user_id = auth.uid());
 
-create or replace function public.enregistrer_saisie_quotidienne(p_id uuid, p_date date, p_lignes jsonb)
+create or replace function public.enregistrer_saisie_quotidienne_v2(p_id uuid, p_date date, p_lignes jsonb)
 returns void language plpgsql security invoker set search_path = public as $$
 declare
   ligne jsonb;
@@ -23,6 +23,9 @@ declare
   source text;
   aliment text;
   kg numeric;
+  second_kg numeric;
+  second_aliment text;
+  mouvement jsonb;
   morts integer;
   disponible numeric;
   arrivee date;
@@ -56,6 +59,14 @@ begin
     source := ligne->>'source';
     aliment := trim(coalesce(ligne->>'aliment', ''));
     kg := (ligne->>'quantite_kg')::numeric;
+    second_kg := coalesce((ligne->>'second_quantite_kg')::numeric, 0);
+    second_aliment := trim(coalesce(ligne->>'second_aliment', ''));
+    if second_kg::text in ('NaN', 'Infinity', '-Infinity') or second_kg < 0 or mod(second_kg,25) <> 0
+      or (second_kg > 0 and (second_aliment = '' or kg is null or kg <= 0))
+      or (second_aliment <> '' and second_kg = 0)
+      or (second_kg > 0 and translate(lower(second_aliment), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc') = translate(lower(aliment), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc')) then
+      raise exception 'Deuxieme aliment invalide : choisir deux aliments differents et des quantites positives en sacs entiers.';
+    end if;
     if (ligne->>'morts')::numeric <> trunc((ligne->>'morts')::numeric) then raise exception 'Mortalite invalide.'; end if;
     morts := (ligne->>'morts')::integer;
     if kg is null or kg::text in ('NaN', 'Infinity', '-Infinity') or kg < 0 or mod(kg, 25) <> 0 or morts is null or morts < 0 or (kg = 0 and morts = 0) or (kg > 0 and aliment = '') then
@@ -83,13 +94,15 @@ begin
       or (source = 'vente_directe' and exists(select 1 from public.direct_sale_mortalities where lot_id = lot and date = p_date))) then
       raise exception 'Une mortalite existe deja ce jour pour ce lot. Utilisez son formulaire pour la modifier.';
     end if;
-    if kg > 0 then
+    for mouvement in select value from jsonb_array_elements(jsonb_build_array(
+      jsonb_build_object('aliment',aliment,'kg',kg), jsonb_build_object('aliment',second_aliment,'kg',second_kg))) loop
+      if (mouvement->>'kg')::numeric <= 0 then continue; end if;
       select coalesce(sum(s.stock_kg), 0) into disponible from public.calculer_stock_aliment() s
-      where translate(lower(trim(s.feed_type)), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc') = translate(lower(aliment), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc');
-      if kg > disponible then raise exception 'Stock insuffisant en %. Aucune donnee enregistree.', aliment; end if;
+      where translate(lower(trim(s.feed_type)), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc') = translate(lower(mouvement->>'aliment'), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc');
+      if (mouvement->>'kg')::numeric > disponible then raise exception 'Stock insuffisant en %. Aucune donnee enregistree.', mouvement->>'aliment'; end if;
       insert into public.consommations_aliment(lot_id, direct_sale_lot_id, source_type, date, feed_type, quantite_kg)
-      values(case when source = 'sica' then lot end, case when source = 'vente_directe' then lot end, source, p_date, aliment, kg);
-    end if;
+      values(case when source = 'sica' then lot end, case when source = 'vente_directe' then lot end, source, p_date, mouvement->>'aliment', (mouvement->>'kg')::numeric);
+    end loop;
     if morts > 0 then
       if source = 'sica' then
         insert into public.mortalites_volailles(lot_id, date, nombre) values(lot, p_date, morts);
@@ -108,6 +121,13 @@ begin
   insert into public.daily_entry_batches(id, user_id, payload) values(p_id, auth.uid(), charge);
 end;
 $$;
+-- Conserver les appels des versions precedentes de l'application.
+create or replace function public.enregistrer_saisie_quotidienne(p_id uuid, p_date date, p_lignes jsonb)
+returns void language sql security invoker set search_path = public as $$
+  select public.enregistrer_saisie_quotidienne_v2(p_id, p_date, p_lignes);
+$$;
+revoke all on function public.enregistrer_saisie_quotidienne_v2(uuid, date, jsonb) from public, anon;
+grant execute on function public.enregistrer_saisie_quotidienne_v2(uuid, date, jsonb) to authenticated;
 revoke all on function public.enregistrer_saisie_quotidienne(uuid, date, jsonb) from public, anon;
 grant execute on function public.enregistrer_saisie_quotidienne(uuid, date, jsonb) to authenticated;
 notify pgrst, 'reload schema';

@@ -8728,3 +8728,7 @@
 .daily-stock-preview > div > strong { flex: 1 1 120px; }
 .daily-stock-preview > div > span { flex: 2 1 240px; }
 .daily-stock-shortage, .daily-feed-guidance .daily-stock-shortage { color: #b52b30; }
+
+.daily-second-feed { display: grid; gap: 10px; padding: 12px 0; border-top: 1px solid #e4ece7; }
+.daily-second-feed button { min-height: 44px; padding: 8px 12px; border: 1px solid #bddbc8; border-radius: 8px; background: #f3f9f5; color: #08783d; text-align: left; }
+.daily-second-feed p { margin: 0; color: #607684; font-size: 13px; }

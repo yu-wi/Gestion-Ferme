@@ -107,11 +107,10 @@ La rubrique **Volailles → Saisie quotidienne** (`/volailles/saisie-quotidienne
 également accessible depuis le résumé, rassemble les lots SICA actifs et les lots
 vente directe non terminés ayant encore des sujets. La date utilise le fuseau
 Martinique. Les sacs sont entiers de 25 kg ; les champs vides ou à zéro ne créent
-pas de mouvement. Chaque lot peut recevoir un aliment et une mortalité par saisie.
-Les journées de transition avec plusieurs aliments restent accessibles dans le
-formulaire individuel d’alimentation.
+pas de mouvement. Chaque lot peut recevoir deux aliments distincts et une mortalité par saisie.
+Le deuxième aliment est facultatif ; chaque quantité est exprimée en sacs entiers de 25 kg.
 
-**Activation préalable** : exécuter [supabase/saisie-quotidienne.sql](supabase/saisie-quotidienne.sql)
+**Activation préalable (à réexécuter pour ajouter la prise en charge de deux aliments)** : exécuter [supabase/saisie-quotidienne.sql](supabase/saisie-quotidienne.sql)
 dans Supabase SQL Editor après les migrations alimentation et vente directe
 (colonnes `source_type` et `direct_sale_lot_id` sur `consommations_aliment`).
 Le script est réexécutable et ne modifie pas les données existantes. Sans cette
@@ -135,3 +134,9 @@ journal lorsque ses triggers sont activés.
 Vérification : `node --test tests/*.test.mjs` et `npm run build`.
 Le test transactionnel PostgreSQL local est fourni dans
 `tests/saisie-quotidienne-database.mjs` (instructions en tête du fichier).
+
+La saisie à deux aliments utilise `enregistrer_saisie_quotidienne_v2`. Si cette
+fonction n’est pas encore installée, le formulaire signale la mise à jour SQL
+nécessaire et n’enregistre aucune partie de la saisie. Les appels à un seul aliment
+restent compatibles avec la fonction précédente. Les deux consommations sont
+créées dans la même transaction et les mortalités du lot sont comptées une fois.

@@ -6,6 +6,9 @@ import FicheClotureImpression from "./FicheClotureImpression";
 import { creerFicheCloture, type ConsoFiche, type ReferenceFiche } from "./ficheCloture";
 import { ActionButton, ActionLink } from "../components/ActionButton";
 import StatutCharge from "./StatutCharge";
+import FinaliserLotModal from "./FinaliserLotModal";
+import { enregistrerFinalisationLot } from "./finalisationLotService";
+import type { SaisieFinalisation, VerificationFinalisation } from "./finalisationLot";
 import ChargeValider from "./ChargeValider";
 import { categoriesChargesProposees, calculerChargesLivraisons, lireTarifsCharges, tarifsChargesParDefaut, type CategorieAutomatique } from "./tarifsCharges";
 import toast from "react-hot-toast";
@@ -64,6 +67,8 @@ export default function AnalyseLot() {
   const [exporting, setExporting] = useState(false);
   const [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [formulaire, setFormulaire] = useState<VerificationFinalisation | null>(null);
+  const [erreurSaisie, setErreurSaisie] = useState("");
   const saveLock = useRef(false);
 
   useEffect(() => {
@@ -177,6 +182,24 @@ export default function AnalyseLot() {
     } finally { saveLock.current = false; setSaving(false); }
   };
 
+  const ouvrirAction = (tache: VerificationFinalisation) => {
+    if (saving) return;
+    setErreurSaisie('');
+    if (tache.action === 'tarifs') { document.getElementById('tarifs-du-lot')?.scrollIntoView({ block: 'start' }); document.querySelector<HTMLButtonElement>('#tarifs-du-lot button')?.focus({preventScroll:true}); }
+    else if (tache.action === 'validation') { document.getElementById(`validation-${tache.categorie}`)?.scrollIntoView({block:'start'}); document.querySelector<HTMLButtonElement>(`#validation-${tache.categorie} button`)?.focus({preventScroll:true}); }
+    else setFormulaire(tache);
+  };
+  const sauvegarderFinalisation = async (saisie: SaisieFinalisation) => {
+    if (!lot || !formulaire || saveLock.current) return;
+    saveLock.current = true; setSaving(true); setErreurSaisie('');
+    try {
+      if (await enregistrerFinalisationLot(lot.id, formulaire, saisie)) {
+        setFormulaire(null); setReload(v=>v+1); toast.success('Donnée enregistrée. Les vérifications du lot sont actualisées.', { id: `finalisation-${lot.id}` });
+      }
+    } catch (error) { setErreurSaisie(error instanceof Error ? error.message : 'Enregistrement impossible. Réessayez.'); }
+    finally { saveLock.current = false; setSaving(false); }
+  };
+
   const exporterExcel = async () => {
     if (!donnees || exporting) return;
     setExporting(true);
@@ -198,7 +221,7 @@ export default function AnalyseLot() {
           <p>Arrivé le {formatDate(lot.date_arrivee)} · Bâtiment {lot.batiment} · Période de {lot.age || 0} jours</p>
           <label className="lot-analysis-selector">
             Lot analysé
-            <select disabled={saving} value={lot.id} onChange={(event) => navigate(`/volailles/sica/historique/${event.target.value}/analyse`)}>
+            <select disabled={saving || !!formulaire} value={lot.id} onChange={(event) => navigate(`/volailles/sica/historique/${event.target.value}/analyse`)}>
               {lotsDisponibles.map((item) => <option key={item.id} value={item.id}>Lot {item.nom} · {item.batiment}</option>)}
             </select>
           </label>
@@ -213,13 +236,16 @@ export default function AnalyseLot() {
         <HistoryMetric tone="red" icon="✝" label="Taux de mortalité" value={`${formatNombre(donnees.tauxMortalite, 1)} %`} note={`${formatNombre(lot.nb_morts || 0)} sujets perdus`} />
       </section>
 
-      <section className="history-panel closure-export-info"><strong>Fiche de clôture {donnees.fiche.statut.toLowerCase()}</strong>
-        <p>{donnees.fiche.raisons.length ? donnees.fiche.raisons.join(" · ") : "Charges renseignées et tarifs figés."}</p>
-        <details className="lot-export-help"><summary>Comment exporter la fiche ?</summary><p>Le bouton PDF ouvre la fenêtre d’impression : choisissez « Enregistrer au format PDF ». Les deux formats reprennent les mêmes données.</p></details>
-        {donnees.aValider.length > 0 && <a className="lot-validation-link" href="#detail-economique">Valider les {donnees.aValider.length} charges proposées ↓</a>}
+      <section className="history-panel lot-finalisation" aria-labelledby="finaliser-titre">
+        <div className="lot-finalisation-heading"><div><h2 id="finaliser-titre">Finaliser ce lot</h2><p>Vérifications de la fiche de clôture du lot archivé.</p></div><strong className={`lot-finalisation-status ${donnees.fiche.raisons.length ? 'a-completer' : 'pret'}`} role="status">{donnees.fiche.raisons.length ? 'À compléter' : 'Prêt à clôturer'}</strong></div>
+        <p>{donnees.fiche.verifications.filter(v=>v.fait).length} / {donnees.fiche.verifications.length} vérifications terminées</p>
+        {donnees.fiche.raisons.length ? <ul className="lot-finalisation-tasks">{donnees.fiche.verifications.filter(v=>!v.fait).map(tache=><li key={tache.id}><span>{tache.raison}</span><button type="button" disabled={saving} onClick={()=>ouvrirAction(tache)}>{tache.action==='validation'?'Valider le calcul':tache.action==='tarifs'?'Figer les tarifs':tache.action==='effectifs'?'Vérifier les effectifs':'Renseigner'} →</button></li>)}</ul> : <p className="history-completion-done">✓ Les charges, les recettes et les effectifs sont renseignés. La fiche complète est prête à être exportée.</p>}
+        <details><summary>Voir les points vérifiés</summary><ul>{donnees.fiche.verifications.filter(v=>v.fait).map(v=><li key={v.id}>✓ {v.libelle}</li>)}</ul></details>
+        <div className="lot-finalisation-exports"><ActionButton icon="print" compact={false} label={donnees.fiche.raisons.length?'Exporter le PDF provisoire':'Exporter la fiche PDF'} disabled={saving} onClick={()=>window.print()}/><ActionButton icon="download" compact={false} label={exporting?'Création…':donnees.fiche.raisons.length?'Exporter l’Excel provisoire':'Exporter la fiche Excel'} disabled={saving||exporting} onClick={exporterExcel}/></div>
+        <details className="lot-export-help"><summary>Comment exporter la fiche ?</summary><p>Le bouton PDF ouvre la fenêtre d’impression : choisissez « Enregistrer au format PDF ». Les exports restent provisoires tant que des vérifications manquent.</p></details>
       </section>
       <FicheClotureImpression fiche={donnees.fiche} />
-      <section className="history-panel lot-tariffs-status">
+      <section id="tarifs-du-lot" className="history-panel lot-tariffs-status">
         {tarifsFiges ? <p>✓ Tarifs figés le {new Date(tarifsFiges.date).toLocaleDateString("fr-FR")}{tarifsFiges.origine === "historique" ? " à partir des prix disponibles lors du gel" : " lors de l’archivage"}. Les changements de tarifs généraux ne modifient plus ce lot.</p>
           : <><p>Les tarifs de ce lot ancien ne sont pas encore figés. Le gel conservera les prix actuels ; il ne reconstitue pas les prix d’origine.</p><button type="button" disabled={saving} onClick={figer}>Figer les tarifs actuels</button></>}
       </section>
@@ -241,12 +267,12 @@ export default function AnalyseLot() {
                 const detail = type === "ramassage"
                   ? `${formatNombre(donnees.quantiteLivree)} sujets × ${formatNombre(Number(tarifs.poultry_collection_price_ht), 4)} € HT + TVA ${formatNombre(Number(tarifs.poultry_collection_vat), 1)} %`
                   : `${lot.livraisons.length} livraison(s) × ${formatMontant(Number(tarifs.poultry_transport_price_ht))} HT + TVA ${formatNombre(Number(tarifs.poultry_transport_vat), 1)} %`;
-                return enregistrees.length ? enregistrees.map((charge) => <ChargeValider key={`${lot.id}-${charge.id}`} label={chargeLabels[type]}
+                return <div key={type} id={`validation-${type}`} className="lot-finalisation-validation">{enregistrees.length ? enregistrees.map((charge) => <ChargeValider key={`${lot.id}-${charge.id}`} label={chargeLabels[type]}
                   montant={charge.montant} enregistree detail={detail} disabled={saving}
                   onSave={(montant) => enregistrerCharge(type, montant, charge.id)} />)
                   : lot.livraisons.length > 0 ? <ChargeValider key={`${lot.id}-${type}`} label={chargeLabels[type]}
                     montant={donnees.propositions[type]} enregistree={false} detail={detail} disabled={saving}
-                    onSave={(montant) => enregistrerCharge(type, montant)} /> : null;
+                    onSave={(montant) => enregistrerCharge(type, montant)} /> : null}</div>;
               })}
               <strong>{donnees.aValider.length ? "Total estimé" : "Total charges"} <b>{formatMontant(donnees.totalCharges)}</b></strong></div>
           </div>
@@ -271,6 +297,7 @@ export default function AnalyseLot() {
         <article className="history-panel lot-history-details"><details key={`mortalites-${lot.id}`}><summary><strong>Historique des mortalités</strong><span>{lot.mortalites.length} saisie(s) · {formatNombre(lot.nb_morts || 0)} sujets</span></summary><div className="lot-analysis-table-wrap"><table className="lot-analysis-table"><thead><tr><th>Date</th><th>Nombre</th></tr></thead><tbody>{lot.mortalites.map((mortalite) => <tr key={mortalite.id}><td>{formatDate(mortalite.date)}</td><td>{mortalite.nombre}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td>{lot.nb_morts || 0}</td></tr></tfoot></table></div></details></article>
         <article className="history-panel lot-analysis-keypoints"><h2>Points clés</h2><p>✓ Poids moyen final : {donnees.poidsMoyen.toFixed(2)} kg.</p><p>✓ {donnees.resultat >= 0 ? "Marge nette positive." : "Marge nette à améliorer."}</p><p>✓ Les charges alimentaires représentent {donnees.totalCharges > 0 ? ((donnees.repartition.find((charge) => charge.type === "aliment")?.montant || 0) / donnees.totalCharges * 100).toFixed(0) : 0}% des charges.</p><p>✓ Taux de mortalité : {donnees.tauxMortalite.toFixed(1)} %.</p></article>
       </section>
+      {formulaire && <FinaliserLotModal key={`${lot.id}-${formulaire.id}`} lot={lot} tache={formulaire} saving={saving} erreur={erreurSaisie} onClose={()=>{if(!saving)setFormulaire(null);}} onSave={sauvegarderFinalisation} onAction={ouvrirAction}/>}
     </div>
   );
 }

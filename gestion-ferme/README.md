@@ -140,3 +140,17 @@ fonction n’est pas encore installée, le formulaire signale la mise à jour SQ
 nécessaire et n’enregistre aucune partie de la saisie. Les appels à un seul aliment
 restent compatibles avec la fonction précédente. Les deux consommations sont
 créées dans la même transaction et les mortalités du lot sont comptées une fois.
+
+### Finaliser la fiche d’un lot SICA
+
+L’analyse complète propose l’encart **Finaliser ce lot** : les charges, recettes,
+quantité retenue, livraisons, effectifs et tarifs figés sont vérifiés avec les mêmes
+critères que la fiche PDF/Excel. Les formulaires s’ouvrent sur place pour les
+informations manquantes. Les charges proposées restent à valider explicitement.
+Une valeur zéro saisie est acceptée ; un champ vide reste à compléter.
+
+Le statut **Prêt à clôturer** décrit la préparation de la fiche du lot déjà
+archivé : aucune réactivation ou clôture automatique n’est effectuée. Les exports
+provisoires restent disponibles et clairement identifiés. L’actualisation des
+vérifications suit chaque enregistrement. Aucune migration SQL supplémentaire
+n’est nécessaire pour cet encart.

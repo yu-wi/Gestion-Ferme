@@ -1,3 +1,4 @@
+import { verifierFinalisationLot } from './finalisationLot.ts';
 import type { TarifsCharges } from './tarifsCharges.ts';
 
 export type LotFiche = {
@@ -18,16 +19,8 @@ export function creerFicheCloture(lot: LotFiche, charges: {type_charge:string;mo
 }) {
   const totaux = new Map<string,number>();
   for(const charge of charges) totaux.set(charge.type_charge,(totaux.get(charge.type_charge)||0)+charge.montant);
-  const manquantes = ['achat_poussins','aliment','ramassage','livraison'].filter(type=>!totaux.has(type));
-  const raisons = [
-    ...manquantes.map(type=>`${labels[type]} : montant non renseigné`),
-    ...options.aValider.map(type=>`${labels[type] || type} : estimation à valider`),
-    ...(!options.gel ? ['Tarifs non figés'] : []),
-    ...(lot.resultat_brut == null ? ['Recettes non renseignées'] : []),
-    ...(lot.quantite_retenue == null ? ['Quantité retenue non renseignée'] : []),
-    ...(!lot.livraisons.length ? ['Aucune livraison enregistrée'] : []),
-    ...(lot.sujets_restants > 0 ? ['Des sujets restent dans le lot'] : []),
-  ];
+  const verifications = verifierFinalisationLot(lot, charges, options.aValider, !!options.gel);
+  const raisons = verifications.filter(v => !v.fait).map(v => v.raison);
   const detailCharges = [...totaux].map(([type,montant])=>({
     type, label:labels[type] || 'Divers', montant:centimes(montant),
     statut:options.aValider.includes(type) ? 'Estimé · à valider' : type==='aliment' && options.alimentCalcule ? 'Calculé sur consommations' : 'Enregistré',
@@ -38,7 +31,7 @@ export function creerFicheCloture(lot: LotFiche, charges: {type_charge:string;mo
   const livres = lot.livraisons.reduce((s,l)=>s+Number(l.quantite),0);
   const poids = lot.livraisons.reduce((s,l)=>s+Number(l.poids),0);
   return {
-    lot, date:options.date || new Date().toISOString(), statut:raisons.length ? 'Provisoire' : 'Complète', raisons,
+    verifications, lot, date:options.date || new Date().toISOString(), statut:raisons.length ? 'Provisoire' : 'Complète', raisons,
     charges:detailCharges, totalCharges, recettes, marge, tauxMarge:recettes>0 ? marge/recettes*100 : null,
     livres, poids, poidsMoyen:livres>0 ? poids/livres : null,
     mortalite:lot.quantite>0 ? Number(lot.nb_morts)/lot.quantite*100 : null,

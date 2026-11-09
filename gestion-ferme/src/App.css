@@ -8732,3 +8732,18 @@
 .daily-second-feed { display: grid; gap: 10px; padding: 12px 0; border-top: 1px solid #e4ece7; }
 .daily-second-feed button { min-height: 44px; padding: 8px 12px; border: 1px solid #bddbc8; border-radius: 8px; background: #f3f9f5; color: #08783d; text-align: left; }
 .daily-second-feed p { margin: 0; color: #607684; font-size: 13px; }
+
+.lot-finalisation-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.lot-finalisation h2 { margin: 0; font-size: 22px; }
+.lot-finalisation p { color: #617787; }
+.lot-finalisation-status { padding: 8px 12px; border-radius: 20px; font-size: 14px; }
+.lot-finalisation-status.a-completer { color: #86530d; background: #fff2d9; }
+.lot-finalisation-status.pret { color: #14763a; background: #e7f5eb; }
+.lot-finalisation-tasks { list-style: none; padding: 0; margin: 16px 0; }
+.lot-finalisation-tasks li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid #e1e9e4; padding: 10px 0; }
+.lot-finalisation-tasks button, .finalisation-effectifs-actions button { min-height: 44px; padding: 8px 12px; border: 1px solid #bfdcc9; border-radius: 8px; background: #f2f8f4; color: #08783d; font-weight: 600; }
+.lot-finalisation-exports, .finalisation-effectifs-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.lot-finalisation summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.finalisation-fields { min-width: 0; border: 0; margin: 0; padding: 0; }
+#tarifs-du-lot, .lot-finalisation-validation { scroll-margin-top: 220px; }
+@media (max-width: 480px) { .lot-finalisation-exports > button { width: 100%; justify-content: center; } }

@@ -35,6 +35,7 @@ create table if not exists public.aquaponie_water_measures (
   tank_id uuid references public.aquaponie_tanks(id) on delete set null,
   target_type text not null default 'bassin' check (target_type in ('bassin', 'cuve')),
   measure_date date not null default current_date,
+  measure_time time without time zone,
   temperature_c numeric,
   ph numeric,
   no2 numeric,
@@ -162,3 +163,6 @@ grant all on public.aquaponie_cultures to authenticated;
 grant all on public.aquaponie_harvests to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- Heure locale du relevé, sans inventer une heure pour les anciennes mesures.
+alter table public.aquaponie_water_measures add column if not exists measure_time time without time zone;

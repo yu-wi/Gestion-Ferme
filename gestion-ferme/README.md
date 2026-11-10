@@ -154,3 +154,11 @@ archivé : aucune réactivation ou clôture automatique n’est effectuée. Les 
 provisoires restent disponibles et clairement identifiés. L’actualisation des
 vérifications suit chaque enregistrement. Aucune migration SQL supplémentaire
 n’est nécessaire pour cet encart.
+
+### Heure des mesures d’eau
+
+Exécuter `supabase/aquaponie-heure-mesure.sql` dans Supabase SQL Editor pour ajouter
+l’heure locale (Martinique) aux relevés. Le script est réexécutable et laisse
+l’heure inconnue sur les anciens relevés. L’onglet Paramètres eau conserve la
+température, le pH et la conductivité ; NO2, NO3 et oxygène sont masqués dans cet
+onglet et son formulaire, sans supprimer les valeurs historiques en base.

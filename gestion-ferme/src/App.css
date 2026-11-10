@@ -8747,3 +8747,6 @@
 .finalisation-fields { min-width: 0; border: 0; margin: 0; padding: 0; }
 #tarifs-du-lot, .lot-finalisation-validation { scroll-margin-top: 220px; }
 @media (max-width: 480px) { .lot-finalisation-exports > button { width: 100%; justify-content: center; } }
+
+.aquaponie-last-measure { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 760px) { .aquaponie-last-measure { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

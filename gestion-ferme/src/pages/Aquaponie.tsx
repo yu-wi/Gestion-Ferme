@@ -1,3 +1,4 @@
+import { heureMesureValide, trierMesuresEau, heureMartinique, dateMartinique } from '../aquaponie/heureMesure';
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
@@ -29,6 +30,7 @@ type WaterMeasure = {
   tank_id: string | null;
   target_type: WaterTargetType;
   measure_date: string;
+  measure_time?: string | null;
   temperature_c: number | null;
   ph: number | null;
   no2: number | null;
@@ -102,13 +104,11 @@ const emptyMeasureForm = {
   target_type: "bassin" as WaterTargetType,
   basin_id: "",
   tank_id: "",
-  measure_date: todayIso(),
+  measure_date: dateMartinique(),
+  measure_time: "",
   temperature_c: "",
   ph: "",
-  no2: "",
-  no3: "",
   conductivity: "",
-  oxygen_mg_l: "",
   notes: "",
 };
 
@@ -186,7 +186,7 @@ export default function Aquaponie() {
       setDatabaseReady(true);
       setBassins((basinResult.data || []) as Basin[]);
       setCuves((tankResult.data || []) as WaterTank[]);
-      setMesures((measureResult.data || []) as WaterMeasure[]);
+      setMesures(trierMesuresEau((measureResult.data || []) as WaterMeasure[]));
       setCultures((cultureResult.data || []) as AquaCulture[]);
       setRecoltes((harvestResult.data || []) as Harvest[]);
     }
@@ -252,17 +252,15 @@ export default function Aquaponie() {
         basin_id: measure.basin_id || "",
         tank_id: measure.tank_id || "",
         measure_date: measure.measure_date,
+        measure_time: measure.measure_time?.slice(0,5) || "",
         temperature_c: measure.temperature_c == null ? "" : String(measure.temperature_c),
         ph: measure.ph == null ? "" : String(measure.ph),
-        no2: measure.no2 == null ? "" : String(measure.no2),
-        no3: measure.no3 == null ? "" : String(measure.no3),
         conductivity: measure.conductivity == null ? "" : String(measure.conductivity),
-        oxygen_mg_l: measure.oxygen_mg_l == null ? "" : String(measure.oxygen_mg_l),
         notes: measure.notes || "",
       });
     } else {
       setEditingId(null);
-      setMeasureForm({ ...emptyMeasureForm, basin_id: bassins[0]?.id || "", tank_id: cuves[0]?.id || "" });
+      setMeasureForm({ ...emptyMeasureForm, measure_date: dateMartinique(), measure_time: heureMartinique(), basin_id: bassins[0]?.id || "", tank_id: cuves[0]?.id || "" });
     }
     setModal("mesure");
   };
@@ -361,8 +359,9 @@ export default function Aquaponie() {
   };
 
   const saveMeasure = async () => {
-    if (!measureForm.measure_date) {
-      toast.error("Ajoutez une date de mesure.");
+    if (saving) return;
+    if (!measureForm.measure_date || !heureMesureValide(measureForm.measure_time)) {
+      toast.error("Ajoutez une date et une heure de mesure valides.");
       return;
     }
     setSaving(true);
@@ -371,12 +370,10 @@ export default function Aquaponie() {
       basin_id: measureForm.target_type === "bassin" ? measureForm.basin_id || null : null,
       tank_id: measureForm.target_type === "cuve" ? measureForm.tank_id || null : null,
       measure_date: measureForm.measure_date,
+      measure_time: measureForm.measure_time,
       temperature_c: toNumberOrNull(measureForm.temperature_c),
       ph: toNumberOrNull(measureForm.ph),
-      no2: toNumberOrNull(measureForm.no2),
-      no3: toNumberOrNull(measureForm.no3),
       conductivity: toNumberOrNull(measureForm.conductivity),
-      oxygen_mg_l: toNumberOrNull(measureForm.oxygen_mg_l),
       notes: measureForm.notes.trim() || null,
     };
     const request = editingId
@@ -385,10 +382,10 @@ export default function Aquaponie() {
     const { data, error } = await request;
     setSaving(false);
     if (error) {
-      toast.error("La mesure n'a pas pu être enregistrée.");
+      toast.error(error.code === 'PGRST204' || error.code === '42703' ? "Le champ heure doit être activé : exécutez supabase/aquaponie-heure-mesure.sql dans Supabase SQL Editor." : "La mesure n'a pas pu être enregistrée.");
       return;
     }
-    setMesures((current) => editingId ? current.map((item) => item.id === editingId ? data as WaterMeasure : item) : [data as WaterMeasure, ...current]);
+    setMesures((current) => trierMesuresEau(editingId ? current.map((item) => item.id === editingId ? data as WaterMeasure : item) : [data as WaterMeasure, ...current]));
     toast.success(editingId ? "Mesure modifiée." : "Mesure enregistrée.");
     closeModal();
   };
@@ -574,38 +571,29 @@ export default function Aquaponie() {
       {activeTab === "parametres" && (
         <section className="aquaponie-panel">
           <PanelHeading title="Paramètres de l'eau" action="Enregistrer une mesure" onClick={() => openMeasure()} />
-          <div className="aquaponie-last-measure">
+          <div className="aquaponie-last-measure"><div><small>Heure du dernier relevé</small><strong>{latestMeasure?.measure_time?.slice(0,5) || "Non renseignée"}</strong></div>
             <MeasureValue label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
             <MeasureValue label="pH" value={latestMeasure?.ph} />
-            <MeasureValue label="NO2" value={latestMeasure?.no2} />
-            <MeasureValue label="NO3" value={latestMeasure?.no3} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
-            <MeasureValue label="Oxygène" value={latestMeasure?.oxygen_mg_l} suffix="mg/L" />
           </div>
           <div className="aquaponie-chart-grid">
             <WaterMetricChart title="Température" suffix="°C" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.temperature_c }))} min={20} max={34} color="#0b78a4" />
             <WaterMetricChart title="pH" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.ph }))} min={5.5} max={8.5} color="#16853d" />
-            <WaterMetricChart title="NO2" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.no2 }))} min={0} max={1} color="#dc2626" />
-            <WaterMetricChart title="NO3" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.no3 }))} min={0} max={100} color="#e89500" />
             <WaterMetricChart title="EC" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.conductivity }))} min={0} max={2500} color="#7c3aed" />
-            <WaterMetricChart title="Oxygène" suffix="mg/L" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.oxygen_mg_l }))} min={0} max={10} color="#2563eb" />
           </div>
           <div className="aquaponie-measure-timeline">
             <h3>Derniers relevés</h3>
             {mesures.slice(0, 8).map((mesure) => (
               <article key={mesure.id} className="aquaponie-measure-row">
                 <div>
-                  <strong>{formatDateCourte(new Date(`${mesure.measure_date}T00:00:00`))}</strong>
+                  <strong>{formatDateCourte(new Date(`${mesure.measure_date}T00:00:00`))} · {mesure.measure_time?.slice(0,5) || "Heure non renseignée"}</strong>
                   <small>
                     {mesure.target_type === "cuve" ? "Cuve" : "Bassin"} · {mesure.target_type === "cuve" ? (mesure.tank_id ? tankById.get(mesure.tank_id)?.name || "Cuve" : "Toutes les cuves") : (mesure.basin_id ? basinById.get(mesure.basin_id)?.name || "Bassin" : "Tous les bassins")}
                   </small>
                 </div>
                 <p>
                   <span>Temp. {mesure.temperature_c ?? "–"}</span>
-                  <span>pH {mesure.ph ?? "–"}</span>
-                  <span>NO2 {mesure.no2 ?? "–"}</span>
-                  <span>NO3 {mesure.no3 ?? "–"}</span>
-                  <span>O2 {mesure.oxygen_mg_l ?? "–"}</span>
+                  <span>pH {mesure.ph ?? "–"}</span><span>EC {mesure.conductivity ?? "–"}</span>
                 </p>
                 <RowActions onEdit={() => openMeasure(mesure)} onDelete={() => deleteRow("aquaponie_water_measures", mesure.id, "cette mesure", (id) => setMesures((current) => current.filter((item) => item.id !== id)))} />
               </article>
@@ -695,12 +683,10 @@ export default function Aquaponie() {
               <label>Cuve<select value={measureForm.tank_id} onChange={(event) => setMeasureForm({ ...measureForm, tank_id: event.target.value })}><option value="">Toutes les cuves</option>{cuves.map((cuve) => <option key={cuve.id} value={cuve.id}>{cuve.name}</option>)}</select></label>
             )}
             <label>Date<input type="date" value={measureForm.measure_date} onChange={(event) => setMeasureForm({ ...measureForm, measure_date: event.target.value })} /></label>
+            <label>Heure de mesure (Martinique)<input type="time" value={measureForm.measure_time} onChange={(event) => setMeasureForm({ ...measureForm, measure_time: event.target.value })} /></label>
             <label>Température (°C)<input type="number" step="0.1" value={measureForm.temperature_c} onChange={(event) => setMeasureForm({ ...measureForm, temperature_c: event.target.value })} /></label>
             <label>pH<input type="number" step="0.1" value={measureForm.ph} onChange={(event) => setMeasureForm({ ...measureForm, ph: event.target.value })} /></label>
-            <label>NO2<input type="number" step="0.01" value={measureForm.no2} onChange={(event) => setMeasureForm({ ...measureForm, no2: event.target.value })} /></label>
-            <label>NO3<input type="number" step="0.1" value={measureForm.no3} onChange={(event) => setMeasureForm({ ...measureForm, no3: event.target.value })} /></label>
             <label>Conductivité<input type="number" step="0.01" value={measureForm.conductivity} onChange={(event) => setMeasureForm({ ...measureForm, conductivity: event.target.value })} /></label>
-            <label>Oxygène (mg/L)<input type="number" step="0.1" value={measureForm.oxygen_mg_l} onChange={(event) => setMeasureForm({ ...measureForm, oxygen_mg_l: event.target.value })} /></label>
             <label className="aquaponie-field-wide">Observation<textarea value={measureForm.notes} onChange={(event) => setMeasureForm({ ...measureForm, notes: event.target.value })} /></label>
           </div>
           <ModalActions onSave={saveMeasure} onCancel={closeModal} saving={saving} />

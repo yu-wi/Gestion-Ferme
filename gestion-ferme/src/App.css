@@ -8784,3 +8784,9 @@
 .water-product-markers > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .water-product-markers button { min-height: 44px; padding: 8px 12px; border: 1px solid #c89154; border-radius: 8px; background: white; color: #85400d; overflow-wrap: anywhere; }
 .water-product-markers button[aria-pressed="true"] { background: #ffead1; border-width: 2px; }
+.water-alerts { grid-column: 1 / -1; }
+.water-alerts > p { color: #607684; }
+.water-alert-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin-top: 10px; border: 1px solid #c6dfce; border-radius: 10px; background: #f3faf5; }
+.water-alert-warning { border-color: #e4c28e; background: #fff9ed; }
+.water-alert-row ul { margin: 8px 0; padding-left: 20px; }
+.water-alert-row button { min-height: 44px; padding: 8px 12px; border: 1px solid #bddbc8; border-radius: 8px; background: white; color: #08783d; }

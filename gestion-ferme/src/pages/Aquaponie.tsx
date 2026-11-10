@@ -1,3 +1,4 @@
+import { alertesBassinEau } from '../aquaponie/alertesEau';
 import type { AjoutProduitEau } from '../aquaponie/ajoutsProduits';
 import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
 import AnalyseEau from '../aquaponie/AnalyseEau';
@@ -496,6 +497,12 @@ export default function Aquaponie() {
 
       {activeTab === "resume" && (
         <section className="aquaponie-overview">
+          <article className="aquaponie-panel water-alerts">
+            <h2>Surveillance de l’eau</h2>
+            <p>Seuils bas : pH 6 · EC 1 (unité de vos saisies). Alerte sous ces seuils ou en l’absence de relevé complet dans les dernières 24 h.</p>
+            {bassins.map(bassin=>{const alertes=alertesBassinEau(mesures,bassin.id);return <div key={bassin.id} className={alertes.length?'water-alert-row water-alert-warning':'water-alert-row'}><div><strong>{alertes.length?'⚠':'✓'} {bassin.name}</strong>{alertes.length?<ul>{alertes.map(a=><li key={a}>{a}</li>)}</ul>:<p>Dernier relevé récent · seuils bas respectés</p>}</div><button type="button" onClick={()=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:bassin.id}));}}>＋ Mesure</button></div>;})}
+            {!bassins.length&&<EmptyState label="Ajoutez un bassin pour suivre ses paramètres."/>}
+          </article>
           <article className="aquaponie-panel">
             <PanelHeading title="État des bassins" action="Ajouter" onClick={() => openBasin()} />
             <div className="aquaponie-basin-list">

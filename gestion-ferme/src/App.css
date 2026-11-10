@@ -4489,29 +4489,6 @@
 .feed-type-1 { color: #7049d8; background: #eee9fc; }
 .feed-type-2 { color: #e89b00; background: #fff0d5; }
 
-.feed-stock-grid article > div:last-child {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.feed-stock-grid article > div:last-child span {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #e6ece9;
-  border-radius: 6px;
-  padding: 9px;
-  color: #708093;
-  font-size: 9px;
-}
-
-.feed-stock-grid article > div:last-child b {
-  margin-top: 3px;
-  color: #263e51;
-  font-size: 11px;
-}
-
 .feed-warning {
   margin-top: 14px;
   border: 1px solid #f2c76d;

@@ -1377,7 +1377,6 @@ export default function DashboardFeed() {
           {stock.map((item, index) => (
             <article key={item.feedType} className={item.stock < 0 ? "feed-stock-alert" : ""}>
               <div className="feed-stock-heading"><span className={`feed-type-icon feed-type-${index % 3}`}>{index % 3 === 0 ? "⌁" : index % 3 === 1 ? "◔" : "♧"}</span><strong>{item.feedType}</strong><b>{sacsEntiers(enSacs(item.stock))} sacs</b></div>
-              <div><span>Livré <b>{sacsEntiers(enSacs(item.entrees))} sacs</b></span><span>Consommé <b>{sacsEntiers(enSacs(item.consommations))} sacs</b></span></div>
             </article>
           ))}
           {!stock.length && <div className="feed-empty">Aucun mouvement de stock enregistré.</div>}

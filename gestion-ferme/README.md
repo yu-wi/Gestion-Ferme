@@ -162,3 +162,18 @@ l’heure locale (Martinique) aux relevés. Le script est réexécutable et lais
 l’heure inconnue sur les anciens relevés. L’onglet Paramètres eau conserve la
 température, le pH et la conductivité ; NO2, NO3 et oxygène sont masqués dans cet
 onglet et son formulaire, sans supprimer les valeurs historiques en base.
+
+### Analyse pH et EC par bassin
+
+Dans Aquaponie, l’onglet **Paramètres eau** suit directement **Résumé**.
+Les vues pH et EC comparent les bassins sélectionnés sur une journée ou sept
+jours, avec les horaires réels en Martinique. Les points sont consultables au
+survol, au toucher et au clavier ; le tableau de la période permet également
+de retrouver et modifier les relevés anciens.
+
+Les relevés sans heure restent consultables mais ne reçoivent pas d’heure
+artificielle dans les courbes. Les mesures globales ou des cuves ne sont pas
+attribuées à chaque bassin. Les données d’eau sont chargées par pages pour
+inclure l’historique complet. Cette analyse n’ajoute pas de migration SQL ;
+l’enregistrement des heures utilise le champ de la migration précédente
+`supabase/aquaponie-heure-mesure.sql`.

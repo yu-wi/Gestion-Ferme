@@ -1,3 +1,5 @@
+import AnalyseEau from '../aquaponie/AnalyseEau';
+import { chargerPages } from '../volailles/chargerPages';
 import { heureMesureValide, trierMesuresEau, heureMartinique, dateMartinique } from '../aquaponie/heureMesure';
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -168,7 +170,7 @@ export default function Aquaponie() {
     const [basinResult, tankResult, measureResult, cultureResult, harvestResult] = await Promise.all([
       supabase.from("aquaponie_basins").select("*").order("created_at", { ascending: false }),
       supabase.from("aquaponie_tanks").select("*").order("created_at", { ascending: false }),
-      supabase.from("aquaponie_water_measures").select("*").order("measure_date", { ascending: false }).limit(200),
+      chargerPages((debut, fin) => supabase.from("aquaponie_water_measures").select("*").order("measure_date", { ascending: false }).order("id").range(debut, fin)).then(data => ({data,error:null}), error => ({data:[],error})),
       supabase.from("aquaponie_cultures").select("*").order("planted_at", { ascending: false }),
       supabase.from("aquaponie_harvests").select("*").order("harvest_date", { ascending: false }).limit(200),
     ]);
@@ -202,7 +204,6 @@ export default function Aquaponie() {
   const cultureById = useMemo(() => new Map(cultures.map((culture) => [culture.id, culture])), [cultures]);
   const latestMeasure = mesures[0];
   const activeCultures = cultures.filter((culture) => culture.status !== "recolte");
-  const mesuresGraphique = useMemo(() => mesures.slice(0, 12).reverse(), [mesures]);
 
   const closeModal = () => {
     setModal(null);
@@ -477,9 +478,9 @@ export default function Aquaponie() {
 
       <nav className="poultry-tabs aquaponie-tabs" aria-label="Sections aquaponie">
         <button type="button" className={activeTab === "resume" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("resume")}>Résumé</button>
+        <button type="button" className={activeTab === "parametres" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("parametres")}>Paramètres eau</button>
         <button type="button" className={activeTab === "bassins" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("bassins")}>Bassins</button>
         <button type="button" className={activeTab === "cuves" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cuves")}>Cuves</button>
-        <button type="button" className={activeTab === "parametres" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("parametres")}>Paramètres eau</button>
         <button type="button" className={activeTab === "cultures" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cultures")}>Cultures</button>
         <button type="button" className={activeTab === "recoltes" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("recoltes")}>Récoltes</button>
       </nav>
@@ -576,11 +577,7 @@ export default function Aquaponie() {
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
           </div>
-          <div className="aquaponie-chart-grid">
-            <WaterMetricChart title="Température" suffix="°C" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.temperature_c }))} min={20} max={34} color="#0b78a4" />
-            <WaterMetricChart title="pH" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.ph }))} min={5.5} max={8.5} color="#16853d" />
-            <WaterMetricChart title="EC" values={mesuresGraphique.map((mesure) => ({ date: mesure.measure_date, value: mesure.conductivity }))} min={0} max={2500} color="#7c3aed" />
-          </div>
+          <AnalyseEau mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <div className="aquaponie-measure-timeline">
             <h3>Derniers relevés</h3>
             {mesures.slice(0, 8).map((mesure) => (
@@ -750,58 +747,6 @@ function CultureCard({ culture, onEdit }: { culture: AquaCulture; onEdit: () => 
 
 function MeasureValue({ label, value, suffix = "" }: { label: string; value?: number | null; suffix?: string }) {
   return <div><small>{label}</small><strong>{value == null ? "–" : `${formatNombre(value, 2)} ${suffix}`}</strong></div>;
-}
-
-function WaterMetricChart({
-  title,
-  suffix = "",
-  values,
-  min,
-  max,
-  color,
-}: {
-  title: string;
-  suffix?: string;
-  values: Array<{ date: string; value: number | null }>;
-  min: number;
-  max: number;
-  color: string;
-}) {
-  const points = values.filter((item): item is { date: string; value: number } => item.value != null);
-  const latest = points.length > 0 ? points[points.length - 1] : undefined;
-  const width = 240;
-  const height = 92;
-  const padding = 12;
-  const range = Math.max(1, max - min);
-  const polyline = points
-    .map((item, index) => {
-      const x = points.length === 1 ? width / 2 : padding + (index / (points.length - 1)) * (width - padding * 2);
-      const normalized = Math.min(1, Math.max(0, (item.value - min) / range));
-      const y = height - padding - normalized * (height - padding * 2);
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <article className="aquaponie-chart-card">
-      <div>
-        <strong>{title}</strong>
-        <span>{latest ? `${formatNombre(latest.value, 2)} ${suffix}` : "Aucune donnée"}</span>
-      </div>
-      {points.length >= 2 ? (
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Évolution ${title}`}>
-          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} />
-          <polyline points={polyline} style={{ stroke: color }} />
-          {points.map((item, index) => {
-            const [x, y] = polyline.split(" ")[index].split(",").map(Number);
-            return <circle key={`${item.date}-${index}`} cx={x} cy={y} r="3.5" style={{ fill: color }} />;
-          })}
-        </svg>
-      ) : (
-        <div className="aquaponie-chart-empty">Au moins deux relevés sont nécessaires.</div>
-      )}
-    </article>
-  );
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

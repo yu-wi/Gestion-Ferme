@@ -8750,3 +8750,28 @@
 
 .aquaponie-last-measure { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 760px) { .aquaponie-last-measure { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.water-analysis { min-width: 0; margin: 20px 0; padding: 16px; border: 1px solid #d9e6df; border-radius: 12px; background: #fff; }
+.water-metric-tabs, .water-analysis-controls, .water-basin-filters, .water-basin-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.water-metric-tabs button, .water-basin-actions button { min-height: 44px; padding: 8px 18px; border: 1px solid #bddbc8; border-radius: 8px; color: #08783d; background: #f4f9f5; }
+.water-metric-tabs button[aria-pressed="true"] { color: #fff; background: #08783d; }
+.water-analysis-controls label { display: flex; flex-direction: column; gap: 6px; flex: 1 1 170px; font-size: 14px; }
+.water-analysis-controls input, .water-analysis-controls select { width: 100%; min-height: 44px; padding: 8px; border: 1px solid #ccdcd2; border-radius: 8px; font-size: 16px; background: #fff; }
+.water-basin-filters { padding: 12px; border: 1px solid #dce6e1; border-radius: 8px; }
+.water-basin-filters label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; overflow-wrap: anywhere; }
+.water-basin-filters input { width: 20px; height: 20px; min-height: 20px; }
+.water-basin-filters label span { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.water-time-chart { width: 100%; height: 350px; min-width: 0; }
+.water-analysis > p { color: #607684; font-size: 13px; line-height: 1.5; }
+.water-point-tooltip { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: #fff; border: 1px solid #b9cfbf; border-radius: 8px; box-shadow: 0 3px 12px #17364720; }
+.water-basin-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 10px; margin: 12px 0; }
+.water-basin-summary article { display: flex; flex-direction: column; gap: 6px; border: 1px solid #dce6e1; border-radius: 8px; padding: 12px; font-size: 13px; }
+.water-readings summary { cursor: pointer; min-height: 44px; padding: 12px 0; color: #315e49; }
+.water-readings table { border-collapse: collapse; width: 100%; }
+.water-readings th, .water-readings td { text-align: left; padding: 10px; border-bottom: 1px solid #e2ebe5; }
+@media(max-width:480px) { .water-analysis { padding: 12px; } .water-time-chart { height: 310px; } }
+.water-chart-point { cursor: pointer; touch-action: manipulation; }
+.water-chart-point:focus-visible { stroke: #f3ad00; stroke-width: 3px; outline: none; }
+.water-selected-reading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px solid #b9d4c4; border-radius: 8px; background: #eff8f2; }
+.water-selected-reading > strong { flex: 1 1 180px; }
+.water-selected-reading button { min-width: 44px; min-height: 44px; border: 1px solid #bddbc8; border-radius: 8px; background: #fff; color: #315e49; font-size: 22px; }

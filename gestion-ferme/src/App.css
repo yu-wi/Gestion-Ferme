@@ -8775,3 +8775,14 @@
 .water-selected-reading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px solid #b9d4c4; border-radius: 8px; background: #eff8f2; }
 .water-selected-reading > strong { flex: 1 1 180px; }
 .water-selected-reading button { min-width: 44px; min-height: 44px; border: 1px solid #bddbc8; border-radius: 8px; background: #fff; color: #315e49; font-size: 22px; }
+
+.dashboard-production-shortcuts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin: 24px 0; }
+.dashboard-production-shortcuts a { display: flex; align-items: center; gap: 12px; min-height: 90px; padding: 16px; border: 1px solid #d5e3da; border-radius: 12px; background: #fff; color: #174a35; text-decoration: none; }
+.dashboard-production-shortcuts img { width: 40px; height: 40px; object-fit: contain; }
+.dashboard-production-shortcuts strong { flex: 1; }
+.dashboard-production-shortcuts a:hover { background: #edf7f0; border-color: #87b89a; }
+.aquaponie-releves-details { margin: 16px 0; padding: 14px; border: 1px solid #dce6e1; border-radius: 10px; background: #fafcfb; }
+.aquaponie-releves-details > summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: #315e49; font-weight: 600; }
+.aquaponie-releves-details[open] > summary { margin-bottom: 12px; }
+@media (max-width: 1024px) { .dashboard-production-shortcuts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 480px) { .dashboard-production-shortcuts { gap: 10px; } .dashboard-production-shortcuts a { padding: 12px; gap: 8px; font-size: 14px; } .dashboard-production-shortcuts img { width: 30px; height: 30px; } .dashboard-production-shortcuts a > span { display: none; } }

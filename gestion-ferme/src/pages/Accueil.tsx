@@ -1,3 +1,7 @@
+import chickenIcon from '../assets/chicken.svg';
+import fishIcon from '../assets/fish.svg';
+import sheepIcon from '../assets/sheep.svg';
+import plantsIcon from '../assets/plants.svg';
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
@@ -365,10 +369,6 @@ export default function Accueil({ userName }: AccueilProps) {
     livraisonsAliment.reduce((total, item) => total + item.quantite_kg, 0) -
     consommations.reduce((total, item) => total + item.quantite_kg, 0);
   const stockKg = stockAlimentServeurKg ?? stockKgLocal;
-  const consommationDuJourKg = consommations
-    .filter((item) => item.date === new Date().toISOString().split("T")[0])
-    .reduce((total, item) => total + item.quantite_kg, 0);
-
   const alertesPrioritaires = useMemo(() => {
     const alertes: DashboardAlert[] = [];
     const aujourdHui = new Date();
@@ -656,11 +656,9 @@ export default function Accueil({ userName }: AccueilProps) {
         </div>
       </header>
 
-      <section className="dashboard-kpis">
-        <KpiCard icon="▣" tone="green" label="Stock total" value={`${formatNombre(stockKg / POIDS_SAC_KG)} sacs`} note="Disponible" />
-        <KpiCard icon="↗" tone="blue" label="Consommé aujourd’hui" value={`${formatNombre(consommationDuJourKg / POIDS_SAC_KG)} sacs`} note="Suivi quotidien" />
-        <KpiCard icon="◉" tone="orange" label="Lots actifs" value={`${totalLotsActifs}`} note={`${formatNombre(sujetsRestants)} sujets restants`} />
-      </section>
+      <nav className="dashboard-production-shortcuts" aria-label="Accès aux productions">
+        {[{ to: '/volailles', label: 'Volailles', icon: chickenIcon }, { to: '/aquaponie', label: 'Aquaponie', icon: fishIcon }, { to: '/ovins', label: 'Ovins', icon: sheepIcon }, { to: '/cultures', label: 'Cultures', icon: plantsIcon }].map(production => <Link key={production.to} to={production.to}><img src={production.icon} alt="" aria-hidden="true"/><strong>{production.label}</strong><span aria-hidden="true">→</span></Link>)}
+      </nav>
 
       <section className="dashboard-workspace-grid">
         <article className="dashboard-panel dashboard-tasks-panel">
@@ -957,31 +955,6 @@ export default function Accueil({ userName }: AccueilProps) {
         </div>
       )}
     </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  note,
-}: {
-  icon: string;
-  tone: string;
-  label: string;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article className="dashboard-kpi">
-      <div className={`dashboard-kpi-icon dashboard-kpi-${tone}`}>{icon}</div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{note}</small>
-      </div>
-    </article>
   );
 }
 

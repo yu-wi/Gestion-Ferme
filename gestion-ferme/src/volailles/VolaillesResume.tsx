@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { verifierConsommationIdentique } from "./controlesCoherenceService";
 import toast from "react-hot-toast";
-import ActionsVolailles from './ActionsVolailles';
 import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
 import { dateDepuisArrivee, genererEvenementsVolailles, REGLES_SUIVI_VOLAILLES } from "../outils/evenementsVolailles";
@@ -105,7 +104,6 @@ export default function VolaillesResume() {
   const [sicaLots, setSicaLots] = useState<SicaLot[]>([]);
   const [directLots, setDirectLots] = useState<DirectLot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sicaAvailable, setSicaAvailable] = useState(true);
   const [directAvailable, setDirectAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedTypes, setFeedTypes] = useState<string[]>(["starter", "croissance", "finition"]);
@@ -169,7 +167,6 @@ export default function VolaillesResume() {
           .maybeSingle(),
       ]);
 
-      setSicaAvailable(!sicaResult.error);
       if (sicaResult.error) {
         console.error("Erreur chargement résumé volailles :", sicaResult.error);
         toast.error("Le résumé volailles n'a pas pu être chargé.");
@@ -540,14 +537,6 @@ export default function VolaillesResume() {
     setSaving(false);
   };
 
-  const sujetsSica = sicaLots.reduce(
-    (total, lot) => total + (lot.sujets_restants ?? lot.quantite ?? 0),
-    0
-  );
-  const sujetsDirect = directLots.reduce(
-    (total, lot) => total + (Number(lot.remaining_quantity) || 0),
-    0
-  );
   const alertes = useMemo(() => {
     const items: AlertItem[] = [];
     const now = todayStart();
@@ -621,11 +610,10 @@ export default function VolaillesResume() {
         </div>
       )}
 
-      <ActionsVolailles lots={allLots} busy={saving} incomplet={!sicaAvailable || !directAvailable} />
 
       <section className="poultry-panel poultry-summary-shortcuts-panel">
         <div className="poultry-panel-heading">
-          <h2>Autres saisies</h2>
+          <h2>Raccourcis de saisie</h2>
           <span>Lots SICA et vente directe</span>
         </div>
         <div className="poultry-shortcuts">
@@ -634,15 +622,6 @@ export default function VolaillesResume() {
           <button type="button" onClick={openFeedDeliveryShortcut}><span>🚚</span><div><strong>Livraison aliment</strong><small>Ajouter au stock</small></div></button>
           <button type="button" onClick={() => setNewLotChoiceModalOpen(true)}><span>＋</span><div><strong>Nouveau lot</strong><small>SICA ou vente directe</small></div></button>
         </div>
-      </section>
-
-      <section className="poultry-kpis poultry-summary-kpis">
-        <article className="poultry-kpi poultry-summary-kpi">
-          <i className="poultry-kpi-icon poultry-kpi-green">▣</i><div><small>Lots SICA Madras</small><strong>{formatNombre(sicaLots.length)}</strong><em>{formatNombre(sujetsSica)} sujets</em></div>
-        </article>
-        <article className="poultry-kpi poultry-summary-kpi">
-          <i className="poultry-kpi-icon poultry-kpi-blue">◎</i><div><small>Lots Vente directe</small><strong>{formatNombre(directLots.length)}</strong><em>{formatNombre(sujetsDirect)} sujets</em></div>
-        </article>
       </section>
 
       <section className="poultry-summary-grid">

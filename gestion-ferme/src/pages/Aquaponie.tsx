@@ -572,14 +572,16 @@ export default function Aquaponie() {
       {activeTab === "parametres" && (
         <section className="aquaponie-panel">
           <PanelHeading title="Paramètres de l'eau" action="Enregistrer une mesure" onClick={() => openMeasure()} />
+          <details className="aquaponie-releves-details"><summary>Valeurs du dernier relevé</summary>
           <div className="aquaponie-last-measure"><div><small>Heure du dernier relevé</small><strong>{latestMeasure?.measure_time?.slice(0,5) || "Non renseignée"}</strong></div>
             <MeasureValue label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
           </div>
+          </details>
           <AnalyseEau mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
-          <div className="aquaponie-measure-timeline">
-            <h3>Derniers relevés</h3>
+          <details className="aquaponie-measure-timeline aquaponie-releves-details">
+            <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>
             {mesures.slice(0, 8).map((mesure) => (
               <article key={mesure.id} className="aquaponie-measure-row">
                 <div>
@@ -596,7 +598,7 @@ export default function Aquaponie() {
               </article>
             ))}
             {!mesures.length && <EmptyState label="Aucune mesure enregistrée." />}
-          </div>
+          </details>
         </section>
       )}
 

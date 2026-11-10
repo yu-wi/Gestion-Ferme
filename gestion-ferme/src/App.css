@@ -8803,3 +8803,7 @@
 .water-product-row small, .water-product-row span { color: #607684; }
 .water-product-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media(max-width:480px) { .water-products { padding: 12px; } .water-products-heading > button { width: 100%; } }
+.water-product-markers { margin: 16px 0; padding: 12px; border: 1px solid #e9c8a1; border-radius: 10px; background: #fffaf2; }
+.water-product-markers > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.water-product-markers button { min-height: 44px; padding: 8px 12px; border: 1px solid #c89154; border-radius: 8px; background: white; color: #85400d; overflow-wrap: anywhere; }
+.water-product-markers button[aria-pressed="true"] { background: #ffead1; border-width: 2px; }

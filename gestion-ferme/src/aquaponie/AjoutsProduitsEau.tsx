@@ -8,13 +8,14 @@ import {preparerAjoutProduit,trierAjoutsProduits,unitesProduit,type AjoutProduit
 const table='aquaponie_product_additions';
 const installation='Le journal des produits doit être activé : exécutez supabase/aquaponie-ajouts-produits.sql dans Supabase SQL Editor.';
 const messageErreur=(e:unknown)=>{const code=(e as {code?:string})?.code;return ['PGRST205','42P01','PGRST204','42703'].includes(code||'')?installation:e instanceof Error?e.message:'Opération impossible. Réessayez ou actualisez les données.';};
-export default function AjoutsProduitsEau({bassins,cuves}:{bassins:{id:string;name:string}[];cuves:{id:string;name:string}[]}){
+export default function AjoutsProduitsEau({bassins,cuves,onChange}:{onChange?:(ajouts:AjoutProduitEau[])=>void;bassins:{id:string;name:string}[];cuves:{id:string;name:string}[]}){
   const [ajouts,setAjouts]=useState<AjoutProduitEau[]>([]),[loading,setLoading]=useState(true),[erreur,setErreur]=useState('');
   const [form,setForm]=useState<FormulaireProduit|null>(null),[ancien,setAncien]=useState<AjoutProduitEau|null>(null),[saving,setSaving]=useState(false),[erreurForm,setErreurForm]=useState('');
   const [recherche,setRecherche]=useState(''),[debut,setDebut]=useState(''),[fin,setFin]=useState(''),[limite,setLimite]=useState(20);
   const verrou=useRef(false),panneau=useRef<HTMLDivElement>(null);
   const charger=useCallback(async()=>{setLoading(true);setErreur('');try{setAjouts(trierAjoutsProduits(await chargerPages((a,b)=>supabase.from(table).select('*').order('addition_date',{ascending:false}).order('addition_time',{ascending:false}).order('id').range(a,b)) as AjoutProduitEau[]));}catch(e){setErreur(messageErreur(e));}finally{setLoading(false);}},[]);
   useEffect(()=>{void charger();},[charger]);
+  useEffect(()=>{onChange?.(ajouts);},[ajouts,onChange]);
   const ouvert=!!form;
   useEffect(()=>{if(!ouvert)return;const precedent=document.activeElement as HTMLElement|null;panneau.current?.querySelector<HTMLInputElement>('input')?.focus();return()=>precedent?.focus();},[ouvert]);
   const ouvrir=(a?:AjoutProduitEau)=>{setAncien(a||null);setErreurForm('');setForm(a?{id:a.id,nom:a.product_name,quantite:String(a.quantity),unite:a.unit,date:a.addition_date,heure:a.addition_time.slice(0,5),cible:a.target_type,cibleId:a.basin_id||a.tank_id||'',notes:a.notes||''}:{id:crypto.randomUUID(),nom:'',quantite:'',unite:'',date:dateMartinique(),heure:heureMartinique(),cible:'bassin',cibleId:'',notes:''});};

@@ -1,3 +1,4 @@
+import type { AjoutProduitEau } from '../aquaponie/ajoutsProduits';
 import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
 import AnalyseEau from '../aquaponie/AnalyseEau';
 import { chargerPages } from '../volailles/chargerPages';
@@ -152,6 +153,7 @@ export default function Aquaponie() {
   const [activeTab, setActiveTab] = useState<AquaTab>("resume");
   const [bassins, setBassins] = useState<Basin[]>([]);
   const [cuves, setCuves] = useState<WaterTank[]>([]);
+  const [ajoutsProduits, setAjoutsProduits] = useState<AjoutProduitEau[]>([]);
   const [mesures, setMesures] = useState<WaterMeasure[]>([]);
   const [cultures, setCultures] = useState<AquaCulture[]>([]);
   const [recoltes, setRecoltes] = useState<Harvest[]>([]);
@@ -578,8 +580,8 @@ export default function Aquaponie() {
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
           </div>
-          <AjoutsProduitsEau bassins={bassins} cuves={cuves}/>
-          <AnalyseEau mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
+          <AjoutsProduitsEau bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
+          <AnalyseEau ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
             <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>
             {mesures.slice(0, 8).map((mesure) => (

@@ -1,3 +1,4 @@
+import { instantMesureEau } from './analyseEau.ts';
 import { heureMesureValide } from './heureMesure.ts';
 export const unitesProduit = [{valeur:'g',libelle:'g'},{valeur:'kg',libelle:'kg'},{valeur:'mL',libelle:'mL'},{valeur:'L',libelle:'L'},{valeur:'unite',libelle:'unité(s)'}] as const;
 export type TypeCibleProduit = 'bassin' | 'cuve' | 'systeme';
@@ -19,3 +20,10 @@ export function preparerAjoutProduit(form:FormulaireProduit,bassins:{id:string;n
     target_label:form.cible==='systeme'?'Circuit complet':cible?`${form.cible==='bassin'?'Bassin':'Cuve'} : ${cible.name}`:ancien!.target_label,notes:form.notes.trim()||null};
 }
 export function trierAjoutsProduits(lignes:AjoutProduitEau[]){return [...lignes].sort((a,b)=>b.addition_date.localeCompare(a.addition_date)||b.addition_time.localeCompare(a.addition_time)||a.id.localeCompare(b.id));}
+
+export function reperesProduits(ajouts:AjoutProduitEau[],selection:string[],debut:number,fin:number){
+  return ajouts.flatMap(a=>{
+    const instant=instantMesureEau(a.addition_date,a.addition_time);
+    return instant!==null&&instant>=debut&&instant<fin&&selection.length>0&&(a.target_type==='systeme'||(a.target_type==='bassin'&&!!a.basin_id&&selection.includes(a.basin_id)))?[{...a,instant}]:[];
+  }).sort((a,b)=>a.instant-b.instant||a.id.localeCompare(b.id));
+}

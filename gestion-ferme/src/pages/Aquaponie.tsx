@@ -1,3 +1,4 @@
+import { useSeuilsEau } from '../aquaponie/useSeuilsEau';
 import { alertesBassinEau } from '../aquaponie/alertesEau';
 import type { AjoutProduitEau } from '../aquaponie/ajoutsProduits';
 import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
@@ -151,6 +152,7 @@ const toNumberOrNull = (value: string) => {
 };
 
 export default function Aquaponie() {
+  const {seuils,loading:seuilsLoading,erreur:seuilsErreur,charger:chargerSeuils}=useSeuilsEau();
   const [activeTab, setActiveTab] = useState<AquaTab>("resume");
   const [bassins, setBassins] = useState<Basin[]>([]);
   const [cuves, setCuves] = useState<WaterTank[]>([]);
@@ -499,8 +501,8 @@ export default function Aquaponie() {
         <section className="aquaponie-overview">
           <article className="aquaponie-panel water-alerts">
             <h2>Surveillance de l’eau</h2>
-            <p>Seuils bas : pH 6 · EC 1 (unité de vos saisies). Alerte sous ces seuils ou en l’absence de relevé complet dans les dernières 24 h.</p>
-            {bassins.map(bassin=>{const alertes=alertesBassinEau(mesures,bassin.id);return <div key={bassin.id} className={alertes.length?'water-alert-row water-alert-warning':'water-alert-row'}><div><strong>{alertes.length?'⚠':'✓'} {bassin.name}</strong>{alertes.length?<ul>{alertes.map(a=><li key={a}>{a}</li>)}</ul>:<p>Dernier relevé récent · seuils bas respectés</p>}</div><button type="button" onClick={()=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:bassin.id}));}}>＋ Mesure</button></div>;})}
+            <p>Seuils bas : pH {seuils.ph} · EC {seuils.conductivity} (unité de vos saisies). Délai maximal : {seuils.delaiHeures} h. Modifiables dans Paramètres → Aquaponie.</p>
+            {seuilsLoading?<p role="status">Chargement des seuils…</p>:seuilsErreur?<p role="alert">{seuilsErreur} <button type="button" onClick={()=>void chargerSeuils()}>Réessayer</button></p>:bassins.map(bassin=>{const alertes=alertesBassinEau(mesures,bassin.id,Date.now(),seuils);return <div key={bassin.id} className={alertes.length?'water-alert-row water-alert-warning':'water-alert-row'}><div><strong>{alertes.length?'⚠':'✓'} {bassin.name}</strong>{alertes.length?<ul>{alertes.map(a=><li key={a}>{a}</li>)}</ul>:<p>Dernier relevé récent · seuils bas respectés</p>}</div><button type="button" onClick={()=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:bassin.id}));}}>＋ Mesure</button></div>;})}
             {!bassins.length&&<EmptyState label="Ajoutez un bassin pour suivre ses paramètres."/>}
           </article>
           <article className="aquaponie-panel">

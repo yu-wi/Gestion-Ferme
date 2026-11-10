@@ -1,3 +1,4 @@
+import ParametresAquaponie from '../aquaponie/ParametresAquaponie';
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabaseClient";
@@ -55,10 +56,6 @@ const settingsRoadmap = [
   {
     title: "Inventaire",
     detail: "Prix de valorisation, grilles de poids et règles de calcul.",
-  },
-  {
-    title: "Aquaponie",
-    detail: "Seuils pH, température, nitrates, alertes bassins et cuves.",
   },
 ];
 
@@ -517,6 +514,7 @@ export default function Parametres() {
         )}
       </section>
 
+      <ParametresAquaponie />
       <section className="settings-roadmap">
         {settingsRoadmap.map((item) => (
           <article key={item.title}>

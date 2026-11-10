@@ -502,7 +502,7 @@ export default function Aquaponie() {
                     <div><strong>{bassin.name}</strong><small>{bassin.species} · {formatNombre(bassin.fish_count)} poissons · {formatNombre(Number(bassin.water_current_l || 0))}/{formatNombre(Number(bassin.water_capacity_l || 0))} L</small></div>
                     <span>Temp. <b>{mesure?.temperature_c ?? "–"} °C</b></span>
                     <span>pH <b>{mesure?.ph ?? "–"}</b></span>
-                    <span>O2 <b>{mesure?.oxygen_mg_l ?? "–"} mg/L</b></span>
+                    <span>EC <b>{mesure?.conductivity ?? "–"}</b></span>
                     <em className={`aquaponie-status aquaponie-status-${bassin.status}`}>{statusLabel[bassin.status]}</em>
                   </div>
                 );

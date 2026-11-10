@@ -572,13 +572,11 @@ export default function Aquaponie() {
       {activeTab === "parametres" && (
         <section className="aquaponie-panel">
           <PanelHeading title="Paramètres de l'eau" action="Enregistrer une mesure" onClick={() => openMeasure()} />
-          <details className="aquaponie-releves-details"><summary>Valeurs du dernier relevé</summary>
           <div className="aquaponie-last-measure"><div><small>Heure du dernier relevé</small><strong>{latestMeasure?.measure_time?.slice(0,5) || "Non renseignée"}</strong></div>
             <MeasureValue label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
           </div>
-          </details>
           <AnalyseEau mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
             <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>

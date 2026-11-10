@@ -8786,3 +8786,20 @@
 .aquaponie-releves-details[open] > summary { margin-bottom: 12px; }
 @media (max-width: 1024px) { .dashboard-production-shortcuts { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 480px) { .dashboard-production-shortcuts { gap: 10px; } .dashboard-production-shortcuts a { padding: 12px; gap: 8px; font-size: 14px; } .dashboard-production-shortcuts img { width: 30px; height: 30px; } .dashboard-production-shortcuts a > span { display: none; } }
+
+.water-products { margin: 20px 0; padding: 16px; border: 1px solid #d9e6df; border-radius: 12px; background: #f8fbf9; }
+.water-products-heading { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.water-products-heading h3 { margin: 0; }
+.water-products-heading p { color: #607684; font-size: 13px; }
+.water-products button { min-height: 44px; padding: 8px 12px; border: 1px solid #bddbc8; border-radius: 8px; color: #08783d; background: #fff; }
+.water-products-history > summary { cursor: pointer; padding: 12px 0; min-height: 44px; color: #315e49; font-weight: 600; }
+.water-products-filters, .water-product-form-pair { display: flex; flex-wrap: wrap; gap: 12px; }
+.water-products-filters label, .water-product-form-pair label { flex: 1 1 140px; min-width: 0; }
+.water-product-form, .water-products-filters label, .water-product-form label { display: flex; flex-direction: column; gap: 8px; }
+.water-product-form { border: 0; margin: 0; padding: 0; min-width: 0; gap: 14px; }
+.water-product-form input, .water-product-form select, .water-product-form textarea, .water-products-filters input { width: 100%; min-width: 0; min-height: 44px; padding: 9px; border: 1px solid #ccdcd2; border-radius: 8px; font-size: 16px; background: #fff; }
+.water-product-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #dce6e1; padding: 14px 0; overflow-wrap: anywhere; }
+.water-product-row > div:first-child { display: flex; flex-direction: column; gap: 5px; flex: 1 1 180px; }
+.water-product-row small, .water-product-row span { color: #607684; }
+.water-product-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media(max-width:480px) { .water-products { padding: 12px; } .water-products-heading > button { width: 100%; } }

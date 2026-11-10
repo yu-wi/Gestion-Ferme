@@ -43,6 +43,7 @@ declare
     'aquaponie_basins',
     'aquaponie_tanks',
     'aquaponie_water_measures',
+    'aquaponie_product_additions',
     'aquaponie_cultures',
     'aquaponie_harvests'
   ];

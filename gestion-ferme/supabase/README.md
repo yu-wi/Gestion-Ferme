@@ -198,3 +198,11 @@ ne sont pas appelees par l'interface actuelle.
 Si le controle affiche encore `daily_tasks`, `feed_stock`,
 `feed_stock_movements` ou `mortalites`, executer ensuite
 `nettoyage-tables-anciennes-confirmation.sql`.
+
+### Journal des produits ajoutés à l’eau
+
+Après `aquaponie-suivi.sql`, exécuter une seule fois `aquaponie-ajouts-produits.sql` dans Supabase SQL Editor (réexécutable sans effacement). Il crée le journal indépendant des mesures, avec accès réservé aux utilisateurs connectés autorisés. Le script respecte le contrôle des profils actifs lorsqu’il est installé.
+
+Dans **Aquaponie → Paramètres eau → Ajouts de produits**, enregistrer le nom, la quantité et son unité, le bassin/la cuve ou le circuit complet, la date et l’heure de Martinique. L’historique repliable permet de filtrer, modifier et supprimer un ajout. Une destination supprimée conserve son libellé historique. Aucun dosage ni changement de mesure n’est calculé automatiquement.
+
+Vérifications : `node --test tests/ajoutsProduits.test.mjs`. Le test SQL isolé s’exécute avec `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/dist/index.js node tests/ajouts-produits-database.mjs` et ne touche pas la base distante.

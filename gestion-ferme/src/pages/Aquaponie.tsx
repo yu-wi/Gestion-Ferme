@@ -1,3 +1,4 @@
+import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
 import AnalyseEau from '../aquaponie/AnalyseEau';
 import { chargerPages } from '../volailles/chargerPages';
 import { heureMesureValide, trierMesuresEau, heureMartinique, dateMartinique } from '../aquaponie/heureMesure';
@@ -577,6 +578,7 @@ export default function Aquaponie() {
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
           </div>
+          <AjoutsProduitsEau bassins={bassins} cuves={cuves}/>
           <AnalyseEau mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
             <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>

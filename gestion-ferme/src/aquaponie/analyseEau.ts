@@ -12,11 +12,14 @@ export function instantMesureEau(date: string, heure?: string | null) {
   const instant=Date.parse(`${date}T${heure.length===5?heure+':00':heure}-04:00`);
   return Number.isFinite(instant) ? instant : null;
 }
-export function analyserEau(mesures: MesureAnalyseEau[], bassins: BassinAnalyseEau[], selection: string[], metrique: MetriqueEau, date: string, periode: 'jour' | 'semaine') {
+export function analyserEau(mesures: MesureAnalyseEau[], bassins: BassinAnalyseEau[], selection: string[], metrique: MetriqueEau, date: string, periode: 'jour' | 'semaine' | 'mois') {
   const finJour=Date.parse(`${date}T00:00:00-04:00`);
-  const debut=finJour-(periode==='semaine'?6:0)*86400000, fin=finJour+86400000;
+  const debut=periode==='mois'?Date.parse(`${date.slice(0,7)}-01T00:00:00-04:00`):finJour-(periode==='semaine'?6:0)*86400000;
+  const suivant=new Date(debut-4*3600000);suivant.setUTCMonth(suivant.getUTCMonth()+1);
+  const fin=periode==='mois'?suivant.getTime()+4*3600000:finJour+86400000;
   const dateDebut=new Date(debut-4*3600000).toISOString().slice(0,10);
-  const retenues=mesures.filter(m=>m.target_type!=='cuve'&&m.measure_date>=dateDebut&&m.measure_date<=date);
+  const dateFin=new Date(fin-4*3600000).toISOString().slice(0,10);
+  const retenues=mesures.filter(m=>m.target_type!=='cuve'&&m.measure_date>=dateDebut&&m.measure_date<dateFin);
   const generales=retenues.filter(m=>!m.basin_id).length;
   const releves: {id:string;bassin:string;date:string;heure:string|null;valeur:number|null}[]=[];
   let sansHeure=0,sansValeur=0;

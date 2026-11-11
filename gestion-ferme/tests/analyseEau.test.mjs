@@ -30,3 +30,10 @@ test('la periode choisie filtre sans limiter aux douze derniers releves',()=>{
 test('un identifiant de bassin absent du repertoire reste accessible sans inventer son nom',()=>{
  const b=bassinsDesMesures(bassins,[ligne('1','archive','08:00')]);assert.equal(b.length,3);assert.match(b.find(x=>x.id==='archive').name,/archivé/);
 });
+test('vue mensuelle : mois civil complet, fuseau Martinique et limites exclusives',()=>{
+ for(const [date,jours,fin] of [['2026-11-15',30,'2026-12-01'],['2026-12-15',31,'2027-01-01'],['2028-02-10',29,'2028-03-01'],['2027-02-10',28,'2027-03-01']]){
+  const debut=date.slice(0,7)+'-01';
+  const mesures=[{...ligne('premier','a','00:00'),measure_date:debut},{...ligne('dernier','a','23:59'),measure_date:date.slice(0,7)+'-'+jours},{...ligne('hors','a','00:00'),measure_date:fin}];
+  for(const metric of ['ph','conductivity']){const r=analyserEau(mesures,bassins,['a'],metric,date,'mois');assert.equal(r.fin-r.debut,jours*86400000);assert.equal(r.debut,Date.parse(debut+'T00:00:00-04:00'));assert.equal(r.fin,Date.parse(fin+'T00:00:00-04:00'));assert.equal(r.nbPoints,2);}
+ }
+});

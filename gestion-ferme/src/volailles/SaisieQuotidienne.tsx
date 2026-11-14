@@ -1,3 +1,5 @@
+import chickenLogo from '../assets/chicken.svg';
+import IconeEau from '../aquaponie/IconeEau';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -30,6 +32,9 @@ async function charger(): Promise<Donnees> {
   ].filter(lot => lot.restants >= 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true })), stocks: stock.data || [], consommations, mortalites, directMortalites, references: references?.map(r => ({ feed_type: r.feed_type, age_min_days: Number(r.age_min_days), age_max_days: Number(r.age_max_days), daily_consumption_g: r.daily_consumption_g==null?undefined:Number(r.daily_consumption_g) })) ?? null };
 }
 export default function SaisieQuotidienne() {
+  const [filtre,setFiltre]=useState<'tous'|'attente'|'saisis'>('tous');
+  const [ouverts,setOuverts]=useState<string[]>([]);
+  const [triInverse,setTriInverse]=useState(false);
   const [date, setDate] = useState(aujourdHui);
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [lignes, setLignes] = useState<Record<string, SaisieQuotidienne>>({});
@@ -95,6 +100,8 @@ export default function SaisieQuotidienne() {
   const projection = projeterStockQuotidien(donnees?.stocks || [], Object.values(lignes));
   const demandes = projection.aliments.filter(a => a.demande > 0);
   const manqueStock = demandes.some(a => a.restant < 0);
+  const lotsAffiches=(filtre==='attente'?aRenseigner:filtre==='saisis'?renseignes:lots).slice().sort((a,b)=>(triInverse?-1:1)*a.nom.localeCompare(b.nom,'fr',{numeric:true}));
+  const utiliserSuggestion=(lot:LotQuotidien,s:ReturnType<typeof suggererConsommations>[number])=>{if(!donnees)return;const cle=`${lot.source}:${lot.id}`;const aliment=donnees.stocks.find(stock=>cleAliment(stock.feed_type)===cleAliment(s.aliment))?.feed_type||s.aliment;setLignes(avant=>({...avant,[cle]:{...(avant[cle]||{lot_id:lot.id,source:lot.source,morts:''}),aliment,sacs:String(s.sacs)}}));setMessage('');setSucces('');};
   const afficherLot = (lot: LotQuotidien) => {
     if (!donnees) return null;
     const cle = `${lot.source}:${lot.id}`;
@@ -106,9 +113,15 @@ export default function SaisieQuotidienne() {
     const tousTypes = [...donnees.stocks.map(s => s.feed_type), ...(donnees.references || []).map(r => r.feed_type), alimentChoisi].filter(Boolean);
     const types = tousTypes.filter((type, i, tous) => tous.findIndex(t => cleAliment(t) === cleAliment(type)) === i);
     const bilan = projection.aliments.find(a => cleAliment(a.aliment) === cleAliment(alimentChoisi));
-    return <article className="daily-card" key={cle}><h2>Lot {lot.nom}</h2><p>{lot.source === 'sica' ? 'SICA Madras' : 'Vente directe'} · {lot.restants.toLocaleString('fr-FR')} sujets restants</p>
+    const renseigne=renseignes.some(l=>l.id===lot.id&&l.source===lot.source);
+    const ouvert=ouverts.includes(cle);
+    const basculer=()=>setOuverts(avant=>ouvert?avant.filter(c=>c!==cle):[...avant,cle]);
+    return <article className={`daily-card daily-lot-row ${renseigne?'daily-lot-done':''}`} key={cle}>
+      <div className="daily-lot-name"><button type="button" className="daily-expand" onClick={basculer} aria-expanded={ouvert} aria-controls={`details-${cle}`} aria-label={`Détails du lot ${lot.nom}`}><span className={ouvert?'daily-chevron-open':''}>›</span></button><span className={`daily-lot-check ${renseigne?'checked':''}`} aria-label={renseigne?'Déjà renseigné':'À renseigner'}>{renseigne?'✓':''}</span><h2>{lot.nom}</h2></div>
+
       <fieldset disabled={saving || !!tentative.current}><legend className="sr-only">Saisie du lot {lot.nom}</legend>
         {consos.length > 0 ? <p className="daily-existing">✓ Aliment déjà saisi : {consos.map(c => `${c.feed_type} (${Number(c.quantite_kg) / 25} sacs)`).join(', ')}. <button type="button" className="daily-edit-button" aria-label={`Modifier l’alimentation du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'aliment', mouvements: consos.map(c => ({ id: c.id, date: c.date, quantite: Number(c.quantite_kg), aliment: c.feed_type })) })}>✎ Modifier</button></p> : <div className="daily-feed"><label>Aliment<select disabled={lot.restants <= 0} value={alimentChoisi} onChange={e => modifier(lot, 'aliment', e.target.value)}><option value="">Choisir…</option>{types.map(type => <option key={type}>{type}</option>)}</select></label><label>Sacs de 25 kg<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" placeholder="—" value={ligne?.sacs || ''} onChange={e => modifier(lot, 'sacs', e.target.value)} /></label></div>}
+        <div className="daily-lot-extra" id={`details-${cle}`} hidden={!ouvert}>
         {!consos.length && lot.restants > 0 && <div className="daily-second-feed">
           {ligne?.secondAliment !== undefined ? <>
             <div className="daily-feed"><label>Deuxième aliment<select aria-label={`Deuxième aliment du lot ${lot.nom}`} value={ligne.secondAliment} onChange={e => modifier(lot, 'secondAliment', e.target.value)}><option value="">Choisir…</option>{types.map(type => <option key={type} disabled={cleAliment(type) === cleAliment(alimentChoisi)}>{type}</option>)}</select></label>
@@ -118,29 +131,26 @@ export default function SaisieQuotidienne() {
           </> : <button type="button" onClick={() => modifier(lot, 'secondAliment', '')}>＋ Ajouter un deuxième aliment</button>}
         </div>}
         {!consos.length && lot.restants > 0 && <div className="daily-feed-guidance">
-          {suggestions.length?suggestions.map(s=><div className="daily-consumption-suggestion" key={s.aliment}><div><strong>Suggestion : {s.sacs} sac(s) de {s.aliment}</strong><small>{s.age} jours · {s.sujets} sujets · {s.ration.toLocaleString('fr-FR')} g / sujet / jour</small></div><button type="button" disabled={!!ligne?.secondAliment&&cleAliment(ligne.secondAliment)===cleAliment(s.aliment)} onClick={()=>{const aliment=donnees.stocks.find(stock=>cleAliment(stock.feed_type)===cleAliment(s.aliment))?.feed_type||s.aliment;setLignes(avant=>({...avant,[cle]:{...(avant[cle]||{lot_id:lot.id,source:lot.source,morts:''}),aliment,sacs:String(s.sacs)}}));setMessage('');setSucces('');}}>Utiliser</button></div>):<p>Suggestion indisponible pour cet âge. Renseignez la quantité distribuée.</p>}
+          {suggestions.length?suggestions.map(s=><div className="daily-consumption-suggestion" key={s.aliment}><div><strong>Suggestion : {s.sacs} sac(s) de {s.aliment}</strong><small>{s.age} jours · {s.sujets} sujets · {s.ration.toLocaleString('fr-FR')} g / sujet / jour</small></div><button type="button" disabled={!!ligne?.secondAliment&&cleAliment(ligne.secondAliment)===cleAliment(s.aliment)} onClick={()=>utiliserSuggestion(lot,s)}>Utiliser</button></div>):<p>Suggestion indisponible pour cet âge. Renseignez la quantité distribuée.</p>}
           {alimentChoisi && <p className={bilan && bilan.restant < 0 ? 'daily-stock-shortage' : ''}>Après les saisies de tous les lots : <strong>{((bilan?.restant ?? 0) / 25).toLocaleString('fr-FR')} sac(s) de {alimentChoisi}</strong>.</p>}
         </div>}
+        </div>
         {morts.length > 0 ? <p className="daily-existing">✓ Mortalité déjà saisie : {morts.reduce((n, m) => n + Number(m.nombre ?? m.quantity), 0)}. <button type="button" className="daily-edit-button" aria-label={`Modifier la mortalité du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'mortalite', mouvements: morts.map(m => ({ id: m.id, date: m.date, quantite: Number(m.nombre ?? m.quantity) })) })}>✎ Modifier</button></p> : <label>Mortalités du jour<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" max={lot.restants} placeholder="—" value={ligne?.morts || ''} onChange={e => modifier(lot, 'morts', e.target.value)} /></label>}
-      </fieldset></article>;
+      </fieldset><button type="button" className={`daily-row-action ${renseigne?'done':''}`} onClick={basculer} aria-expanded={ouvert} aria-controls={`details-${cle}`}>{renseigne?'✓ Saisi':<><IconeEau nom="modifier"/> Saisir</>}</button></article>;
   };
 
   return <div className="daily-page">
-    <header className="daily-header"><div><h1>Saisie quotidienne</h1><p>Alimentation et mortalités de vos lots en une seule fois.</p></div><Link to="/volailles/alimentation">Voir l’alimentation →</Link></header>
-    <div className="daily-toolbar"><label>Date de saisie<input type="date" value={date} max={aujourdHui()} disabled={saving || !!tentative.current || !!edition} onChange={e => { setDate(e.target.value); setLignes({}); setSucces(''); setMessage(''); }} /></label><span>Les champs vides sont ignorés. Sacs entiers de 25 kg.</span></div>
+    <header className="daily-header"><div className="daily-heading-copy"><img src={chickenLogo} alt=""/><div><h1>Saisie quotidienne</h1><p>Alimentation et mortalités de vos lots en une seule fois.</p></div></div>
+    <div className="daily-toolbar"><label><span className="sr-only">Date de saisie</span><input type="date" value={date} max={aujourdHui()} disabled={saving || !!tentative.current || !!edition} onChange={e => { setDate(e.target.value); setLignes({});setOuverts([]); setSucces(''); setMessage(''); }} /></label><span>ⓘ Sacs entiers de 25 kg · Les champs vides sont ignorés.</span></div></header>
     {message && <div role="alert" className="daily-alert">{message}{!donnees && <button onClick={() => void chargerInitial()}>Réessayer</button>}</div>}
     {succes && <p role="status" className="daily-success">✓ {succes}</p>}
     {chargement ? <p role="status">Chargement des lots et des stocks…</p> : donnees && <>
       {donnees.references === null && <p className="daily-alert" role="status">Références alimentaires indisponibles. Vous pouvez choisir l’aliment et enregistrer les quantités normalement.</p>}
-      <details className="daily-stock"><summary>Stock disponible par aliment</summary>{donnees.stocks.map(s => <p key={s.feed_type}>{s.feed_type} : <strong>{(Number(s.stock_kg) / 25).toLocaleString('fr-FR')} sacs</strong></p>)}</details>
-      {lots.length > 0 && <section className="daily-progress" aria-label="Progression de la saisie quotidienne">
-        <div><strong>{renseignes.length} lot(s) sur {lots.length} renseigné(s)</strong><span>{aRenseigner.length} à renseigner</span></div>
-        <progress max={lots.length} value={renseignes.length} aria-label="Lots renseignés" />
-        <p>La progression compte les lots avec une alimentation enregistrée et ceux sans sujet restant. Les mortalités se renseignent uniquement si nécessaire. Les brouillons ne sont pas comptés.</p>
-      </section>}
-      {aRenseigner.length > 0 && <section aria-labelledby="daily-pending-title"><h2 id="daily-pending-title" className="daily-group-title">Alimentation à renseigner <span>{aRenseigner.length}</span></h2><div className="daily-grid">{aRenseigner.map(afficherLot)}</div></section>}
-      {lots.length > 0 && !aRenseigner.length && <p className="daily-success">✓ Tous les lots disponibles sont traités pour l’alimentation. Vous pouvez encore ajouter ou modifier une mortalité dans les lots ci-dessous.</p>}
-      {renseignes.length > 0 && <details key={date} className="daily-completed"><summary>Lots déjà renseignés <span>{renseignes.length}</span></summary><p>Consultez ou corrigez les données enregistrées, ou ajoutez une mortalité si nécessaire. Les lots sans sujet restant sont également regroupés ici.</p><div className="daily-grid">{renseignes.map(afficherLot)}</div></details>}
+      <div className="daily-overview"><section className="daily-progress" aria-label="Progression de la saisie quotidienne"><div className="daily-progress-ring" role="progressbar" aria-label="Lots renseignés" aria-valuemin={0} aria-valuemax={lots.length||1} aria-valuenow={renseignes.length} style={{background:`conic-gradient(#008939 ${lots.length?renseignes.length/lots.length*100:0}%,#e3e7eb 0)`}}><strong>{renseignes.length} / {lots.length}</strong></div><div><h2>Lots à renseigner</h2><p>{renseignes.length} lots saisis sur {lots.length}</p></div><div className="daily-progress-count"><span>✓</span><div><b>{renseignes.length}</b><small>Déjà saisis</small></div></div><div className="daily-progress-count"><span>•••</span><div><b>{aRenseigner.length}</b><small>Restants</small></div></div></section>
+      <details className="daily-stock"><summary><IconeEau nom="bassin"/><strong>Stock disponible par aliment</strong><span>Voir le stock ↗</span></summary>{donnees.stocks.map(s=><p key={s.feed_type}>{s.feed_type} : <strong>{(Number(s.stock_kg)/25).toLocaleString('fr-FR')} sacs</strong></p>)}<Link to="/volailles/alimentation">Gérer le stock →</Link></details></div>
+      <section className="daily-lots-panel" aria-label="Saisie par lot"><div className="daily-list-toolbar"><h2>Saisie par lot ({lots.length})</h2><div className="daily-list-filters" role="group" aria-label="Filtrer les lots"><button type="button" aria-pressed={filtre==='tous'} onClick={()=>setFiltre('tous')}>Tous ({lots.length})</button><button type="button" aria-pressed={filtre==='attente'} onClick={()=>setFiltre('attente')}>À renseigner ({aRenseigner.length})</button><button type="button" aria-pressed={filtre==='saisis'} onClick={()=>setFiltre('saisis')}>Saisis ({renseignes.length})</button></div><div className="daily-expand-actions"><button type="button" onClick={()=>setOuverts([])}>Tout replier ⌃</button><button type="button" onClick={()=>setOuverts(lotsAffiches.map(l=>`${l.source}:${l.id}`))}>Tout développer ⌄</button></div></div>
+      <div className="daily-table-head"><button type="button" onClick={()=>setTriInverse(t=>!t)}>Lot ↕</button><span>Alimentation</span><span>Quantité <small>(sacs de 25 kg)</small></span><span>Mortalités du jour</span><span className="sr-only">Actions</span></div><div className="daily-lots-list">{lotsAffiches.map(afficherLot)}</div>{lots.length>0&&!lotsAffiches.length&&<p>Aucun lot pour ce filtre.</p>}</section>
+      {aRenseigner.length>0&&<section className="daily-suggestions-banner"><div className="daily-suggestions-title"><span className="water-icon-bubble"><IconeEau nom="produit"/></span><div><h2>Suggestions d’alimentation</h2><p>Basées sur l’âge et le nombre de sujets restants.</p></div></div><div className="daily-suggestions-strip">{aRenseigner.flatMap(lot=>suggererConsommations(lot.arrivee,date,lot.restants,donnees.references||[]).map(s=><button type="button" key={`${lot.source}:${lot.id}:${s.aliment}`} disabled={saving||!!tentative.current||cleAliment(lignes[`${lot.source}:${lot.id}`]?.secondAliment||'')===cleAliment(s.aliment)} onClick={()=>utiliserSuggestion(lot,s)} aria-label={`Utiliser ${s.sacs} sacs de ${s.aliment} pour le lot ${lot.nom}`}><IconeEau nom="produit"/><span><strong>{lot.nom} : {s.sacs} sac(s) de {s.aliment}</strong><small>{s.age} jours · {s.sujets} sujets · {s.ration} g / sujet / jour</small></span></button>))}</div></section>}
       {!lots.length && <p>Aucun lot actif disponible à cette date.</p>}
       {demandes.length > 0 && <section className="daily-stock-preview" aria-label="Stock après les saisies">
         <h2>Stock après enregistrement</h2><p>Stock disponible actuellement moins les quantités en cours de saisie, tous lots confondus. Les consommations déjà enregistrées sont déjà déduites du stock.</p>

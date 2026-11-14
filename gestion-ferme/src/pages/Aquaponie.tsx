@@ -482,7 +482,7 @@ export default function Aquaponie() {
           <p>{activeTab==='resume'?'Vue d’ensemble de votre système aquaponique.':"Suivi des bassins, paramètres de l'eau et cultures."}</p>
         </div>
         <div>
-          {activeTab==='resume'&&<span className="aqua-resume-date"><IconeEau nom="calendrier"/>{new Intl.DateTimeFormat('fr-FR',{timeZone:'America/Martinique',day:'numeric',month:'long',year:'numeric'}).format(new Date())}</span>}<button type="button" onClick={() => openMeasure()}>＋ Mesure eau</button>
+          <button type="button" onClick={() => openMeasure()}>＋ Mesure eau</button>
           <button type="button" onClick={() => openCulture()}>＋ Culture</button>
         </div>
       </header>

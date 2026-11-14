@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as XLSX from 'xlsx';
+import {analyserEau} from '../src/aquaponie/analyseEau.ts';
+import {reperesProduits} from '../src/aquaponie/ajoutsProduits.ts';
+import {preparerRapportEau,nomRapportEau} from '../src/aquaponie/rapportEau.ts';
+import {construireClasseurEau,construirePdfEau} from '../src/aquaponie/exportEau.ts';
+const bassins=[{id:'a',name:'Bassin A'},{id:'b',name:'Bassin B'}];
+const m=(id,date,heure,basin_id='a')=>({id,measure_date:date,measure_time:heure,basin_id,target_type:'bassin',ph:6.7,conductivity:1.4});
+const mesures=[m('debut','2026-11-01','08:00'),m('sans-heure','2026-11-10',null),{...m('sans-valeur','2026-11-10','12:00'),ph:null},m('fin','2026-11-30','23:59'),m('hors','2026-12-01','00:00'),m('autre','2026-11-10','09:00','b'),{...m('cuve','2026-11-10','09:00'),target_type:'cuve'},m('global','2026-11-10','10:00',null)];
+const ajout={id:'p',product_name:'Correcteur',quantity:12.5,unit:'g',addition_date:'2026-11-10',addition_time:'08:30',target_type:'bassin',basin_id:'a',tank_id:null,target_label:'Bassin A',notes:'Observation',updated_at:''};
+const produits=[ajout,{...ajout,id:'systeme',target_type:'systeme',basin_id:null},{...ajout,id:'cuve',target_type:'cuve',basin_id:null},{...ajout,id:'autre',basin_id:'b'},{...ajout,id:'hors',addition_date:'2026-12-01'}];
+const rapport=(metric='ph',periode='mois',date='2026-11-10',selection=['a'])=>{const data=analyserEau(mesures,bassins,selection,metric,date,periode);return preparerRapportEau(data,reperesProduits(produits,selection,data.debut,data.fin),metric==='ph'?'pH':'EC',periode);};
+test('export et graphique utilisent la même sélection mensuelle et préservent les valeurs manquantes',()=>{const r=rapport();assert.equal(r.debut,'2026-11-01');assert.equal(r.fin,'2026-11-30');assert.deepEqual(r.bassins,['Bassin A']);assert.deepEqual(r.releves.map(p=>p.id),['debut','sans-heure','sans-valeur','fin']);assert.equal(r.ajouts.length,2);assert.equal(r.releves[1].heure,null);assert.equal(r.releves[2].valeur,null);assert.equal(nomRapportEau(r),'aquaponie_ph_2026-11-01_2026-11-30');});
+test('jour, 7 jours, EC et absence de bassin respectent les filtres',()=>{assert.equal(rapport('conductivity','jour').releves.length,2);assert.equal(rapport('ph','semaine').debut,'2026-11-04');assert.equal(rapport('conductivity','jour').releves[1].valeur,1.4);assert.equal(rapport('ph','mois','2026-11-10',[]).releves.length,0);});
+test('Excel relisible : trois feuilles, quantités et valeurs numériques sans formules',()=>{const r=rapport();const book=construireClasseurEau(r);const bytes=XLSX.write(book,{type:'buffer',bookType:'xlsx'});const lu=XLSX.read(bytes,{type:'buffer'});assert.deepEqual(lu.SheetNames,['Filtres','Relevés','Ajouts produits']);assert.equal(lu.Sheets['Relevés'].D2.v,6.7);assert.equal(lu.Sheets['Relevés'].D2.t,'n');assert.equal(lu.Sheets['Relevés'].C3.v,'Non renseignée');assert.equal(lu.Sheets['Ajouts produits'].E2.v,12.5);assert.equal(lu.Sheets['Ajouts produits'].E2.t,'n');const hostile={...r,ajouts:[{...ajout,product_name:'=1+1'}]};assert.equal(construireClasseurEau(hostile).Sheets['Ajouts produits'].D2.f,undefined);});
+test('PDF direct multipage avec un grand historique et texte accentué',()=>{const r=rapport();r.releves=Array.from({length:220},(_,i)=>({...r.releves[0],id:String(i),bassin:'Bassin Élevage'}));const pdf=construirePdfEau(r);assert.ok(pdf.getNumberOfPages()>3);assert.ok(pdf.output().startsWith('%PDF-'));assert.match(pdf.output(),/Bassin/);});

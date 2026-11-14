@@ -1,3 +1,4 @@
+import { preparerRapportEau } from './rapportEau';
 import { reperesProduits, type AjoutProduitEau } from './ajoutsProduits';
 import { useState } from 'react';
 import { CartesianGrid, ResponsiveContainer, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
@@ -21,12 +22,24 @@ export default function AnalyseEau({mesures,bassins,onModifier,ajouts=[]}:{ajout
   const reperes=donnees?reperesProduits(ajouts,selection,donnees.debut,donnees.fin):[];
   const produit=reperes.find(a=>a.id===produitChoisi);
   const nom=metrique==='ph'?'pH':'EC';
+  const [exportEnCours,setExportEnCours]=useState(false);
+  const [erreurExport,setErreurExport]=useState('');
+  const exporter=async(format:'excel'|'pdf')=>{
+    if(!donnees||!selection.length||exportEnCours)return;
+    const rapport=preparerRapportEau(donnees,reperes,nom,periode);
+    setExportEnCours(true);setErreurExport('');
+    try{const module=await import('./exportEau');if(format==='excel')module.exporterEauExcel(rapport);else module.exporterEauPdf(rapport);}
+    catch{setErreurExport('L’export a échoué. Réessayez.');}finally{setExportEnCours(false);}
+  };
   const lectureVisible=lecture&&lecture.metrique===metrique&&lecture.date===date&&lecture.periode===periode&&donnees?.series.some(s=>s.points.some(p=>p.id===lecture.point.id));
   return <section className="water-analysis" aria-label="Analyse des paramètres d’eau">
     <div className="water-metric-tabs" role="group" aria-label="Paramètre à analyser"><button type="button" aria-pressed={metrique==='ph'} onClick={()=>setMetrique('ph')}>pH</button><button type="button" aria-pressed={metrique==='conductivity'} onClick={()=>setMetrique('conductivity')}>EC</button></div>
     <div className="water-analysis-controls"><label>Période<select value={periode} onChange={e=>setPeriode(e.target.value as 'jour'|'semaine'|'mois')}><option value="jour">Une journée</option><option value="semaine">7 jours jusqu’à la date choisie</option><option value="mois">Un mois</option></select></label><label>{periode==='jour'?'Journée':periode==='mois'?'Mois':'Jusqu’au'}<input type={periode==='mois'?'month':'date'} value={periode==='mois'?date.slice(0,7):date} onChange={e=>setDate(periode==='mois'&&e.target.value?`${e.target.value}-01`:e.target.value)}/></label></div>
     <fieldset className="water-basin-filters"><legend>Bassins à comparer</legend>{disponibles.map((b,i)=><label key={b.id}><input type="checkbox" checked={!masques.includes(b.id)} onChange={e=>setMasques(ancien=>e.target.checked?ancien.filter(id=>id!==b.id):[...ancien,b.id])}/><span style={{background:donnees?.series.find(s=>s.id===b.id)?.couleur||couleursEau[i%couleursEau.length]}} aria-hidden="true"/>{b.name}</label>)}</fieldset>
     <div className="water-basin-actions"><button type="button" onClick={()=>setMasques([])}>Tous les bassins</button><button type="button" onClick={()=>setMasques(disponibles.map(b=>b.id))}>Tout masquer</button></div>
+    <div className="water-export-actions" role="group" aria-label="Exporter les données filtrées"><button type="button" disabled={!donnees||!selection.length||exportEnCours||(!donnees.releves.length&&!reperes.length)} onClick={()=>void exporter('excel')}>↓ Exporter Excel</button><button type="button" disabled={!donnees||!selection.length||exportEnCours||(!donnees.releves.length&&!reperes.length)} onClick={()=>void exporter('pdf')}>↓ Exporter PDF</button>{exportEnCours&&<span role="status">Préparation de l’export…</span>}</div>
+    <p className="water-analysis-note">Les exports reprennent le paramètre, la période et les bassins sélectionnés, avec les ajouts de produits correspondants.</p>
+    {erreurExport&&<p role="alert">{erreurExport}</p>}
     <h3>Évolution {metrique==='ph'?'du pH':'de l’EC'}{periode==='jour'?' dans la journée':periode==='mois'?' sur le mois':' sur 7 jours'}</h3><p>Heures de Martinique · une couleur par bassin · touchez ou survolez un point pour voir son relevé. L’échelle verticale s’adapte aux valeurs affichées.</p>
     {!dateValide?<p role="status">Choisissez une date valide.</p>:!disponibles.length?<p role="status">Aucun bassin à comparer. Ajoutez un bassin ou un relevé rattaché à un bassin.</p>:!selection.length?<p role="status">Sélectionnez au moins un bassin.</p>:!donnees?.nbPoints?<p className="aquaponie-empty">Aucun relevé de {nom} avec une heure connue pour les bassins et la période sélectionnés.</p>:<>
       <div className="water-time-chart" role="group" aria-label={`Comparaison du ${nom} par bassin avec les heures réelles des relevés`}>

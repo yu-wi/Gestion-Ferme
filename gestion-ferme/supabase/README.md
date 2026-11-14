@@ -208,3 +208,7 @@ Dans **Aquaponie → Paramètres eau → Ajouts de produits**, enregistrer le no
 Vérifications : `node --test tests/ajoutsProduits.test.mjs`. Le test SQL isolé s’exécute avec `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/dist/index.js node tests/ajouts-produits-database.mjs` et ne touche pas la base distante.
 
 Les graphiques pH et EC affichent des lignes orange à l’heure réelle des ajouts des bassins sélectionnés et du circuit complet. Cliquer sur le signe ＋ ou sur le bouton sous le graphique affiche le produit, la quantité, l’unité, la destination et l’heure. Les ajouts simultanés partagent une ligne et restent accessibles individuellement sous le graphique. Les cuves ne sont pas attribuées aux courbes des bassins. Aucun changement SQL supplémentaire n’est nécessaire après l’installation du journal.
+
+### Exports des paramètres eau
+
+Dans l’analyse pH/EC, les boutons Excel et PDF exportent le paramètre actif, la période (jour, 7 jours, mois civil) et les bassins cochés. Les fichiers contiennent les relevés avec leurs dates/heures de Martinique, les valeurs numériques et les ajouts de produits de la même sélection. Les heures et valeurs manquantes restent explicites ; aucune interpolation n’est exportée. Les relevés globaux et les cuves ne sont pas attribués aux bassins. Aucun script SQL supplémentaire n’est requis.

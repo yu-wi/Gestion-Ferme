@@ -1,3 +1,5 @@
+import {useSearchParams} from 'react-router-dom';
+import {ongletAquaponie,type AquaTab} from '../aquaponie/navigationAquaponie';
 import ResumeAquaponie from '../aquaponie/ResumeAquaponie';
 import IconeEau, {type NomIconeEau} from '../aquaponie/IconeEau';
 import { useSeuilsEau } from '../aquaponie/useSeuilsEau';
@@ -13,7 +15,6 @@ import ModalCloseButton from "../components/ModalCloseButton";
 import { supabase } from "../supabaseClient";
 import { formatDateCourte, formatNombre } from "../outils/formatNombre";
 
-type AquaTab = "resume" | "bassins" | "cuves" | "parametres" | "cultures" | "recoltes";
 type BasinStatus = "stable" | "surveillance" | "probleme";
 type CultureStatus = "semis" | "croissance" | "pret" | "recolte";
 type HarvestDestination = "vente" | "autoconsommation" | "perte";
@@ -154,7 +155,9 @@ const toNumberOrNull = (value: string) => {
 
 export default function Aquaponie() {
   const {seuils,loading:seuilsLoading,erreur:seuilsErreur,charger:chargerSeuils}=useSeuilsEau();
-  const [activeTab, setActiveTab] = useState<AquaTab>("resume");
+  const [searchParams,setSearchParams]=useSearchParams();
+  const activeTab=ongletAquaponie(searchParams.toString());
+  const setActiveTab=(onglet:AquaTab)=>setSearchParams(anciens=>{const suivants=new URLSearchParams(anciens);if(onglet==='resume')suivants.delete('onglet');else suivants.set('onglet',onglet);return suivants;});
   const [bassins, setBassins] = useState<Basin[]>([]);
   const [cuves, setCuves] = useState<WaterTank[]>([]);
   const formulaireProduit=useRef<{ouvrir:()=>void}>(null);

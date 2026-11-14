@@ -1,3 +1,4 @@
+import {ongletsAquaponie,ongletAquaponie} from '../aquaponie/navigationAquaponie';
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { FC, ReactNode } from "react";
@@ -23,7 +24,6 @@ type NavigationItem = {
 };
 
 const production: NavigationItem[] = [
-  { to: "/aquaponie", label: "Aquaponie", icon: <img src={fishLogo} alt="" /> },
   { to: "/cultures", label: "Cultures", icon: <img src={plantsLogo} alt="" /> },
   { to: "/ovins", label: "Ovins", icon: <img src={sheepLogo} alt="" /> },
 ];
@@ -40,6 +40,8 @@ const estDansProductionVolailles = (pathname: string) =>
 
 const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   const location = useLocation();
+  const dansAquaponie=location.pathname==='/aquaponie';
+  const [aquaponieOpen,setAquaponieOpen]=useState(dansAquaponie);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1024px)').matches);
   const sidebarRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -48,6 +50,7 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
   );
 
   useBodyScrollLock(menuOpen && isMobile);
+  useEffect(()=>{if(location.pathname==='/aquaponie')setAquaponieOpen(true);},[location.pathname,location.search]);
 
   const fermerMenu = () => setMenuOpen(false);
 
@@ -288,6 +291,13 @@ const Header: FC<HeaderProps> = ({ userEmail, userRole }) => {
                 </NavLink>
               </div>
             )}
+          </div>
+          <div className="app-nav-group">
+            <div className={`app-nav-group-row${dansAquaponie?' app-nav-group-active':''}`}>
+              <NavLink to="/aquaponie" onClick={fermerMenu} className="app-nav-parent-link"><span className="app-nav-icon"><img src={fishLogo} alt=""/></span><span>Aquaponie</span></NavLink>
+              <button type="button" className="app-nav-toggle" onClick={()=>setAquaponieOpen(o=>!o)} aria-label={aquaponieOpen?'Replier le menu Aquaponie':'Déplier le menu Aquaponie'} aria-expanded={aquaponieOpen} aria-controls="aquaponie-sidebar-submenu">{aquaponieOpen?'⌃':'⌄'}</button>
+            </div>
+            {aquaponieOpen&&<div className="app-nav-submenu" id="aquaponie-sidebar-submenu">{ongletsAquaponie.map(o=>{const actif=dansAquaponie&&ongletAquaponie(location.search)===o.id;return <NavLink key={o.id} to={o.id==='resume'?'/aquaponie':`/aquaponie?onglet=${o.id}`} onClick={fermerMenu} aria-current={actif?'page':false} className={`app-nav-sublink${actif?' app-nav-sublink-active':''}`}><span>•</span>{o.label}</NavLink>;})}</div>}
           </div>
           {liens(production)}
         </nav>

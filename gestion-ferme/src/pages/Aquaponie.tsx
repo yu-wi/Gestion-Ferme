@@ -1,6 +1,6 @@
+import ResumeAquaponie from '../aquaponie/ResumeAquaponie';
 import IconeEau, {type NomIconeEau} from '../aquaponie/IconeEau';
 import { useSeuilsEau } from '../aquaponie/useSeuilsEau';
-import { alertesBassinEau } from '../aquaponie/alertesEau';
 import type { AjoutProduitEau } from '../aquaponie/ajoutsProduits';
 import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
 import AnalyseEau from '../aquaponie/AnalyseEau';
@@ -158,6 +158,7 @@ export default function Aquaponie() {
   const [bassins, setBassins] = useState<Basin[]>([]);
   const [cuves, setCuves] = useState<WaterTank[]>([]);
   const formulaireProduit=useRef<{ouvrir:()=>void}>(null);
+  const [produitsResumeErreur,setProduitsResumeErreur]=useState('');
   const [ajoutsProduits, setAjoutsProduits] = useState<AjoutProduitEau[]>([]);
   const [mesures, setMesures] = useState<WaterMeasure[]>([]);
   const [cultures, setCultures] = useState<AquaCulture[]>([]);
@@ -206,6 +207,8 @@ export default function Aquaponie() {
   useEffect(() => {
     chargerAquaponie();
   }, []);
+
+  useEffect(()=>{if(activeTab!=="resume")return;let annule=false;chargerPages((a,b)=>supabase.from('aquaponie_product_additions').select('*').order('addition_date',{ascending:false}).order('id').range(a,b)).then(data=>{if(!annule){setAjoutsProduits(data as AjoutProduitEau[]);setProduitsResumeErreur('');}},()=>{if(!annule)setProduitsResumeErreur('Ajouts de produits indisponibles. Actualisez la page pour réessayer.');});return()=>{annule=true;};},[activeTab]);
 
   const basinById = useMemo(() => new Map(bassins.map((bassin) => [bassin.id, bassin])), [bassins]);
   const tankById = useMemo(() => new Map(cuves.map((cuve) => [cuve.id, cuve])), [cuves]);
@@ -475,11 +478,11 @@ export default function Aquaponie() {
     <div className="aquaponie-page">
       <header className="aquaponie-heading">
         <div>
-          <h1><span><IconeEau nom="goutte"/></span> Aquaponie</h1>
-          <p>Suivi des bassins, paramètres de l'eau et cultures.</p>
+          <h1>{activeTab==='resume'?'Résumé':<><span><IconeEau nom="goutte"/></span> Aquaponie</>}</h1>
+          <p>{activeTab==='resume'?'Vue d’ensemble de votre système aquaponique.':"Suivi des bassins, paramètres de l'eau et cultures."}</p>
         </div>
         <div>
-          <button type="button" onClick={() => openMeasure()}>＋ Mesure eau</button>
+          {activeTab==='resume'&&<span className="aqua-resume-date"><IconeEau nom="calendrier"/>{new Intl.DateTimeFormat('fr-FR',{timeZone:'America/Martinique',day:'numeric',month:'long',year:'numeric'}).format(new Date())}</span>}<button type="button" onClick={() => openMeasure()}>＋ Mesure eau</button>
           <button type="button" onClick={() => openCulture()}>＋ Culture</button>
         </div>
       </header>
@@ -499,41 +502,7 @@ export default function Aquaponie() {
         </section>
       )}
 
-      {activeTab === "resume" && (
-        <section className="aquaponie-overview">
-          <article className="aquaponie-panel water-alerts">
-            <h2>Surveillance de l’eau</h2>
-            <p>Seuils bas : pH {seuils.ph} · EC {seuils.conductivity} (unité de vos saisies). Délai maximal : {seuils.delaiHeures} h. Modifiables dans Paramètres → Aquaponie.</p>
-            {seuilsLoading?<p role="status">Chargement des seuils…</p>:seuilsErreur?<p role="alert">{seuilsErreur} <button type="button" onClick={()=>void chargerSeuils()}>Réessayer</button></p>:bassins.map(bassin=>{const alertes=alertesBassinEau(mesures,bassin.id,Date.now(),seuils);return <div key={bassin.id} className={alertes.length?'water-alert-row water-alert-warning':'water-alert-row'}><div><strong>{alertes.length?'⚠':'✓'} {bassin.name}</strong>{alertes.length?<ul>{alertes.map(a=><li key={a}>{a}</li>)}</ul>:<p>Dernier relevé récent · seuils bas respectés</p>}</div><button type="button" onClick={()=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:bassin.id}));}}>＋ Mesure</button></div>;})}
-            {!bassins.length&&<EmptyState label="Ajoutez un bassin pour suivre ses paramètres."/>}
-          </article>
-          <article className="aquaponie-panel">
-            <PanelHeading title="État des bassins" action="Ajouter" onClick={() => openBasin()} />
-            <div className="aquaponie-basin-list">
-              {bassins.slice(0, 4).map((bassin) => {
-                const mesure = mesures.find((item) => item.basin_id === bassin.id);
-                return (
-                  <div key={bassin.id} className="aquaponie-basin-row">
-                    <div><strong>{bassin.name}</strong><small>{bassin.species} · {formatNombre(bassin.fish_count)} poissons · {formatNombre(Number(bassin.water_current_l || 0))}/{formatNombre(Number(bassin.water_capacity_l || 0))} L</small></div>
-                    <span>Temp. <b>{mesure?.temperature_c ?? "–"} °C</b></span>
-                    <span>pH <b>{mesure?.ph ?? "–"}</b></span>
-                    <span>EC <b>{mesure?.conductivity ?? "–"}</b></span>
-                    <em className={`aquaponie-status aquaponie-status-${bassin.status}`}>{statusLabel[bassin.status]}</em>
-                  </div>
-                );
-              })}
-              {!bassins.length && <EmptyState label="Aucun bassin enregistré." />}
-            </div>
-          </article>
-          <article className="aquaponie-panel">
-            <PanelHeading title="Cultures" action="Ajouter" onClick={() => openCulture()} />
-            <div className="aquaponie-culture-summary">
-              {activeCultures.slice(0, 5).map((culture) => <CultureCard key={culture.id} culture={culture} onEdit={() => openCulture(culture)} />)}
-              {!activeCultures.length && <EmptyState label="Aucune culture en cours." />}
-            </div>
-          </article>
-        </section>
-      )}
+      {activeTab === "resume" && <ResumeAquaponie bassins={bassins} mesures={mesures} cultures={activeCultures} ajouts={ajoutsProduits} seuils={seuils} loading={seuilsLoading} erreur={seuilsErreur} onRecharger={()=>void chargerSeuils()} onBassins={()=>setActiveTab('bassins')} onMesure={id=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:id}));}} onCulture={()=>openCulture()} renderCulture={id=>{const c=activeCultures.find(c=>c.id===id);return c?<CultureCard culture={c} onEdit={()=>openCulture(c)}/>:null;}} produitsErreur={produitsResumeErreur}/>}
 
       {activeTab === "bassins" && (
         <section className="aquaponie-panel">

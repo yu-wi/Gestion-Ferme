@@ -1,5 +1,8 @@
-export type NomIconeEau = 'goutte'|'releve'|'calendrier'|'temperature'|'produit'|'ec'|'bassin'|'plus'|'modifier'|'supprimer'|'export'|'chevron';
+export type NomIconeEau = 'goutte'|'releve'|'calendrier'|'temperature'|'produit'|'ec'|'bassin'|'plus'|'modifier'|'supprimer'|'export'|'chevron'|'plante'|'alerte'|'poisson';
 const traces:Record<NomIconeEau,string>={
+  plante:'M12 21V11M12 15C3 15 3 6 3 6c8 0 9 9 9 9ZM12 11S12 3 21 3c0 8-9 8-9 8Z',
+  alerte:'M12 3 2 21h20ZM12 9v5M12 17v1',
+  poisson:'M16 12l5-5v10ZM16 12S9 2 3 12c6 10 13 0 13 0ZM7 10h.1',
   goutte:'M12 3C10 7 5 12 5 16a7 7 0 0 0 14 0c0-4-5-9-7-13Z',
   releve:'M9 5H5v16h14V5h-4M9 3h6v5H9ZM8 12h8M8 16h8',
   calendrier:'M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4M8 13v2M12 13v2M16 13v2',

@@ -582,15 +582,15 @@ export default function Aquaponie() {
       )}
 
       {activeTab === "parametres" && (
-        <section className="aquaponie-panel">
-          <PanelHeading title="Paramètres de l'eau" action="Enregistrer une mesure" onClick={() => openMeasure()} />
-          <div className="aquaponie-last-measure"><div><small>Heure du dernier relevé</small><strong>{latestMeasure?.measure_time?.slice(0,5) || "Non renseignée"}</strong></div>
+        <section className="water-parameters-page">
+          <div className="water-latest-panel"><div className="water-latest-title"><span aria-hidden="true">▤</span><div><h2>Dernier relevé</h2><p>{latestMeasure?`${latestMeasure.measure_date.split('-').reverse().join('/')} à ${latestMeasure.measure_time?.slice(0,5)||'heure non renseignée'}`:'Aucun relevé enregistré'}</p></div></div>
+          <div className="aquaponie-last-measure">
             <MeasureValue label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
             <MeasureValue label="pH" value={latestMeasure?.ph} />
             <MeasureValue label="EC" value={latestMeasure?.conductivity} />
-          </div>
+          </div><button type="button" className="water-new-measure" onClick={()=>openMeasure()}>⊕ Enregistrer une mesure</button></div>
+          <AnalyseEau onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <AjoutsProduitsEau bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
-          <AnalyseEau ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
             <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>
             {mesures.slice(0, 8).map((mesure) => (

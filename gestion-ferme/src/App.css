@@ -8793,3 +8793,52 @@
 .water-export-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; align-items: center; }
 .water-export-actions button { min-height: 44px; padding: 9px 14px; border: 1px solid #bddbc8; border-radius: 8px; background: white; color: #08783d; }
 .water-export-actions button:disabled { opacity: .55; cursor: default; }
+/* Paramètres eau : synthèse, chronologie et comparaison. */
+.water-parameters-page { min-width: 0; color: #102b43; }
+.water-latest-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; padding: 24px; background: white; border: 1px solid #dce5e9; border-radius: 14px; }
+.water-latest-title { display: flex; align-items: center; gap: 14px; flex: 1 1 230px; }
+.water-latest-title > span { display: grid; place-items: center; width: 50px; height: 50px; background: #e2f7e9; color: #008b38; border-radius: 50%; font-size: 26px; }
+.water-latest-title h2 { font-size: 19px; margin: 0 0 8px; }
+.water-latest-title p { margin: 0; font-size: 14px; color: #50677c; }
+.water-latest-panel .aquaponie-last-measure { flex: 2 1 400px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin: 0; }
+.water-latest-panel .aquaponie-last-measure > div { padding: 16px; border-radius: 12px; background: #f0f8f6; border: 1px solid #e0efea; min-width: 0; }
+.water-latest-panel .aquaponie-last-measure small { font-size: 13px; color: #3c5865; }
+.water-latest-panel .aquaponie-last-measure strong { font-size: 24px; color: #12384b; margin-top: 8px; }
+.water-new-measure { min-height: 44px; padding: 10px 15px; background: white; border: 1px solid #15964b; border-radius: 9px; color: #087932; font-weight: 600; }
+.water-parameters-page .water-analysis { padding: 0; border: 0; background: transparent; margin: 18px 0; }
+.water-analysis-layout { display: grid; grid-template-columns: 285px minmax(0,1fr); align-items: start; gap: 16px; }
+.water-analysis-sidebar, .water-analysis-main { background: white; border: 1px solid #dce5e9; border-radius: 13px; padding: 20px; min-width: 0; }
+.water-analysis-sidebar > h3, .water-analysis-main > h3 { margin: 0 0 10px; font-size: 19px; }
+.water-analysis-sidebar > h3 { padding-bottom: 16px; border-bottom: 1px solid #e4eaee; }
+.water-control-caption { display: block; font-size: 14px; margin: 10px 0 8px; }
+.water-analysis-sidebar .water-analysis-controls { flex-direction: column; }
+.water-analysis-sidebar .water-analysis-controls label { flex: auto; }
+.water-analysis-sidebar .water-basin-filters { flex-direction: column; border: 0; border-top: 1px solid #e4eaee; border-radius: 0; padding: 14px 0 0; gap: 2px; }
+.water-analysis-sidebar .water-basin-filters legend { padding-top: 12px; font-weight: 600; }
+.water-analysis-sidebar .water-basin-actions { gap: 8px; }
+.water-analysis-sidebar .water-basin-actions button, .water-analysis-sidebar .water-export-actions button { flex: 1; padding: 7px 8px; font-size: 12px; white-space: nowrap; }
+.water-analysis-sidebar .water-export-actions { gap: 8px; }
+.water-analysis-sidebar .water-analysis-note { font-size: 11px; line-height: 1.5; }
+.water-analysis-main > p { font-size: 13px; color: #63788b; line-height: 1.5; }
+.water-chart-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 22px; margin: 16px 0; }
+.water-chart-legend span { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; }
+.water-chart-legend i { width: 13px; height: 13px; border-radius: 50%; }
+.water-analysis-main .water-basin-summary article { padding: 16px; border-radius: 12px; }
+.water-analysis-main .water-basin-summary strong { font-size: 20px; }
+.water-analysis .water-product-markers { margin: 0 0 20px; border: 1px solid #f6d9b3; border-radius: 13px; padding: 18px; background: #fffcf7; }
+.water-product-markers h4 { margin: 0 0 8px; font-size: 18px; }
+.water-product-markers p, .water-product-markers small { color: #6c7787; font-size: 12px; }
+.water-product-markers > .water-product-strip { flex-wrap: nowrap; overflow-x: auto; padding: 4px 0 12px; }
+.water-product-strip button { flex: 0 0 190px; min-height: 62px; background: #fffaf2; color: #924408; border-color: #efa53e; text-align: left; font-size: 12px; line-height: 1.6; }
+.water-analysis .water-readings, .water-parameters-page .aquaponie-releves-details { margin: 20px 0; background: white; border: 1px solid #dce5e9; border-radius: 13px; padding: 18px; }
+.water-analysis .water-readings > summary, .water-parameters-page .aquaponie-releves-details > summary { padding: 0 0 12px; font-weight: 600; font-size: 16px; cursor: pointer; color: #14334b; }
+.water-readings table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.water-readings th { background: #f3f6f8; color: #4c637a; font-size: 11px; text-transform: uppercase; }
+.water-readings th, .water-readings td { padding: 12px; text-align: left; border-bottom: 1px solid #e3e9ed; }
+.water-reading-actions { display: flex; gap: 8px; }
+.water-reading-actions button { min-width: 40px; min-height: 40px; background: white; color: #128a41; border: 1px solid #c4e3d0; border-radius: 7px; font-size: 20px; }
+.water-reading-actions .water-delete-reading { color: #c83737; border-color: #f0cccc; }
+.water-parameters-page .water-products { background: white; border-color: #dce5e9; }
+@media(min-width:1200px) { .water-product-markers { display: grid; grid-template-columns: 250px minmax(0,1fr); column-gap: 20px; align-items: center; } .water-product-markers h4 { grid-column: 1; } .water-product-markers > p { grid-column: 1; margin: 0; } .water-product-markers > .water-product-strip { grid-column: 2; grid-row: 1 / 3; } .water-product-markers > small, .water-product-markers > .water-selected-reading { grid-column: 1 / -1; } }
+@media(max-width:1050px) { .water-analysis-layout { grid-template-columns: 245px minmax(0,1fr); } .water-analysis-sidebar, .water-analysis-main { padding: 15px; } }
+@media(max-width:760px) { .water-analysis-layout { grid-template-columns: minmax(0,1fr); } .water-analysis-sidebar .water-analysis-controls { flex-direction: row; } .water-analysis-sidebar .water-analysis-controls label { flex: 1 1 150px; } .water-analysis-sidebar .water-basin-filters { flex-direction: row; gap: 14px; } .water-latest-panel { padding: 16px; gap: 15px; } .water-latest-panel .aquaponie-last-measure { flex-basis: 100%; gap: 8px; } .water-latest-panel .aquaponie-last-measure > div { padding: 10px; } .water-latest-panel .aquaponie-last-measure strong { font-size: 19px; } .water-latest-panel .aquaponie-last-measure small { font-size: 11px; } .water-new-measure { width: 100%; } .water-analysis .water-readings { padding: 12px; } }

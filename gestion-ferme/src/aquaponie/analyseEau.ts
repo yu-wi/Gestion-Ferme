@@ -1,4 +1,4 @@
-export type MesureAnalyseEau = { id: string; basin_id: string | null; target_type?: string | null; measure_date: string; measure_time?: string | null; ph: number | null; conductivity: number | null };
+export type MesureAnalyseEau = { id: string; basin_id: string | null; target_type?: string | null; measure_date: string; measure_time?: string | null; temperature_c?: number | null; ph: number | null; conductivity: number | null };
 export type BassinAnalyseEau = { id: string; name: string };
 export type MetriqueEau = 'ph' | 'conductivity';
 export const couleursEau = ['#16843c','#2563eb','#b45309','#9333ea','#dc2626','#087e8b','#be185d','#596579'];

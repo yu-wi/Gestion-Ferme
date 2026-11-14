@@ -94,3 +94,20 @@ test('le stock du deuxieme aliment est controle et cumule avec les autres lots',
  const p=projeterStockQuotidien([{feed_type:'demarrage',stock_kg:100},{feed_type:'finition',stock_kg:50}],[{...ligne(),secondAliment:'Finition',secondSacs:'2'},{...ligne('b','vente_directe'),aliment:'Finition',sacs:'1'}]);
  assert.equal(p.aliments.find(a=>a.aliment==='finition').restant,-25);
 });
+
+import {suggererConsommations} from '../src/volailles/saisieQuotidienne.ts';
+test('suggestion de consommation : ration, sujets restants et arrondi en sacs comme le formulaire individuel',()=>{
+ const refs=[{feed_type:'finition',age_min_days:40,age_max_days:100,daily_consumption_g:150}];
+ const [s]=suggererConsommations('2026-09-01','2026-11-01',241,refs);
+ assert.equal(s.age,61);assert.equal(s.sacs,2);assert.equal(s.sujets,241);assert.equal(s.ration,150);
+ assert.equal(suggererConsommations('2026-09-01','2026-11-01',0,refs).length,0);
+});
+test('plusieurs aliments compatibles proposent un choix sans sélection arbitraire',()=>{
+ const refs=[{feed_type:'starter',age_min_days:0,age_max_days:20,daily_consumption_g:40},{feed_type:'croissance',age_min_days:10,age_max_days:40,daily_consumption_g:70}];
+ assert.deepEqual(suggererConsommations('2026-11-01','2026-11-15',1000,refs).map(s=>[s.aliment,s.sacs]),[['starter',2],['croissance',3]]);
+});
+test('suggestion absente si ration inconnue, contradictoire ou âge invalide',()=>{
+ const r={feed_type:'starter',age_min_days:0,age_max_days:20,daily_consumption_g:40};
+ for(const refs of [[{...r,daily_consumption_g:undefined}],[{...r,daily_consumption_g:NaN}],[r,{...r,daily_consumption_g:50}]])assert.equal(suggererConsommations('2026-11-01','2026-11-15',100,refs).length,0);
+ assert.equal(suggererConsommations('2026-11-15','2026-11-01',100,[r]).length,0);
+});

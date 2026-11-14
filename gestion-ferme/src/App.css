@@ -8961,3 +8961,8 @@
 .aquaponie-page .aquaponie-heading h1 > span .water-icon { width: 30px; height: 30px; color: #14833d; }
 .aquaponie-page .aquaponie-heading p { margin: 7px 0 0; font-size: 14px; color: #637487; }
 @media(max-width:760px) { .aquaponie-page .aquaponie-navigation { margin-bottom: 20px; } .aquaponie-page .aquaponie-heading { align-items: stretch; } .aquaponie-page .aquaponie-heading h1 { font-size: 25px; } .aquaponie-page .aquaponie-heading > div:last-child { justify-content: flex-start; } }
+.daily-consumption-suggestion { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: #f1faf4; border: 1px solid #c6e2ce; border-radius: 9px; padding: 12px; margin: 8px 0; }
+.daily-consumption-suggestion > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.daily-consumption-suggestion strong { color: #157b3e; font-size: 14px; }
+.daily-consumption-suggestion small { font-size: 12px; color: #617787; }
+.daily-consumption-suggestion button { min-height: 44px; padding: 8px 14px; border: 1px solid #a6cfb3; border-radius: 7px; color: #0c7836; background: white; }

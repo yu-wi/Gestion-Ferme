@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { chargerPages } from './chargerPages';
 import { chargerLotsAvecMouvements } from './volaillesData';
 import ModifierSaisieQuotidienne, { type EditionQuotidienne } from './ModifierSaisieQuotidienne';
-import { cleAliment, preparerSaisie, repartirLotsQuotidiens, suggererAliment, projeterStockQuotidien } from './saisieQuotidienne';
+import { cleAliment, preparerSaisie, repartirLotsQuotidiens, suggererAliment, suggererConsommations, projeterStockQuotidien } from './saisieQuotidienne';
 import type { LotQuotidien, SaisieQuotidienne, ReferenceQuotidienne } from './saisieQuotidienne';
 
 const aujourdHui = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Martinique' }).format(new Date());
@@ -21,13 +21,13 @@ async function charger(): Promise<Donnees> {
     chargerPages((a, b) => supabase.from('consommations_aliment').select('lot_id,direct_sale_lot_id,date,feed_type,quantite_kg,id').order('id').range(a, b)),
     chargerPages((a, b) => supabase.from('mortalites_volailles').select('lot_id,date,nombre,id').order('id').range(a, b)),
     chargerPages((a, b) => supabase.from('direct_sale_mortalities').select('lot_id,date,quantity,id').order('id').range(a, b)),
-    chargerPages((a, b) => supabase.from('feed_reference').select('id,feed_type,age_min_days,age_max_days').order('id').range(a, b)).catch(() => null),
+    chargerPages((a, b) => supabase.from('feed_reference').select('id,feed_type,age_min_days,age_max_days,daily_consumption_g').order('id').range(a, b)).catch(() => null),
   ]);
   if (stock.error) throw stock.error;
   return { lots: [
     ...sica.map(lot => ({ id: lot.id, nom: String(lot.nom), arrivee: String(lot.date_arrivee), restants: lot.sujets_restants, source: 'sica' as const })),
     ...directe.map(lot => ({ id: lot.id, nom: lot.name, arrivee: lot.arrival_date, restants: Number(lot.remaining_quantity), source: 'vente_directe' as const })),
-  ].filter(lot => lot.restants >= 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true })), stocks: stock.data || [], consommations, mortalites, directMortalites, references: references?.map(r => ({ feed_type: r.feed_type, age_min_days: Number(r.age_min_days), age_max_days: Number(r.age_max_days) })) ?? null };
+  ].filter(lot => lot.restants >= 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true })), stocks: stock.data || [], consommations, mortalites, directMortalites, references: references?.map(r => ({ feed_type: r.feed_type, age_min_days: Number(r.age_min_days), age_max_days: Number(r.age_max_days), daily_consumption_g: r.daily_consumption_g==null?undefined:Number(r.daily_consumption_g) })) ?? null };
 }
 export default function SaisieQuotidienne() {
   const [date, setDate] = useState(aujourdHui);
@@ -101,7 +101,7 @@ export default function SaisieQuotidienne() {
     const ligne = lignes[cle];
     const consos = donnees.consommations.filter(c => c.date === date && (lot.source === 'sica' ? c.lot_id === lot.id : c.direct_sale_lot_id === lot.id));
     const morts = (lot.source === 'sica' ? donnees.mortalites : donnees.directMortalites).filter(m => m.date === date && m.lot_id === lot.id);
-    const suggestion = suggestionPourLot(lot);
+    const suggestions = suggererConsommations(lot.arrivee,date,lot.restants,donnees.references||[]);
     const alimentChoisi = alimentPourLot(lot);
     const tousTypes = [...donnees.stocks.map(s => s.feed_type), ...(donnees.references || []).map(r => r.feed_type), alimentChoisi].filter(Boolean);
     const types = tousTypes.filter((type, i, tous) => tous.findIndex(t => cleAliment(t) === cleAliment(type)) === i);
@@ -118,7 +118,7 @@ export default function SaisieQuotidienne() {
           </> : <button type="button" onClick={() => modifier(lot, 'secondAliment', '')}>＋ Ajouter un deuxième aliment</button>}
         </div>}
         {!consos.length && lot.restants > 0 && <div className="daily-feed-guidance">
-          <p>{suggestion ? `Aliment proposé à ${suggestion.age} jours : ${suggestion.aliment}. Vous pouvez le changer.` : 'Aucune référence unique pour cet âge : choisissez l’aliment distribué.'}</p>
+          {suggestions.length?suggestions.map(s=><div className="daily-consumption-suggestion" key={s.aliment}><div><strong>Suggestion : {s.sacs} sac(s) de {s.aliment}</strong><small>{s.age} jours · {s.sujets} sujets · {s.ration.toLocaleString('fr-FR')} g / sujet / jour</small></div><button type="button" disabled={!!ligne?.secondAliment&&cleAliment(ligne.secondAliment)===cleAliment(s.aliment)} onClick={()=>{const aliment=donnees.stocks.find(stock=>cleAliment(stock.feed_type)===cleAliment(s.aliment))?.feed_type||s.aliment;setLignes(avant=>({...avant,[cle]:{...(avant[cle]||{lot_id:lot.id,source:lot.source,morts:''}),aliment,sacs:String(s.sacs)}}));setMessage('');setSucces('');}}>Utiliser</button></div>):<p>Suggestion indisponible pour cet âge. Renseignez la quantité distribuée.</p>}
           {alimentChoisi && <p className={bilan && bilan.restant < 0 ? 'daily-stock-shortage' : ''}>Après les saisies de tous les lots : <strong>{((bilan?.restant ?? 0) / 25).toLocaleString('fr-FR')} sac(s) de {alimentChoisi}</strong>.</p>}
         </div>}
         {morts.length > 0 ? <p className="daily-existing">✓ Mortalité déjà saisie : {morts.reduce((n, m) => n + Number(m.nombre ?? m.quantity), 0)}. <button type="button" className="daily-edit-button" aria-label={`Modifier la mortalité du lot ${lot.nom}`} onClick={() => setEdition({ lot, type: 'mortalite', mouvements: morts.map(m => ({ id: m.id, date: m.date, quantite: Number(m.nombre ?? m.quantity) })) })}>✎ Modifier</button></p> : <label>Mortalités du jour<input inputMode="numeric" type="number" disabled={lot.restants <= 0} min="0" step="1" max={lot.restants} placeholder="—" value={ligne?.morts || ''} onChange={e => modifier(lot, 'morts', e.target.value)} /></label>}

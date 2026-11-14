@@ -56,7 +56,7 @@ export function repartirLotsQuotidiens(
   return { aRenseigner, renseignes };
 }
 
-export type ReferenceQuotidienne = { feed_type: string; age_min_days: number; age_max_days: number };
+export type ReferenceQuotidienne = { feed_type: string; age_min_days: number; age_max_days: number; daily_consumption_g?: number };
 export function suggererAliment(arrivee: string, date: string, references: ReferenceQuotidienne[]) {
   const debut = Date.parse(`${arrivee}T00:00:00Z`), fin = Date.parse(`${date}T00:00:00Z`);
   if (!Number.isFinite(debut) || !Number.isFinite(fin) || fin < debut || new Date(debut).toISOString().slice(0, 10) !== arrivee || new Date(fin).toISOString().slice(0, 10) !== date) return null;
@@ -88,4 +88,17 @@ export function projeterStockQuotidien(stocks: { feed_type: string; stock_kg: nu
   }
 
   return { incomplet, aliments: [...aliments.values()].map(a => ({ ...a, restant: a.disponible - a.demande })) };
+}
+
+export function suggererConsommations(arrivee:string,date:string,sujets:number,references:ReferenceQuotidienne[]) {
+  if(!Number.isFinite(sujets)||sujets<=0)return [];
+  const groupes=new Map<string,ReferenceQuotidienne[]>();
+  for(const reference of references){if(!suggererAliment(arrivee,date,[reference]))continue;const cle=cleAliment(reference.feed_type);groupes.set(cle,[...(groupes.get(cle)||[]),reference]);}
+  return [...groupes.values()].flatMap(groupe=>{
+    const quantites=new Set(groupe.map(r=>r.daily_consumption_g));
+    const ration=groupe[0].daily_consumption_g;
+    if(quantites.size!==1||ration===undefined||!Number.isFinite(ration)||ration<=0)return [];
+    const proposition=suggererAliment(arrivee,date,groupe)!;
+    return [{...proposition,sujets,ration,sacs:Math.ceil(ration*sujets/1000/25)}];
+  });
 }

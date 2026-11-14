@@ -6,7 +6,7 @@ import AjoutsProduitsEau from '../aquaponie/AjoutsProduitsEau';
 import AnalyseEau from '../aquaponie/AnalyseEau';
 import { chargerPages } from '../volailles/chargerPages';
 import { heureMesureValide, trierMesuresEau, heureMartinique, dateMartinique } from '../aquaponie/heureMesure';
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import ModalCloseButton from "../components/ModalCloseButton";
@@ -157,6 +157,7 @@ export default function Aquaponie() {
   const [activeTab, setActiveTab] = useState<AquaTab>("resume");
   const [bassins, setBassins] = useState<Basin[]>([]);
   const [cuves, setCuves] = useState<WaterTank[]>([]);
+  const formulaireProduit=useRef<{ouvrir:()=>void}>(null);
   const [ajoutsProduits, setAjoutsProduits] = useState<AjoutProduitEau[]>([]);
   const [mesures, setMesures] = useState<WaterMeasure[]>([]);
   const [cultures, setCultures] = useState<AquaCulture[]>([]);
@@ -590,8 +591,8 @@ export default function Aquaponie() {
             <MeasureValue icone="produit" label="pH" value={latestMeasure?.ph} />
             <MeasureValue icone="ec" label="EC" value={latestMeasure?.conductivity} />
           </div><button type="button" className="water-new-measure" onClick={()=>openMeasure()}><IconeEau nom="plus"/> Enregistrer une mesure</button></div>
-          <AnalyseEau onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
-          <AjoutsProduitsEau bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
+          <AnalyseEau onAjouterProduit={()=>formulaireProduit.current?.ouvrir()} onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
+          <AjoutsProduitsEau controle={formulaireProduit} bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
             <summary>Derniers relevés ({Math.min(mesures.length, 8)})</summary>
             {mesures.slice(0, 8).map((mesure) => (

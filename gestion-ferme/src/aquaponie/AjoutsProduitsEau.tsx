@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useImperativeHandle,useRef,useState,type Ref} from 'react';
 import toast from 'react-hot-toast';
 import {supabase} from '../supabaseClient';
 import {chargerPages} from '../volailles/chargerPages';
@@ -8,7 +8,7 @@ import {preparerAjoutProduit,trierAjoutsProduits,unitesProduit,type AjoutProduit
 const table='aquaponie_product_additions';
 const installation='Le journal des produits doit être activé : exécutez supabase/aquaponie-ajouts-produits.sql dans Supabase SQL Editor.';
 const messageErreur=(e:unknown)=>{const code=(e as {code?:string})?.code;return ['PGRST205','42P01','PGRST204','42703'].includes(code||'')?installation:e instanceof Error?e.message:'Opération impossible. Réessayez ou actualisez les données.';};
-export default function AjoutsProduitsEau({bassins,cuves,onChange}:{onChange?:(ajouts:AjoutProduitEau[])=>void;bassins:{id:string;name:string}[];cuves:{id:string;name:string}[]}){
+export default function AjoutsProduitsEau({bassins,cuves,onChange,controle}:{controle?:Ref<{ouvrir:()=>void}>;onChange?:(ajouts:AjoutProduitEau[])=>void;bassins:{id:string;name:string}[];cuves:{id:string;name:string}[]}){
   const [ajouts,setAjouts]=useState<AjoutProduitEau[]>([]),[loading,setLoading]=useState(true),[erreur,setErreur]=useState('');
   const [form,setForm]=useState<FormulaireProduit|null>(null),[ancien,setAncien]=useState<AjoutProduitEau|null>(null),[saving,setSaving]=useState(false),[erreurForm,setErreurForm]=useState('');
   const [recherche,setRecherche]=useState(''),[debut,setDebut]=useState(''),[fin,setFin]=useState(''),[limite,setLimite]=useState(20);
@@ -19,6 +19,7 @@ export default function AjoutsProduitsEau({bassins,cuves,onChange}:{onChange?:(a
   const ouvert=!!form;
   useEffect(()=>{if(!ouvert)return;const precedent=document.activeElement as HTMLElement|null;panneau.current?.querySelector<HTMLInputElement>('input')?.focus();return()=>precedent?.focus();},[ouvert]);
   const ouvrir=(a?:AjoutProduitEau)=>{setAncien(a||null);setErreurForm('');setForm(a?{id:a.id,nom:a.product_name,quantite:String(a.quantity),unite:a.unit,date:a.addition_date,heure:a.addition_time.slice(0,5),cible:a.target_type,cibleId:a.basin_id||a.tank_id||'',notes:a.notes||''}:{id:crypto.randomUUID(),nom:'',quantite:'',unite:'',date:dateMartinique(),heure:heureMartinique(),cible:'bassin',cibleId:'',notes:''});};
+  useImperativeHandle(controle,()=>({ouvrir:()=>{if(!verrou.current)ouvrir();}}));
   const enregistrer=async()=>{if(!form||verrou.current)return;verrou.current=true;setSaving(true);setErreurForm('');try{
     const payload=preparerAjoutProduit(form,bassins,cuves,ancien);
     const requete=ancien?supabase.from(table).update(payload).eq('id',ancien.id).eq('updated_at',ancien.updated_at):supabase.from(table).upsert(payload,{onConflict:'id'});
@@ -29,7 +30,6 @@ export default function AjoutsProduitsEau({bassins,cuves,onChange}:{onChange?:(a
   const visibles=ajouts.filter(a=>(!recherche||`${a.product_name} ${a.target_label}`.toLocaleLowerCase('fr').includes(recherche.toLocaleLowerCase('fr')))&&(!debut||a.addition_date>=debut)&&(!fin||a.addition_date<=fin));
   const changer=(cle:keyof FormulaireProduit,valeur:string)=>setForm(f=>f?{...f,[cle]:valeur}:null);
   return <section className="water-products" aria-label="Ajouts de produits dans l’eau">
-    <div className="water-products-heading"><div><h3>Ajouts de produits</h3></div><button type="button" onClick={()=>ouvrir()} disabled={saving}>＋ Enregistrer un ajout</button></div>
     {erreur&&<div className="daily-alert" role="alert">{erreur}<button type="button" onClick={()=>void charger()} disabled={loading}>Réessayer</button></div>}
     <details className="water-products-history"><summary>Historique des ajouts {!loading&&!erreur&&`(${ajouts.length})`}</summary>
       <div className="water-products-filters"><label>Produit ou destination<input type="search" value={recherche} onChange={e=>{setRecherche(e.target.value);setLimite(20);}}/></label><label>À partir du<input type="date" value={debut} onChange={e=>{setDebut(e.target.value);setLimite(20);}}/></label><label>Jusqu’au<input type="date" value={fin} onChange={e=>{setFin(e.target.value);setLimite(20);}}/></label></div>

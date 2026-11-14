@@ -8877,3 +8877,16 @@
 @media(min-width:1500px) { .water-basin-summary article { display: grid; grid-template-columns: minmax(0,1fr) auto; } .water-basin-summary article > strong { grid-column: 1; } .water-basin-summary article > span { grid-column: 1; } .water-basin-summary .water-summary-last { grid-column: 2; grid-row: 1 / 3; align-self: center; } }
 @media(max-width:760px) { .water-latest-panel .aquaponie-last-measure > .water-value { flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px; } .water-value .water-icon-bubble { width: 34px; height: 34px; } .water-product-banner-title { margin-bottom: 10px; } .water-reading-actions button { min-height: 44px; min-width: 44px; } }
 @media(min-width:1200px) { .water-analysis-layout { grid-template-columns: 325px minmax(0,1fr); } .water-analysis-sidebar > h3 { font-size: 18px; } .water-basin-summary article { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px 10px; align-items: center; } .water-basin-summary article > strong, .water-basin-summary article > span { grid-column: 1; } .water-basin-summary .water-summary-last { grid-column: 2; grid-row: 1 / 3; align-self: center; } }
+/* Les mesures se redistribuent avant que leur contenu ne manque de place. */
+.water-latest-panel .aquaponie-last-measure { flex-basis: 600px; grid-template-columns: repeat(3,minmax(180px,1fr)); }
+.water-latest-panel .aquaponie-last-measure > .water-value { min-width: 0; gap: 10px; }
+.water-latest-panel .aquaponie-last-measure .water-value-text { flex: 1; min-width: 0; }
+.water-latest-panel .aquaponie-last-measure .water-value-text small { overflow-wrap: anywhere; white-space: normal; }
+.water-latest-panel .aquaponie-last-measure .water-value-text strong { font-size: clamp(18px,1.5vw,24px); white-space: nowrap; }
+.water-analysis-sidebar h3, .water-basin-summary strong, .water-selected-reading { overflow-wrap: anywhere; }
+.water-product-markers > .water-add-product { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: white; border-color: #eca44b; color: #985009; padding: 10px 14px; min-height: 44px; border-radius: 9px; }
+.water-product-strip > button > span { min-width: 0; overflow-wrap: anywhere; }
+.water-products-history > summary { margin: 0; }
+@media(min-width:1200px) { .water-product-markers { grid-template-columns: 250px minmax(0,1fr) auto; } .water-product-markers > .water-add-product { grid-column: 3; grid-row: 1; } }
+@media(max-width:1199px) { .water-product-markers > .water-add-product { margin-top: 8px; } }
+@media(max-width:760px) { .water-latest-panel .aquaponie-last-measure { flex-basis: 100%; grid-template-columns: repeat(3,minmax(0,1fr)); } .water-latest-panel .aquaponie-last-measure .water-value-text strong { font-size: clamp(14px,4vw,19px); } .water-latest-panel .aquaponie-last-measure .water-value-text small { font-size: 10px; } .water-product-markers > .water-add-product { width: 100%; } }

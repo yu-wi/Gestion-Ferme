@@ -1,3 +1,4 @@
+import IconeEau, {type NomIconeEau} from '../aquaponie/IconeEau';
 import { useSeuilsEau } from '../aquaponie/useSeuilsEau';
 import { alertesBassinEau } from '../aquaponie/alertesEau';
 import type { AjoutProduitEau } from '../aquaponie/ajoutsProduits';
@@ -473,7 +474,7 @@ export default function Aquaponie() {
     <div className="aquaponie-page">
       <header className="aquaponie-heading">
         <div>
-          <h1><span>◇</span> Aquaponie</h1>
+          <h1><span><IconeEau nom="goutte"/></span> Aquaponie</h1>
           <p>Suivi des bassins, paramètres de l'eau et cultures.</p>
         </div>
         <div>
@@ -583,12 +584,12 @@ export default function Aquaponie() {
 
       {activeTab === "parametres" && (
         <section className="water-parameters-page">
-          <div className="water-latest-panel"><div className="water-latest-title"><span aria-hidden="true">▤</span><div><h2>Dernier relevé</h2><p>{latestMeasure?`${latestMeasure.measure_date.split('-').reverse().join('/')} à ${latestMeasure.measure_time?.slice(0,5)||'heure non renseignée'}`:'Aucun relevé enregistré'}</p></div></div>
+          <div className="water-latest-panel"><div className="water-latest-title"><span aria-hidden="true"><IconeEau nom="releve"/></span><div><h2>Dernier relevé</h2><p><IconeEau nom="calendrier"/> {latestMeasure?`${latestMeasure.measure_date.split('-').reverse().join('/')} à ${latestMeasure.measure_time?.slice(0,5)||'heure non renseignée'}`:'Aucun relevé enregistré'}</p></div></div>
           <div className="aquaponie-last-measure">
-            <MeasureValue label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
-            <MeasureValue label="pH" value={latestMeasure?.ph} />
-            <MeasureValue label="EC" value={latestMeasure?.conductivity} />
-          </div><button type="button" className="water-new-measure" onClick={()=>openMeasure()}>⊕ Enregistrer une mesure</button></div>
+            <MeasureValue icone="temperature" label="Température" value={latestMeasure?.temperature_c} suffix="°C" />
+            <MeasureValue icone="produit" label="pH" value={latestMeasure?.ph} />
+            <MeasureValue icone="ec" label="EC" value={latestMeasure?.conductivity} />
+          </div><button type="button" className="water-new-measure" onClick={()=>openMeasure()}><IconeEau nom="plus"/> Enregistrer une mesure</button></div>
           <AnalyseEau onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <AjoutsProduitsEau bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">
@@ -758,8 +759,8 @@ function CultureCard({ culture, onEdit }: { culture: AquaCulture; onEdit: () => 
   );
 }
 
-function MeasureValue({ label, value, suffix = "" }: { label: string; value?: number | null; suffix?: string }) {
-  return <div><small>{label}</small><strong>{value == null ? "–" : `${formatNombre(value, 2)} ${suffix}`}</strong></div>;
+function MeasureValue({ label, value, suffix = "", icone }: { label: string; value?: number | null; suffix?: string; icone?: NomIconeEau }) {
+  return <div className={`water-value water-value-${icone}`}><span className="water-icon-bubble"><IconeEau nom={icone||"releve"}/></span><div className="water-value-text"><small>{label}</small><strong>{value == null ? "–" : `${formatNombre(value, 2)} ${suffix}`}</strong></div></div>;
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

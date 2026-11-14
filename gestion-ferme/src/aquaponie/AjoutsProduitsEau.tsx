@@ -29,7 +29,7 @@ export default function AjoutsProduitsEau({bassins,cuves,onChange}:{onChange?:(a
   const visibles=ajouts.filter(a=>(!recherche||`${a.product_name} ${a.target_label}`.toLocaleLowerCase('fr').includes(recherche.toLocaleLowerCase('fr')))&&(!debut||a.addition_date>=debut)&&(!fin||a.addition_date<=fin));
   const changer=(cle:keyof FormulaireProduit,valeur:string)=>setForm(f=>f?{...f,[cle]:valeur}:null);
   return <section className="water-products" aria-label="Ajouts de produits dans l’eau">
-    <div className="water-products-heading"><div><h3>Ajouts de produits</h3><p>Nom, quantité, destination et heure réelle d’ajout · heures de Martinique.</p></div><button type="button" onClick={()=>ouvrir()} disabled={saving}>＋ Enregistrer un ajout</button></div>
+    <div className="water-products-heading"><div><h3>Ajouts de produits</h3></div><button type="button" onClick={()=>ouvrir()} disabled={saving}>＋ Enregistrer un ajout</button></div>
     {erreur&&<div className="daily-alert" role="alert">{erreur}<button type="button" onClick={()=>void charger()} disabled={loading}>Réessayer</button></div>}
     <details className="water-products-history"><summary>Historique des ajouts {!loading&&!erreur&&`(${ajouts.length})`}</summary>
       <div className="water-products-filters"><label>Produit ou destination<input type="search" value={recherche} onChange={e=>{setRecherche(e.target.value);setLimite(20);}}/></label><label>À partir du<input type="date" value={debut} onChange={e=>{setDebut(e.target.value);setLimite(20);}}/></label><label>Jusqu’au<input type="date" value={fin} onChange={e=>{setFin(e.target.value);setLimite(20);}}/></label></div>

@@ -24,6 +24,6 @@ export function trierAjoutsProduits(lignes:AjoutProduitEau[]){return [...lignes]
 export function reperesProduits(ajouts:AjoutProduitEau[],selection:string[],debut:number,fin:number){
   return ajouts.flatMap(a=>{
     const instant=instantMesureEau(a.addition_date,a.addition_time);
-    return instant!==null&&instant>=debut&&instant<fin&&selection.length>0&&(a.target_type==='systeme'||(a.target_type==='bassin'&&!!a.basin_id&&selection.includes(a.basin_id)))?[{...a,instant}]:[];
+    return instant!==null&&instant>=debut&&instant<fin&&selection.length>0&&(a.target_type==='systeme'||a.target_type==='cuve'||(a.target_type==='bassin'&&!!a.basin_id&&selection.includes(a.basin_id)))?[{...a,instant}]:[];
   }).sort((a,b)=>a.instant-b.instant||a.id.localeCompare(b.id));
 }

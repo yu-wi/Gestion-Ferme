@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { nomRapportEau, type RapportEau } from './rapportEau.ts';
-const note = 'Heures de Martinique. Les heures inconnues et valeurs manquantes sont conservées dans les tableaux. EC : unité des saisies, sans conversion. Ajouts : bassins sélectionnés et circuit complet ; cuves exclues.';
+const note = 'Heures de Martinique. Les heures inconnues et valeurs manquantes sont conservées dans les tableaux. EC : unité des saisies, sans conversion. Ajouts : bassins sélectionnés, circuit complet et cuves. Les ajouts en cuve sont des événements sans attribution à un bassin.';
 const unite = (u: string) => u === 'unite' ? 'unité(s)' : u;
 export function construireClasseurEau(r: RapportEau, graphique?:string) {
   const book = new ExcelJS.Workbook();

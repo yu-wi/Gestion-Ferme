@@ -212,3 +212,5 @@ Les graphiques pH et EC affichent des lignes orange à l’heure réelle des ajo
 ### Exports des paramètres eau
 
 Dans l’analyse pH/EC, les boutons Excel et PDF exportent le paramètre actif, la période (jour, 7 jours, mois civil) et les bassins cochés. Les fichiers contiennent les relevés avec leurs dates/heures de Martinique, les valeurs numériques et les ajouts de produits de la même sélection. Les heures et valeurs manquantes restent explicites ; aucune interpolation n’est exportée. Les relevés globaux et les cuves ne sont pas attribués aux bassins. Aucun script SQL supplémentaire n’est requis.
+
+Les exports eau présentent maintenant le graphique filtré en premier, avec la légende des bassins et les repères orange des ajouts de produits. Le PDF place le tableau des relevés sur les pages suivantes ; Excel intègre une image du graphique en haut de la première feuille et le tableau en dessous. Les valeurs restent modifiables dans le tableau Excel. Sans relevé exploitable avec une heure connue, une indication remplace le graphique et les données restent exportables.

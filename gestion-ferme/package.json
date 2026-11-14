@@ -28,6 +28,7 @@
     "@supabase/supabase-js": "^2.50.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "exceljs": "^4.4.0",
     "firebase": "^11.9.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",

@@ -1,6 +1,7 @@
+import { capturerGraphiqueEau } from './capturerGraphiqueEau';
 import { preparerRapportEau } from './rapportEau';
 import { reperesProduits, type AjoutProduitEau } from './ajoutsProduits';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CartesianGrid, ResponsiveContainer, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { dateMartinique } from './heureMesure';
 import { analyserEau,bassinsDesMesures,couleursEau,type MesureAnalyseEau,type BassinAnalyseEau,type MetriqueEau } from './analyseEau';
@@ -22,13 +23,14 @@ export default function AnalyseEau({mesures,bassins,onModifier,ajouts=[]}:{ajout
   const reperes=donnees?reperesProduits(ajouts,selection,donnees.debut,donnees.fin):[];
   const produit=reperes.find(a=>a.id===produitChoisi);
   const nom=metrique==='ph'?'pH':'EC';
+  const zoneGraphique=useRef<HTMLDivElement>(null);
   const [exportEnCours,setExportEnCours]=useState(false);
   const [erreurExport,setErreurExport]=useState('');
   const exporter=async(format:'excel'|'pdf')=>{
     if(!donnees||!selection.length||exportEnCours)return;
     const rapport=preparerRapportEau(donnees,reperes,nom,periode);
     setExportEnCours(true);setErreurExport('');
-    try{const module=await import('./exportEau');if(format==='excel')module.exporterEauExcel(rapport);else module.exporterEauPdf(rapport);}
+    try{const graphique=await capturerGraphiqueEau(zoneGraphique.current?.querySelector('svg.recharts-surface')||null,donnees.series);const module=await import('./exportEau');if(format==='excel')await module.exporterEauExcel(rapport,graphique);else module.exporterEauPdf(rapport,graphique);}
     catch{setErreurExport('L’export a échoué. Réessayez.');}finally{setExportEnCours(false);}
   };
   const lectureVisible=lecture&&lecture.metrique===metrique&&lecture.date===date&&lecture.periode===periode&&donnees?.series.some(s=>s.points.some(p=>p.id===lecture.point.id));
@@ -42,7 +44,7 @@ export default function AnalyseEau({mesures,bassins,onModifier,ajouts=[]}:{ajout
     {erreurExport&&<p role="alert">{erreurExport}</p>}
     <h3>Évolution {metrique==='ph'?'du pH':'de l’EC'}{periode==='jour'?' dans la journée':periode==='mois'?' sur le mois':' sur 7 jours'}</h3><p>Heures de Martinique · une couleur par bassin · touchez ou survolez un point pour voir son relevé. L’échelle verticale s’adapte aux valeurs affichées.</p>
     {!dateValide?<p role="status">Choisissez une date valide.</p>:!disponibles.length?<p role="status">Aucun bassin à comparer. Ajoutez un bassin ou un relevé rattaché à un bassin.</p>:!selection.length?<p role="status">Sélectionnez au moins un bassin.</p>:!donnees?.nbPoints?<p className="aquaponie-empty">Aucun relevé de {nom} avec une heure connue pour les bassins et la période sélectionnés.</p>:<>
-      <div className="water-time-chart" role="group" aria-label={`Comparaison du ${nom} par bassin avec les heures réelles des relevés`}>
+      <div ref={zoneGraphique} className="water-time-chart" role="group" aria-label={`Comparaison du ${nom} par bassin avec les heures réelles des relevés`}>
         <ResponsiveContainer width="100%" height="100%"><ScatterChart margin={{top:16,right:16,bottom:20,left:0}}>
           <CartesianGrid strokeDasharray="3 3"/><XAxis type="number" dataKey="instant" domain={[donnees.debut,donnees.fin]} ticks={periode==='mois'?Array.from({length:Math.ceil((donnees.fin-donnees.debut)/86400000/5)},(_,i)=>donnees.debut+i*5*86400000):Array.from({length:periode==='jour'?7:8},(_,i)=>donnees.debut+i*(periode==='jour'?4*3600000:86400000))} tickFormatter={v=>periode==='jour'?(v===donnees.fin?'24:00':heure(v)):jour(v)} tick={{fontSize:12}}/><YAxis type="number" dataKey="valeur" domain={donnees.domaine} tickFormatter={nombre} width={58} tick={{fontSize:12}}/>
           {reperes.filter((a,i,l)=>l.findIndex(b=>b.instant===a.instant)===i).map(a=><ReferenceLine key={a.id} x={a.instant} stroke="#b45309" strokeDasharray="5 4" label={(props:unknown)=>{const {viewBox}=props as {viewBox?:{x:number;y:number}};return viewBox?<text x={viewBox.x} y={viewBox.y+16} textAnchor="middle" fill="#b45309" fontSize={20} tabIndex={0} role="button" aria-label={`Voir l’ajout de ${a.product_name} à ${heure(a.instant)}`} style={{cursor:'pointer'}} onClick={()=>setProduitChoisi(a.id)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setProduitChoisi(a.id);}}}>＋</text>:<g/>;}} />)}

@@ -8951,3 +8951,13 @@
 .aqua-resume-empty { color: #536c83; padding: 20px 0; }
 @media(max-width:1100px) { .aqua-resume-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); } .aqua-resume-middle, .aqua-resume-bottom { grid-template-columns: minmax(0,1fr); } }
 @media(max-width:480px) { .aqua-resume-kpis { gap: 10px; } .aqua-resume-kpis > article { padding: 12px; gap: 9px; flex-direction: column; } .aqua-resume-kpis h3 { font-size: 13px; } .aqua-resume-panel { padding: 14px; } .aqua-resume-panel h2 { font-size: 18px; } .aqua-resume-basins > article { gap: 10px; } .aqua-basin-values { padding-left: 0; border: 0; flex: 1 1 100px; } .water-analysis-compact .water-analysis-main { padding: 14px; } .water-analysis-compact .water-analysis-main > h3 { margin: 10px 0 0; font-size: 18px; min-height: 0; } .water-analysis-compact .water-time-chart { height: 260px; } }
+/* Même hiérarchie de navigation et de titre que les pages Volailles. */
+.aquaponie-page .aquaponie-navigation { margin: 0 0 28px; padding: 8px 0 0; gap: 8px; border-bottom: 1px solid #d7e4dc; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.aquaponie-navigation button { display: flex; align-items: center; flex: 0 0 auto; min-height: 44px; padding: 10px 12px; white-space: nowrap; color: #526d7b; font-size: 13px; font-weight: 650; border: 0; border-bottom: 3px solid transparent; background: none; }
+.aquaponie-navigation button.poultry-tab-active { color: #08783d; background: #eaf4ed; border-bottom: 3px solid #08783d; border-radius: 8px 8px 0 0; }
+.aquaponie-page .aquaponie-heading { align-items: flex-end; margin-bottom: 20px; }
+.aquaponie-page .aquaponie-heading h1 { font-size: 32px; line-height: 1.2; gap: 12px; }
+.aquaponie-page .aquaponie-heading h1 > span { width: auto; height: auto; border-radius: 0; background: none; color: #14833d; }
+.aquaponie-page .aquaponie-heading h1 > span .water-icon { width: 30px; height: 30px; color: #14833d; }
+.aquaponie-page .aquaponie-heading p { margin: 7px 0 0; font-size: 14px; color: #637487; }
+@media(max-width:760px) { .aquaponie-page .aquaponie-navigation { margin-bottom: 20px; } .aquaponie-page .aquaponie-heading { align-items: stretch; } .aquaponie-page .aquaponie-heading h1 { font-size: 25px; } .aquaponie-page .aquaponie-heading > div:last-child { justify-content: flex-start; } }

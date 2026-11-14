@@ -476,9 +476,19 @@ export default function Aquaponie() {
 
   return (
     <div className="aquaponie-page">
+
+      <nav className="poultry-tabs aquaponie-tabs aquaponie-navigation" aria-label="Sections aquaponie">
+        <button type="button" className={activeTab === "resume" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("resume")}>Résumé</button>
+        <button type="button" className={activeTab === "parametres" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("parametres")}>Paramètres eau</button>
+        <button type="button" className={activeTab === "bassins" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("bassins")}>Bassins</button>
+        <button type="button" className={activeTab === "cuves" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cuves")}>Cuves</button>
+        <button type="button" className={activeTab === "cultures" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cultures")}>Cultures</button>
+        <button type="button" className={activeTab === "recoltes" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("recoltes")}>Récoltes</button>
+      </nav>
+
       <header className="aquaponie-heading">
         <div>
-          <h1>{activeTab==='resume'?'Résumé':<><span><IconeEau nom="goutte"/></span> Aquaponie</>}</h1>
+          <h1>{({resume:'Résumé aquaponie',parametres:'Paramètres eau',bassins:'Bassins aquaponie',cuves:'Cuves aquaponie',cultures:'Cultures aquaponie',recoltes:'Récoltes aquaponie'})[activeTab]} <span><IconeEau nom="goutte"/></span></h1>
           <p>{activeTab==='resume'?'Vue d’ensemble de votre système aquaponique.':"Suivi des bassins, paramètres de l'eau et cultures."}</p>
         </div>
         <div>
@@ -487,14 +497,6 @@ export default function Aquaponie() {
         </div>
       </header>
 
-      <nav className="poultry-tabs aquaponie-tabs" aria-label="Sections aquaponie">
-        <button type="button" className={activeTab === "resume" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("resume")}>Résumé</button>
-        <button type="button" className={activeTab === "parametres" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("parametres")}>Paramètres eau</button>
-        <button type="button" className={activeTab === "bassins" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("bassins")}>Bassins</button>
-        <button type="button" className={activeTab === "cuves" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cuves")}>Cuves</button>
-        <button type="button" className={activeTab === "cultures" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cultures")}>Cultures</button>
-        <button type="button" className={activeTab === "recoltes" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("recoltes")}>Récoltes</button>
-      </nav>
 
       {!databaseReady && (
         <section className="aquaponie-setup">

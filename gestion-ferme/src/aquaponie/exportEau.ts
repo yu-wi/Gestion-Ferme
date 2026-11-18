@@ -24,6 +24,7 @@ export function construireClasseurEau(r: RapportEau, graphique?:string) {
   produits.addRow(['Date','Heure (Martinique)','Destination','Produit','Quantité','Unité','Observation']);
   r.ajouts.forEach(a=>produits.addRow([a.addition_date,a.addition_time,a.target_label,a.product_name,Number(a.quantity),unite(a.unit),a.notes||'']));
   produits.getRow(1).font={bold:true};
+  if(r.eaux?.length){const eau=book.addWorksheet('Ajouts eau');eau.columns=[{width:18},{width:24},{width:24},{width:60}];eau.addRow(['Date','Heure (Martinique)','Quantité (L)','Observation']);r.eaux.forEach(a=>eau.addRow([a.addition_date,a.addition_time,Number(a.quantity),a.notes||'']));eau.getRow(1).font={bold:true};}
   const filtres=book.addWorksheet('Filtres');filtres.columns=[{width:26},{width:100}];
   filtres.addRows([['Paramètre',r.metrique],['Période',r.periode],['Du',r.debut],['Au (inclus)',r.fin],['Bassins',r.bassins.join(', ')],['Précisions',note]]);
   return book;
@@ -43,6 +44,7 @@ export function construirePdfEau(r: RapportEau, graphique?: string) {
   autoTable(doc, { startY: graphique?24:35 + bassins.length * 4, head: [['Bassin', 'Date', 'Heure (Martinique)', r.metrique]], body: r.releves.length ? r.releves.map(p => [p.bassin, p.date, p.heure || 'Non renseignée', p.valeur === null ? 'Non renseignée' : p.valeur.toLocaleString('fr-FR', { maximumFractionDigits: 20 })]) : [['Aucun relevé pour ces filtres', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [22, 132, 60] } });
   doc.addPage(); doc.setFontSize(16); doc.text('Ajouts de produits', 14, 17);
   autoTable(doc, { startY: 24, head: [['Date', 'Heure', 'Destination', 'Produit', 'Quantité', 'Unité', 'Observation']], body: r.ajouts.length ? r.ajouts.map(a => [a.addition_date, a.addition_time, a.target_label, a.product_name, Number(a.quantity).toLocaleString('fr-FR', { maximumFractionDigits: 20 }), unite(a.unit), a.notes || '']) : [['Aucun ajout pour ces filtres', '', '', '', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [180, 83, 9] } });
+  if(r.eaux?.length){doc.addPage();doc.setFontSize(16);doc.text('Ajouts d’eau dans le circuit',14,17);autoTable(doc,{startY:24,head:[['Date','Heure (Martinique)','Quantité (L)','Observation']],body:r.eaux.map(a=>[a.addition_date,a.addition_time,Number(a.quantity).toLocaleString('fr-FR'),a.notes||'']),styles:{fontSize:9,overflow:'linebreak'},margin:{bottom:16},headStyles:{fillColor:[2,132,199]}});}
   doc.addPage(); doc.setFontSize(14); doc.text('Filtres et précisions', 14, 17); doc.setFontSize(10); doc.text(doc.splitTextToSize(`${r.metrique} - ${r.periode} - du ${r.debut} au ${r.fin} inclus\nBassins : ${r.bassins.join(', ')}\n${r.releves.length} relevé(s), ${r.ajouts.length} ajout(s)\n\n${note}`, 267), 14, 27);
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) { doc.setPage(i); doc.setFontSize(8); doc.text(`${r.metrique} - ${r.debut} / ${r.fin} | ${i} / ${total}`, 14, 202); }

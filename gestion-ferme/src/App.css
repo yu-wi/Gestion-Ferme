@@ -9045,3 +9045,8 @@
 .daily-overview .daily-progress-ring { display: block; }
 .daily-page .daily-save { position: static; margin-top: 20px; }
 .daily-lot-name h2, .daily-list-toolbar h2, .daily-heading-copy h1 { font-weight: 700; }
+.water-analysis .water-additions-banner { background: #f5fbff; border-color: #bbdff1; }
+.water-additions-banner .water-product-strip button, .water-product-markers.water-additions-banner > .water-add-product { border-color: #acd3e8; background: #fff; color: #036995; }
+.water-additions-banner .water-product-strip .water-icon { color: #0284c7; }
+.water-analysis-compact > .water-additions-banner { display: none; }
+.water-selected-addition { border-color: #bbdff1; background: #f0f9ff; }

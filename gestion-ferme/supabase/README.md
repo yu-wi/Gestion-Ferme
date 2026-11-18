@@ -216,3 +216,13 @@ Dans l’analyse pH/EC, les boutons Excel et PDF exportent le paramètre actif, 
 Les exports eau présentent maintenant le graphique filtré en premier, avec la légende des bassins et les repères orange des ajouts de produits. Le PDF place le tableau des relevés sur les pages suivantes ; Excel intègre une image du graphique en haut de la première feuille et le tableau en dessous. Les valeurs restent modifiables dans le tableau Excel. Sans relevé exploitable avec une heure connue, une indication remplace le graphique et les données restent exportables.
 
 Les ajouts de produits en cuve sont désormais inclus comme événements sur la chronologie pH/EC et dans les exports de la période sélectionnée. Le nom de la cuve reste explicite et aucun bassin ne leur est attribué. Les mesures d’eau des cuves ne sont pas transformées en mesures de bassin.
+
+### Ajouts d’eau dans le circuit
+
+Exécuter **`aquaponie-ajouts-eau.sql`** dans Supabase SQL Editor après `aquaponie-suivi.sql`. Le script est réexécutable sans effacer les données. Le journal utilise une table distincte (`aquaponie_water_additions`) protégée par les mêmes droits d’accès que celui des produits.
+
+Dans **Aquaponie → Paramètres eau → Ajouts d’eau**, enregistrer une quantité strictement positive en litres, la date et l’heure réelle (Martinique), et une observation facultative. L’historique permet de corriger/supprimer un ajout et de filtrer par dates. Les ajouts concernent le circuit complet : aucune valeur de pH, d’EC ou de niveau d’eau n’est déduite automatiquement.
+
+Une goutte bleue et une ligne pointillée marquent chaque heure d’ajout dans les graphiques pH/EC du résumé et des paramètres. Les produits gardent leurs repères orange. Les événements simultanés restent accessibles individuellement dans le bandeau. Les exports reprennent le graphique et les apports d’eau de la même période, dans une feuille/page distincte.
+
+Validation SQL isolée : `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/dist/index.js node tests/ajouts-eau-database.mjs`.

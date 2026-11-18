@@ -9050,3 +9050,10 @@
 .water-additions-banner .water-product-strip .water-icon { color: #0284c7; }
 .water-analysis-compact > .water-additions-banner { display: none; }
 .water-selected-addition { border-color: #bbdff1; background: #f0f9ff; }
+/* Actions d’ajout compactes ; les listes restent dans les historiques. */
+.water-addition-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-bottom: 20px; }
+.water-addition-actions > .water-product-markers { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; margin: 0; min-width: 0; }
+.water-addition-actions .water-product-banner-title { min-width: 0; gap: 12px; }
+.water-addition-actions .water-product-banner-title h4 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
+.water-addition-actions .water-add-product { margin: 0; max-width: 100%; white-space: normal; }
+@media(max-width:760px) { .water-addition-actions { grid-template-columns: minmax(0,1fr); gap: 12px; } .water-addition-actions .water-product-banner-title { margin: 0; } }

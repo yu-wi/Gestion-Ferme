@@ -19,3 +19,13 @@ test('PDF direct multipage avec un grand historique et texte accentué',()=>{con
 
 test('PDF : image sur la première page et tableau sur la suivante',()=>{const pdf=construirePdfEau(rapport(),png);assert.equal(pdf.getNumberOfPages(),4);assert.ok(pdf.output().includes('/Subtype /Image'));assert.ok(pdf.output().indexOf('Tableau des relev')>pdf.output().indexOf('Aquaponie'));});
 test('ajouts eau : feuille Excel numérique distincte et page PDF',async()=>{const r=rapport();r.eaux=[{...ajout,id:'eau',product_name:'Eau',quantity:125.5,unit:'L',target_type:'systeme',basin_id:null}];const book=construireClasseurEau(r,png);assert.equal(book.getWorksheet('Ajouts eau').getCell('C2').value,125.5);assert.equal(book.getWorksheet('Ajouts produits').rowCount,r.ajouts.length+1);assert.equal(construirePdfEau(r,png).getNumberOfPages(),5);});
+test('PDF : le graphique occupe la largeur entre les deux marges et reste au-dessus du pied de page',()=>{
+ const pdf=construirePdfEau(rapport(),png);
+ const contenu=pdf.internal.pages[1].join('\n');
+ const matrices=[...contenu.matchAll(/([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm/g)];
+ const image=matrices.find(m=>Number(m[1])>500);assert.ok(image);
+ const mm=72/25.4;
+ assert.ok(Math.abs(Number(image[1])/mm-(pdf.internal.pageSize.getWidth()-28))<.01);
+ assert.ok(Math.abs(Number(image[3])/mm-14)<.01);
+ assert.ok(Number(image[4])/mm>=16-.01);
+});

@@ -40,14 +40,7 @@ export function construirePdfEau(r: RapportEau, graphique?: string) {
   doc.setFontSize(10); doc.text(`${r.periode} - du ${r.debut} au ${r.fin} inclus - heures de Martinique`, 14, 25);
   const bassins = doc.splitTextToSize(`Bassins et cuves : ${r.bassins.join(', ')}`, 267) as string[];
   doc.text(bassins, 14, 32);
-  if(graphique){
-    const image=doc.getImageProperties(graphique);
-    const largeur=doc.internal.pageSize.getWidth()-28;
-    const haut=38+Math.max(0,bassins.length-1)*4;
-    const hauteur=Math.min(largeur*image.height/image.width,doc.internal.pageSize.getHeight()-haut-16);
-    doc.addImage(graphique,'PNG',14,haut,largeur,hauteur,undefined,'FAST');
-    doc.addPage();doc.setFontSize(16);doc.text('Tableau des relevés',14,17);
-  }
+  if(graphique){const image=doc.getImageProperties(graphique);const echelle=Math.min(267/image.width,148/image.height);doc.addImage(graphique,'PNG',14,38,image.width*echelle,image.height*echelle,undefined,'FAST');doc.addPage();doc.setFontSize(16);doc.text('Tableau des relevés',14,17);}
   autoTable(doc, { startY: graphique?24:35 + bassins.length * 4, head: [['Bassin / cuve', 'Date', 'Heure (Martinique)', r.metrique]], body: r.releves.length ? r.releves.map(p => [p.bassin, p.date, p.heure || 'Non renseignée', p.valeur === null ? 'Non renseignée' : p.valeur.toLocaleString('fr-FR', { maximumFractionDigits: 20 })]) : [['Aucun relevé pour ces filtres', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [22, 132, 60] } });
   doc.addPage(); doc.setFontSize(16); doc.text('Ajouts de produits', 14, 17);
   autoTable(doc, { startY: 24, head: [['Date', 'Heure', 'Destination', 'Produit', 'Quantité', 'Unité', 'Observation']], body: r.ajouts.length ? r.ajouts.map(a => [a.addition_date, a.addition_time, a.target_label, a.product_name, Number(a.quantity).toLocaleString('fr-FR', { maximumFractionDigits: 20 }), unite(a.unit), a.notes || '']) : [['Aucun ajout pour ces filtres', '', '', '', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [180, 83, 9] } });

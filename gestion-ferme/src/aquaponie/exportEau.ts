@@ -10,12 +10,12 @@ export function construireClasseurEau(r: RapportEau, graphique?:string) {
   feuille.columns=[{width:32},{width:18},{width:25},{width:20},{width:20},{width:20},{width:20}];
   feuille.getCell('A1').value=`Aquaponie - évolution ${r.metrique}`;
   feuille.getCell('A2').value=`${r.periode} - du ${r.debut} au ${r.fin} inclus - heures de Martinique`;
-  feuille.getCell('A3').value=`Bassins : ${r.bassins.join(', ')}`;
+  feuille.getCell('A3').value=`Bassins et cuves : ${r.bassins.join(', ')}`;
   for(const n of [1,2,3])feuille.mergeCells(`A${n}:G${n}`);
   if(graphique){const id=book.addImage({base64:graphique,extension:'png'});feuille.addImage(id,'A5:G30');}
   else feuille.getCell('A5').value='Graphique indisponible';
   feuille.getCell('A32').value='Tableau des relevés';
-  feuille.getRow(33).values=['Bassin','Date','Heure (Martinique)',r.metrique];
+  feuille.getRow(33).values=['Bassin / cuve','Date','Heure (Martinique)',r.metrique];
   r.releves.forEach(p=>feuille.addRow([p.bassin,p.date,p.heure||'Non renseignée',p.valeur]));
   feuille.autoFilter={from:'A33',to:`D${33+r.releves.length}`};
   feuille.getRow(33).font={bold:true};feuille.views=[{state:'normal'}];
@@ -26,7 +26,7 @@ export function construireClasseurEau(r: RapportEau, graphique?:string) {
   produits.getRow(1).font={bold:true};
   if(r.eaux?.length){const eau=book.addWorksheet('Ajouts eau');eau.columns=[{width:18},{width:24},{width:24},{width:60}];eau.addRow(['Date','Heure (Martinique)','Quantité (L)','Observation']);r.eaux.forEach(a=>eau.addRow([a.addition_date,a.addition_time,Number(a.quantity),a.notes||'']));eau.getRow(1).font={bold:true};}
   const filtres=book.addWorksheet('Filtres');filtres.columns=[{width:26},{width:100}];
-  filtres.addRows([['Paramètre',r.metrique],['Période',r.periode],['Du',r.debut],['Au (inclus)',r.fin],['Bassins',r.bassins.join(', ')],['Précisions',note]]);
+  filtres.addRows([['Paramètre',r.metrique],['Période',r.periode],['Du',r.debut],['Au (inclus)',r.fin],['Bassins et cuves',r.bassins.join(', ')],['Précisions',note]]);
   return book;
 }
 export async function exporterEauExcel(r:RapportEau,graphique:string) {
@@ -38,14 +38,14 @@ export function construirePdfEau(r: RapportEau, graphique?: string) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   doc.setFontSize(17); doc.text(`Aquaponie - relevés ${r.metrique}`, 14, 17);
   doc.setFontSize(10); doc.text(`${r.periode} - du ${r.debut} au ${r.fin} inclus - heures de Martinique`, 14, 25);
-  const bassins = doc.splitTextToSize(`Bassins : ${r.bassins.join(', ')}`, 267) as string[];
+  const bassins = doc.splitTextToSize(`Bassins et cuves : ${r.bassins.join(', ')}`, 267) as string[];
   doc.text(bassins, 14, 32);
   if(graphique){const image=doc.getImageProperties(graphique);const echelle=Math.min(267/image.width,148/image.height);doc.addImage(graphique,'PNG',14,38,image.width*echelle,image.height*echelle,undefined,'FAST');doc.addPage();doc.setFontSize(16);doc.text('Tableau des relevés',14,17);}
-  autoTable(doc, { startY: graphique?24:35 + bassins.length * 4, head: [['Bassin', 'Date', 'Heure (Martinique)', r.metrique]], body: r.releves.length ? r.releves.map(p => [p.bassin, p.date, p.heure || 'Non renseignée', p.valeur === null ? 'Non renseignée' : p.valeur.toLocaleString('fr-FR', { maximumFractionDigits: 20 })]) : [['Aucun relevé pour ces filtres', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [22, 132, 60] } });
+  autoTable(doc, { startY: graphique?24:35 + bassins.length * 4, head: [['Bassin / cuve', 'Date', 'Heure (Martinique)', r.metrique]], body: r.releves.length ? r.releves.map(p => [p.bassin, p.date, p.heure || 'Non renseignée', p.valeur === null ? 'Non renseignée' : p.valeur.toLocaleString('fr-FR', { maximumFractionDigits: 20 })]) : [['Aucun relevé pour ces filtres', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [22, 132, 60] } });
   doc.addPage(); doc.setFontSize(16); doc.text('Ajouts de produits', 14, 17);
   autoTable(doc, { startY: 24, head: [['Date', 'Heure', 'Destination', 'Produit', 'Quantité', 'Unité', 'Observation']], body: r.ajouts.length ? r.ajouts.map(a => [a.addition_date, a.addition_time, a.target_label, a.product_name, Number(a.quantity).toLocaleString('fr-FR', { maximumFractionDigits: 20 }), unite(a.unit), a.notes || '']) : [['Aucun ajout pour ces filtres', '', '', '', '', '', '']], styles: { fontSize: 9, overflow: 'linebreak' }, margin: { bottom: 16 }, headStyles: { fillColor: [180, 83, 9] } });
   if(r.eaux?.length){doc.addPage();doc.setFontSize(16);doc.text('Ajouts d’eau dans le circuit',14,17);autoTable(doc,{startY:24,head:[['Date','Heure (Martinique)','Quantité (L)','Observation']],body:r.eaux.map(a=>[a.addition_date,a.addition_time,Number(a.quantity).toLocaleString('fr-FR'),a.notes||'']),styles:{fontSize:9,overflow:'linebreak'},margin:{bottom:16},headStyles:{fillColor:[2,132,199]}});}
-  doc.addPage(); doc.setFontSize(14); doc.text('Filtres et précisions', 14, 17); doc.setFontSize(10); doc.text(doc.splitTextToSize(`${r.metrique} - ${r.periode} - du ${r.debut} au ${r.fin} inclus\nBassins : ${r.bassins.join(', ')}\n${r.releves.length} relevé(s), ${r.ajouts.length} ajout(s)\n\n${note}`, 267), 14, 27);
+  doc.addPage(); doc.setFontSize(14); doc.text('Filtres et précisions', 14, 17); doc.setFontSize(10); doc.text(doc.splitTextToSize(`${r.metrique} - ${r.periode} - du ${r.debut} au ${r.fin} inclus\nBassins et cuves : ${r.bassins.join(', ')}\n${r.releves.length} relevé(s), ${r.ajouts.length} ajout(s)\n\n${note}`, 267), 14, 27);
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) { doc.setPage(i); doc.setFontSize(8); doc.text(`${r.metrique} - ${r.debut} / ${r.fin} | ${i} / ${total}`, 14, 202); }
   return doc;

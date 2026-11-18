@@ -226,3 +226,7 @@ Dans **Aquaponie → Paramètres eau → Ajouts d’eau**, enregistrer une quant
 Une goutte bleue et une ligne pointillée marquent chaque heure d’ajout dans les graphiques pH/EC du résumé et des paramètres. Les produits gardent leurs repères orange. Les événements simultanés restent accessibles individuellement dans le bandeau. Les exports reprennent le graphique et les apports d’eau de la même période, dans une feuille/page distincte.
 
 Validation SQL isolée : `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/dist/index.js node tests/ajouts-eau-database.mjs`.
+
+### Comparaison des bassins et des cuves
+
+Le sélecteur des graphiques pH/EC inclut désormais les cuves, dans le résumé comme dans les paramètres eau. Chaque série porte un libellé « Bassin · … » ou « Cuve · … » et une couleur distincte. Les identifiants des cuves sont isolés de ceux des bassins afin qu’aucun relevé ne puisse être mélangé. Les relevés globaux sans destination précise restent exclus des courbes individuelles. Les filtres de dates et de sources s’appliquent également au tableau et aux exports Excel/PDF. Aucun changement SQL nécessaire.

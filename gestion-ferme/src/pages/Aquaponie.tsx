@@ -512,7 +512,7 @@ export default function Aquaponie() {
         </section>
       )}
 
-      {activeTab === "resume" && <ResumeAquaponie ajoutsEau={ajoutsEau} bassins={bassins} mesures={mesures} cultures={activeCultures} ajouts={ajoutsProduits} seuils={seuils} loading={seuilsLoading} erreur={seuilsErreur} onRecharger={()=>void chargerSeuils()} onBassins={()=>setActiveTab('bassins')} onMesure={id=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:id}));}} onCulture={()=>openCulture()} renderCulture={id=>{const c=activeCultures.find(c=>c.id===id);return c?<CultureCard culture={c} onEdit={()=>openCulture(c)}/>:null;}} produitsErreur={[produitsResumeErreur,eauResumeErreur].filter(Boolean).join(' ')}/>}
+      {activeTab === "resume" && <ResumeAquaponie cuves={cuves} ajoutsEau={ajoutsEau} bassins={bassins} mesures={mesures} cultures={activeCultures} ajouts={ajoutsProduits} seuils={seuils} loading={seuilsLoading} erreur={seuilsErreur} onRecharger={()=>void chargerSeuils()} onBassins={()=>setActiveTab('bassins')} onMesure={id=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:id}));}} onCulture={()=>openCulture()} renderCulture={id=>{const c=activeCultures.find(c=>c.id===id);return c?<CultureCard culture={c} onEdit={()=>openCulture(c)}/>:null;}} produitsErreur={[produitsResumeErreur,eauResumeErreur].filter(Boolean).join(' ')}/>}
 
       {activeTab === "bassins" && (
         <section className="aquaponie-panel">
@@ -570,7 +570,7 @@ export default function Aquaponie() {
             <MeasureValue icone="produit" label="pH" value={latestMeasure?.ph} />
             <MeasureValue icone="ec" label="EC" value={latestMeasure?.conductivity} />
           </div><button type="button" className="water-new-measure" onClick={()=>openMeasure()}><IconeEau nom="plus"/> Enregistrer une mesure</button></div>
-          <AnalyseEau ajoutsEau={ajoutsEau} onAjouterEau={()=>formulaireEau.current?.ouvrir()} onAjouterProduit={()=>formulaireProduit.current?.ouvrir()} onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
+          <AnalyseEau cuves={cuves} ajoutsEau={ajoutsEau} onAjouterEau={()=>formulaireEau.current?.ouvrir()} onAjouterProduit={()=>formulaireProduit.current?.ouvrir()} onSupprimer={id=>void deleteRow("aquaponie_water_measures",id,"cette mesure",idSupprime=>setMesures(lignes=>lignes.filter(m=>m.id!==idSupprime)))} ajouts={ajoutsProduits} mesures={mesures} bassins={bassins} onModifier={id=>{const mesure=mesures.find(m=>m.id===id);if(mesure)openMeasure(mesure);}}/>
           <AjoutsProduitsEau controle={formulaireProduit} bassins={bassins} cuves={cuves} onChange={setAjoutsProduits}/>
           <AjoutsEauCircuit controle={formulaireEau} onChange={setAjoutsEau}/>
           <details className="aquaponie-measure-timeline aquaponie-releves-details">

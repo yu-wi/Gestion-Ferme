@@ -37,3 +37,20 @@ test('vue mensuelle : mois civil complet, fuseau Martinique et limites exclusive
   for(const metric of ['ph','conductivity']){const r=analyserEau(mesures,bassins,['a'],metric,date,'mois');assert.equal(r.fin-r.debut,jours*86400000);assert.equal(r.debut,Date.parse(debut+'T00:00:00-04:00'));assert.equal(r.fin,Date.parse(fin+'T00:00:00-04:00'));assert.equal(r.nbPoints,2);}
  }
 });
+
+test('bassins et cuves : identifiants isolés, aucune attribution des relevés globaux',async()=>{
+ const {sourcesAnalyseEau}=await import('../src/aquaponie/analyseEau.ts');
+ const mesures=[ligne('b','a','08:00',6.5,1),{...ligne('c','a','09:00',7.2,2),target_type:'cuve',tank_id:'a'},{...ligne('global-cuve',null,'10:00',9,9),target_type:'cuve',tank_id:null}];
+ const sources=sourcesAnalyseEau([{id:'a',name:'B2'}],[{id:'a',name:'CT1'}],mesures);
+ assert.deepEqual(sources.map(s=>s.id),['a','cuve:a']);
+ for(const metrique of ['ph','conductivity']){
+  const r=analyserEau(mesures,sources,sources.map(s=>s.id),metrique,'2026-11-10','jour');
+  assert.equal(r.nbPoints,2);assert.equal(r.series[0].points[0].id,'b');assert.equal(r.series[1].points[0].id,'c');assert.notEqual(r.series[0].couleur,r.series[1].couleur);
+  const cuve=analyserEau(mesures,sources,['cuve:a'],metrique,'2026-11-10','jour');assert.equal(cuve.releves.length,1);assert.equal(cuve.releves[0].bassin,'Cuve · CT1');
+ }
+});
+test('les relevés d’une cuve archivée restent accessibles sans inventer son nom',async()=>{
+ const {sourcesAnalyseEau}=await import('../src/aquaponie/analyseEau.ts');
+ const m={...ligne('c',null,'09:00'),target_type:'cuve',tank_id:'archive'};
+ const sources=sourcesAnalyseEau([],[],[m]);assert.equal(sources.length,1);assert.equal(sources[0].id,'cuve:archive');assert.match(sources[0].name,/archivée/);assert.equal(analyserEau([m],sources,['cuve:archive'],'ph','2026-11-10','jour').nbPoints,1);
+});

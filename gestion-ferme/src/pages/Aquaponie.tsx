@@ -679,7 +679,6 @@ export default function Aquaponie() {
             <label>Température (°C)<input type="number" step="0.1" value={measureForm.temperature_c} onChange={(event) => setMeasureForm({ ...measureForm, temperature_c: event.target.value })} /></label>
             <label>pH<input type="number" step="0.1" value={measureForm.ph} onChange={(event) => setMeasureForm({ ...measureForm, ph: event.target.value })} /></label>
             <label>Conductivité<input type="number" step="0.01" value={measureForm.conductivity} onChange={(event) => setMeasureForm({ ...measureForm, conductivity: event.target.value })} /></label>
-            <label className="aquaponie-field-wide">Observation<textarea value={measureForm.notes} onChange={(event) => setMeasureForm({ ...measureForm, notes: event.target.value })} /></label>
           </div>
           <ModalActions onSave={saveMeasure} onCancel={closeModal} saving={saving} />
         </AquaModal>

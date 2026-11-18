@@ -44,7 +44,6 @@ export default function AjoutsEauCircuit({onChange,controle}:{controle?:Ref<{ouv
       {erreurForm&&<p className="daily-alert" role="alert">{erreurForm}</p>}
       <fieldset disabled={saving} className="water-product-form"><label>Quantité d’eau ajoutée (L)<input type="number" inputMode="decimal" min="0" step="any" value={form.quantite} onChange={e=>changer('quantite',e.target.value)}/></label>
         <div className="water-product-form-pair"><label>Date d’ajout<input type="date" value={form.date} onChange={e=>changer('date',e.target.value)}/></label><label>Heure d’ajout (Martinique)<input type="time" value={form.heure} onChange={e=>changer('heure',e.target.value)}/></label></div>
-        <label>Observation (facultatif)<textarea maxLength={2000} value={form.notes} onChange={e=>changer('notes',e.target.value)}/></label>
       </fieldset><div className="poultry-modal-actions"><button type="button" className="poultry-modal-secondary" disabled={saving} onClick={()=>setForm(null)}>Annuler</button><button type="button" className="poultry-modal-primary" disabled={saving} onClick={()=>void enregistrer()}>{saving?'Enregistrement…':'✓ Enregistrer l’ajout'}</button></div>
     </div></div>}
   </section>;

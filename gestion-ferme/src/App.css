@@ -1241,7 +1241,7 @@
   font-size: 14px;
 }
 
-.aquaponie-heading > div:last-child {
+.aquaponie-heading > .aquaponie-heading-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1802,7 +1802,7 @@
     font-size: 25px;
   }
 
-  .aquaponie-heading > div:last-child,
+  .aquaponie-heading > .aquaponie-heading-actions,
   .aquaponie-heading button,
   .aquaponie-panel-heading button {
     width: 100%;
@@ -8960,7 +8960,7 @@
 .aquaponie-page .aquaponie-heading h1 > span { width: auto; height: auto; border-radius: 0; background: none; color: #14833d; }
 .aquaponie-page .aquaponie-heading h1 > span .water-icon { width: 30px; height: 30px; color: #14833d; }
 .aquaponie-page .aquaponie-heading p { margin: 7px 0 0; font-size: 14px; color: #637487; }
-@media(max-width:760px) { .aquaponie-page .aquaponie-navigation { margin-bottom: 20px; } .aquaponie-page .aquaponie-heading { align-items: stretch; } .aquaponie-page .aquaponie-heading h1 { font-size: 25px; } .aquaponie-page .aquaponie-heading > div:last-child { justify-content: flex-start; } }
+@media(max-width:760px) { .aquaponie-page .aquaponie-navigation { margin-bottom: 20px; } .aquaponie-page .aquaponie-heading { align-items: stretch; } .aquaponie-page .aquaponie-heading h1 { font-size: 25px; } .aquaponie-page .aquaponie-heading > .aquaponie-heading-actions { justify-content: flex-start; } }
 .daily-consumption-suggestion { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: #f1faf4; border: 1px solid #c6e2ce; border-radius: 9px; padding: 12px; margin: 8px 0; }
 .daily-consumption-suggestion > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .daily-consumption-suggestion strong { color: #157b3e; font-size: 14px; }

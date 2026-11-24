@@ -501,10 +501,10 @@ export default function Aquaponie() {
           <h1>{({resume:'Résumé aquaponie',parametres:'Paramètres eau',poissons:'Lots de poissons',bassins:'Bassins aquaponie',cuves:'Cuves aquaponie',cultures:'Cultures aquaponie',recoltes:'Récoltes aquaponie'})[activeTab]} <span><IconeEau nom="goutte"/></span></h1>
           <p>{activeTab==='resume'?'Vue d’ensemble de votre système aquaponique.':"Suivi des bassins, paramètres de l'eau et cultures."}</p>
         </div>
-        <div>
+        {activeTab === "resume" && <div className="aquaponie-heading-actions">
           <button type="button" onClick={() => openMeasure()}>＋ Mesure eau</button>
           <button type="button" onClick={() => openCulture()}>＋ Culture</button>
-        </div>
+        </div>}
       </header>
 
 

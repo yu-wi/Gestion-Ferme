@@ -1,0 +1,20 @@
+// PGLITE_MODULE_PATH=/path/to/@electric-sql/pglite/dist/index.js node tests/poissons-database.mjs
+import {readFile} from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE_PATH);const db=new PGlite();
+const lot='00000000-0000-0000-0000-000000000010',bassin='00000000-0000-0000-0000-000000000002',obs='00000000-0000-0000-0000-000000000020',obs2='00000000-0000-0000-0000-000000000021';
+await db.exec(`create role anon;create role authenticated;create schema auth;create function auth.uid() returns uuid language sql as $$select nullif(current_setting('test.uid',true),'')::uuid$$;grant usage on schema auth to authenticated;create function public.is_active_app_user() returns boolean language sql as $$select auth.uid()='00000000-0000-0000-0000-000000000001'::uuid$$;create table aquaponie_basins(id uuid primary key,name text);insert into aquaponie_basins values('${bassin}','B2');grant select on aquaponie_basins to authenticated;`);
+const sql=await readFile(new URL('../supabase/aquaponie-poissons.sql',import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);
+await db.exec(`set role authenticated;set test.uid='00000000-0000-0000-0000-000000000001'`);
+const params=[lot,obs,'Tilapias','2025-11-01','2026-01-10',100,250,bassin,null];
+const rpc=p=>db.query('select enregistrer_suivi_poissons($1::uuid,$2::uuid,$3::text,$4::date,$5::date,$6::integer,$7::numeric,$8::uuid,$9::timestamptz)',p);
+const compte=async t=>Number((await db.query(`select count(*) as n from ${t}`)).rows[0].n);
+await rpc(params);const initial=(await db.query('select updated_at::text as updated_at from aquaponie_fish_lots')).rows[0].updated_at;
+await rpc(params);assert.equal(await compte('aquaponie_fish_lots'),1);assert.equal(await compte('aquaponie_fish_observations'),1);
+await assert.rejects(()=>rpc(params.map((v,i)=>i===5?99:v)));assert.equal(await compte('aquaponie_fish_observations'),1);
+const suivant=[lot,obs2,'Tilapias','2025-11-01','2026-01-11',90,300,bassin,initial];await rpc(suivant);assert.equal(await compte('aquaponie_fish_observations'),2);
+await assert.rejects(()=>rpc([lot,'00000000-0000-0000-0000-000000000022','Tilapias','2025-11-01','2026-01-12',80,320,bassin,initial]));assert.equal(await compte('aquaponie_fish_observations'),2);
+for(const [i,v] of [[4,'2999-01-01'],[5,-1],[6,0],[6,'NaN'],[6,'Infinity'],[7,'00000000-0000-0000-0000-000000000099']]){const p=[...params];p[0]='00000000-0000-0000-0000-000000000011';p[1]='00000000-0000-0000-0000-000000000023';p[i]=v;await assert.rejects(()=>rpc(p));}assert.equal(await compte('aquaponie_fish_lots'),1);
+await db.exec(`set test.uid='00000000-0000-0000-0000-000000000003'`);assert.equal(await compte('aquaponie_fish_lots'),0);await assert.rejects(()=>rpc(params));
+await db.exec('set role anon');await assert.rejects(()=>db.query('select * from aquaponie_fish_lots'));await assert.rejects(()=>rpc(params));
+await db.exec('reset role;delete from aquaponie_basins');const historique=(await db.query('select * from aquaponie_fish_observations')).rows;assert.ok(historique.every(h=>h.basin_id===null&&h.basin_label==='B2'));
+await db.close();console.log('Poissons SQL : migration réexécutable, transaction, historique, rejeu sans doublon, conflits, validation et droits vérifiés.');

@@ -230,3 +230,13 @@ Validation SQL isolée : `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/d
 ### Comparaison des bassins et des cuves
 
 Le sélecteur des graphiques pH/EC inclut désormais les cuves, dans le résumé comme dans les paramètres eau. Chaque série porte un libellé « Bassin · … » ou « Cuve · … » et une couleur distincte. Les identifiants des cuves sont isolés de ceux des bassins afin qu’aucun relevé ne puisse être mélangé. Les relevés globaux sans destination précise restent exclus des courbes individuelles. Les filtres de dates et de sources s’appliquent également au tableau et aux exports Excel/PDF. Aucun changement SQL nécessaire.
+
+### Lots de poissons et ration journalière
+
+Exécuter `aquaponie-poissons.sql` dans Supabase SQL Editor après `aquaponie-suivi.sql`. Ce script réexécutable installe les lots, leur historique et la fonction transactionnelle d’enregistrement avec les droits des utilisateurs actifs. Aucun lot de poissons existant n’est créé implicitement depuis les effectifs manuels des bassins.
+
+L’onglet **Poissons**, après **Paramètres eau**, permet d’enregistrer un nom de lot, une date approximative de naissance, un bassin, un effectif et le poids unitaire moyen **en grammes**. « Actualiser le suivi » ajoute une nouvelle observation datée : l’historique conserve les effectifs, les pesées et le bassin de chaque observation. La carte présente l’observation la plus récente par date, puis par heure d’enregistrement ; un suivi antidaté ne remplace donc pas le suivi courant.
+
+Le calculateur et les cartes utilisent **biomasse (kg) = effectif × poids unitaire (g) ÷ 1 000** et **ration journalière = 2 % de la biomasse**. Exemple : 100 poissons de 250 g représentent 25 kg de biomasse et environ 500 g d’aliment par jour. Un effectif nul donne une ration nulle ; aucun poids manquant ne devient une recommandation fictive. Les calculs n’enregistrent pas de consommation d’aliment.
+
+Vérifications : `node --test tests/poissons.test.mjs` et, pour la transaction SQL isolée, `PGLITE_MODULE_PATH=/chemin/vers/@electric-sql/pglite/dist/index.js node tests/poissons-database.mjs`.

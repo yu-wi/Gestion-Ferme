@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {calculerRationPoissons,preparerSuiviPoissons,trierSuivisPoissons} from '../src/aquaponie/poissons.ts';
+const form={id:'lot',observationId:'suivi',nom:' Lot tilapias ',naissance:'2026-08-01',date:'2026-11-24',quantite:'100',poids:'250',bassinId:'b'};
+const bassins=[{id:'b',name:'B2'}];
+test('biomasse et ration journalière à 2 % sans arrondi excessif',()=>{assert.deepEqual(calculerRationPoissons(100,250),{biomasseKg:25,rationG:500,rationKg:.5});assert.deepEqual(calculerRationPoissons(0,250),{biomasseKg:0,rationG:0,rationKg:0});assert.equal(calculerRationPoissons(3,12.5).rationG,.75);});
+test('calculateur refuse les données invalides',()=>{for(const [q,p] of [[-1,100],[1.5,100],[100,0],[100,-1],[NaN,10],[10,Infinity],[Number.MAX_VALUE,10]])assert.equal(calculerRationPoissons(q,p),null);});
+test('prépare une saisie avec effectif, poids en grammes et identifiants de rejeu stables',()=>{const p=preparerSuiviPoissons(form,bassins,'2026-11-24');assert.equal(p.p_quantity,100);assert.equal(p.p_unit_weight_g,250);assert.equal(p.p_name,'Lot tilapias');assert.equal(p.p_observation_id,'suivi');assert.equal(p.p_expected_updated_at,null);assert.equal(preparerSuiviPoissons(form,bassins,'2026-11-24',{id:'lot',updated_at:'instant'}).p_expected_updated_at,'instant');});
+test('validation des dates, quantités, poids et bassin existant',()=>{for(const f of [{nom:''},{quantite:''},{poids:''},{quantite:'1.5'},{poids:'0'},{date:'2026-11-25'},{date:'2026-07-01'},{naissance:'2026-02-30'},{bassinId:'absent'}])assert.throws(()=>preparerSuiviPoissons({...form,...f},bassins,'2026-11-24'));});
+test('un suivi ancien ne remplace pas le dernier suivi ; ordre intrajournalier',()=>{const a={id:'a',observed_on:'2026-11-24',created_at:'2026-11-24T08:00:00Z'},b={...a,id:'b',created_at:'2026-11-24T09:00:00Z'},c={...b,id:'c',observed_on:'2026-10-01'};assert.deepEqual(trierSuivisPoissons([c,a,b]).map(s=>s.id),['b','a','c']);});

@@ -1,6 +1,7 @@
 export const ongletsAquaponie = [
   {id:'resume',label:'Résumé'},
   {id:'parametres',label:'Paramètres eau'},
+  {id:'poissons',label:'Poissons'},
   {id:'bassins',label:'Bassins'},
   {id:'cuves',label:'Cuves'},
   {id:'cultures',label:'Cultures'},

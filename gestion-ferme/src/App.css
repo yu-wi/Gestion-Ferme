@@ -9057,3 +9057,30 @@
 .water-addition-actions .water-product-banner-title h4 { margin: 0; font-size: 17px; overflow-wrap: anywhere; }
 .water-addition-actions .water-add-product { margin: 0; max-width: 100%; white-space: normal; }
 @media(max-width:760px) { .water-addition-actions { grid-template-columns: minmax(0,1fr); gap: 12px; } .water-addition-actions .water-product-banner-title { margin: 0; } }
+.fish-page { min-width: 0; color: #14344a; }
+.fish-heading, .fish-lot > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+.fish-heading h2 { display: flex; align-items: center; gap: 10px; margin: 0; }
+.fish-heading button, .fish-lot header button, .fish-page > .daily-alert button { min-height: 44px; padding: 10px 16px; background: #087f40; color: white; border: 0; border-radius: 9px; }
+.fish-calculator { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.4fr; gap: 18px; align-items: center; background: #f0faf5; border: 1px solid #cbe6d5; padding: 22px; border-radius: 14px; margin: 22px 0; }
+.fish-calculator h3 { margin: 0 0 8px; font-size: 18px; }
+.fish-calculator p, .fish-lot header p { font-size: 13px; color: #60798b; margin: 8px 0; }
+.fish-page label, .fish-form label { display: flex; flex-direction: column; gap: 7px; font-size: 14px; min-width: 0; }
+.fish-page input, .fish-page select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; border: 1px solid #cbdcd3; border-radius: 8px; padding: 10px; background: white; color: #16364b; }
+.fish-ration-result { display: flex; flex-direction: column; gap: 7px; padding: 16px; background: #e1f3e8; border-radius: 11px; color: #08763a; overflow-wrap: anywhere; }
+.fish-ration-result small { font-size: 12px; }
+.fish-lots { display: grid; gap: 20px; }
+.fish-lot { background: white; border: 1px solid #dce6eb; border-radius: 15px; padding: 22px; min-width: 0; }
+.fish-lot h3 { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
+.fish-lot-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin: 18px 0; }
+.fish-lot-stats > div { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid #e0e9ed; border-radius: 10px; overflow-wrap: anywhere; }
+.fish-lot-stats small { color: #627c8c; }
+.fish-lot-ration { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; background: #f0faf5; padding: 14px; border-radius: 9px; font-size: 14px; }
+.fish-lot-ration strong { color: #087d3c; }
+.fish-lot summary { cursor: pointer; font-weight: 600; padding: 18px 0 8px; }
+.fish-lot table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.fish-lot th, .fish-lot td { padding: 12px; text-align: left; border-bottom: 1px solid #e1e9ed; }
+.fish-lot th { background: #f3f7f8; }
+.fish-empty { padding: 30px; background: white; border: 1px solid #dce6eb; border-radius: 12px; color: #60798b; }
+.fish-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; border: 0; margin: 20px 0; padding: 0; }
+@media(max-width:1100px) { .fish-calculator { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .fish-calculator, .fish-form { grid-template-columns: minmax(0,1fr); } .fish-lot { padding: 14px; } .fish-lot-stats { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; } .fish-calculator { padding: 16px; } }

@@ -1,3 +1,4 @@
+import Poissons from '../aquaponie/Poissons';
 import AjoutsEauCircuit from '../aquaponie/AjoutsEauCircuit';
 import {useSearchParams} from 'react-router-dom';
 import {ongletAquaponie,type AquaTab} from '../aquaponie/navigationAquaponie';
@@ -488,6 +489,7 @@ export default function Aquaponie() {
       <nav className="poultry-tabs aquaponie-tabs aquaponie-navigation" aria-label="Sections aquaponie">
         <button type="button" className={activeTab === "resume" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("resume")}>Résumé</button>
         <button type="button" className={activeTab === "parametres" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("parametres")}>Paramètres eau</button>
+        <button type="button" className={activeTab === "poissons" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("poissons")}>Poissons</button>
         <button type="button" className={activeTab === "bassins" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("bassins")}>Bassins</button>
         <button type="button" className={activeTab === "cuves" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cuves")}>Cuves</button>
         <button type="button" className={activeTab === "cultures" ? "poultry-tab-active" : ""} onClick={() => setActiveTab("cultures")}>Cultures</button>
@@ -496,7 +498,7 @@ export default function Aquaponie() {
 
       <header className="aquaponie-heading">
         <div>
-          <h1>{({resume:'Résumé aquaponie',parametres:'Paramètres eau',bassins:'Bassins aquaponie',cuves:'Cuves aquaponie',cultures:'Cultures aquaponie',recoltes:'Récoltes aquaponie'})[activeTab]} <span><IconeEau nom="goutte"/></span></h1>
+          <h1>{({resume:'Résumé aquaponie',parametres:'Paramètres eau',poissons:'Lots de poissons',bassins:'Bassins aquaponie',cuves:'Cuves aquaponie',cultures:'Cultures aquaponie',recoltes:'Récoltes aquaponie'})[activeTab]} <span><IconeEau nom="goutte"/></span></h1>
           <p>{activeTab==='resume'?'Vue d’ensemble de votre système aquaponique.':"Suivi des bassins, paramètres de l'eau et cultures."}</p>
         </div>
         <div>
@@ -513,6 +515,8 @@ export default function Aquaponie() {
       )}
 
       {activeTab === "resume" && <ResumeAquaponie cuves={cuves} ajoutsEau={ajoutsEau} bassins={bassins} mesures={mesures} cultures={activeCultures} ajouts={ajoutsProduits} seuils={seuils} loading={seuilsLoading} erreur={seuilsErreur} onRecharger={()=>void chargerSeuils()} onBassins={()=>setActiveTab('bassins')} onMesure={id=>{openMeasure();setMeasureForm(f=>({...f,target_type:'bassin',basin_id:id}));}} onCulture={()=>openCulture()} renderCulture={id=>{const c=activeCultures.find(c=>c.id===id);return c?<CultureCard culture={c} onEdit={()=>openCulture(c)}/>:null;}} produitsErreur={[produitsResumeErreur,eauResumeErreur].filter(Boolean).join(' ')}/>}
+
+      {activeTab === "poissons" && <Poissons bassins={bassins}/>}
 
       {activeTab === "bassins" && (
         <section className="aquaponie-panel">

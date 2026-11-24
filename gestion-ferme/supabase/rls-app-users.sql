@@ -45,6 +45,8 @@ declare
     'aquaponie_water_measures',
     'aquaponie_product_additions',
     'aquaponie_water_additions',
+    'aquaponie_fish_lots',
+    'aquaponie_fish_observations',
     'aquaponie_cultures',
     'aquaponie_harvests'
   ];
